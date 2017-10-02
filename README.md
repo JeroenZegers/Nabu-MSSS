@@ -1,17 +1,13 @@
-**Disclaimer: Nabu 2.0 is still under development and may contain bugs**
 
-# Nabu
 
-Please find the documentation page [here](http://vrenkens.github.io/nabu)
+# Nabu-MSSS
 
-Nabu is an ASR framework for end-to-end networks built on top of TensorFlow.
-Nabu's design focusses on adaptibility, making it easy for the designer to
-adjust everything from the model structure to the way it is trained.
+Nabu-MSSS (Multi Speaker Source Separation) is an adaptation of Nabu (branch 2.0 of Aug 31, 2017, which can be found [here](https://github.com/vrenkens/nabu). Nabu is an ASR framework for end-to-end networks built on top of TensorFlow. Nabu's design focusses on adaptibility, making it easy for the designer to adjust everything from the model structure to the way it is trained. 
+Because of this adaptibility, many parts of the original code of Nabu-MSSS were inheritted from Nabu. As a consequence, however, one may still find 'leftovers' of the original code that do not make much sense for the MSSS task, eg variable names, code structure, etc. Over time these problems will be fixed
 
 ## Using Nabu
 
-Nabu works in several stages: data prepation, training and finally testing and
-decoding. Each of these stages uses a recipe for a specific model and database.
+Nabu works in several stages: data prepation, training and finally testing. Each of these stages uses a recipe for a specific model and database.
 The recipe contains configuration files for the all components and defines all
 the necesary parameters for the database and the model. You can find more
 information on the components in a recipe [here](config/recipes/README.md).
