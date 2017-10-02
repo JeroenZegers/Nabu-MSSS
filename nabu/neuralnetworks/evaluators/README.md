@@ -6,6 +6,3 @@ Evaluator class defined in evaluator.py and overwrite all the abstract methods.
 Afterwards you should add it to the factory method in evaluator_factory.py and
 to the package in \_\_init\_\_.py.
 
-The decoder_evaluator will use a decoder to decode the validation set and
-compare the results with the ground truth. You can find more information about
-decoders [here](../decoders/README.md).
