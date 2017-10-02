@@ -4,7 +4,7 @@
 
 Nabu-MSSS (Multi Speaker Source Separation) is an adaptation of Nabu 
 (branch 2.0 of Aug 31, 2017, which can be found
-[here](https://github.com/vrenkens/nabu). Nabu is an ASR framework for
+[here](https://github.com/vrenkens/nabu)). Nabu is an ASR framework for
 end-to-end networks built on top of TensorFlow. Nabu's design focusses on
 adaptibility, making it easy for the designer to adjust everything from the
 model structure to the way it is trained. 
