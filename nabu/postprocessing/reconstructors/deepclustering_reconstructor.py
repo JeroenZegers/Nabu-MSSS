@@ -44,9 +44,14 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 	[T,F] = np.shape(usedbins)
 	emb_dim = np.shape(output)[1]/F
 	
+	if np.shape(output)[0] != T:
+	    raise 'Number of frames in usedbins does not match the sequence length'
+	
 	#reshape the outputs
 	output = output[:T,:]
 	output_resh = np.reshape(output,[T*F,emb_dim])
+	output_resh_norm = np.linalg.norm(output_resh,axis=1,keepdims=True)
+	output_resh = output_resh/output_resh_norm
 	
 	#only keep the active bins (above threshold) for clustering
 	usedbins_resh = np.reshape(usedbins, T*F)
