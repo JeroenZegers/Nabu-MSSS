@@ -47,14 +47,6 @@ def train(clusterfile,
     #read the decoder config file
     evaluator_cfg = configparser.ConfigParser()
     evaluator_cfg.read(os.path.join(expdir, 'evaluator.cfg'))
-
-    #create the cluster and server
-    server = create_server.create_server(
-        clusterfile=clusterfile,
-        job_name=job_name,
-        task_index=task_index,
-        expdir=expdir,
-        ssh_command=ssh_command)
     
     #Get the config files for each training stage. Each training stage has a different 
     #segment length and its network is initliazed with the network of the previous 
@@ -62,6 +54,7 @@ def train(clusterfile,
     segment_lengths = trainer_cfg['segment_lengths'].split(' ')
     
     for i,segment_length in enumerate(segment_lengths):
+    
 	segment_expdir = os.path.join(expdir,segment_length)
 
 	segment_parsed_database_cfg = configparser.ConfigParser()
@@ -75,15 +68,27 @@ def train(clusterfile,
 	 
 	#If there was no previously validated training sessions, use the model of the 
 	#previous segment length as initialization for the current one
-	if i>0 and not os.path.exists(os.path.join(segment_expdir, 'logdir', 'validated.ckpt')):
+	if i>0 and not os.path.exists(os.path.join(segment_expdir, 'logdir', 'validated.ckpt.index')):
 	    init_filename = os.path.join(expdir, segment_lengths[i-1], 'model', 'network.ckpt')
+	    if not os.path.exists(init_filename + '.index'):
+		init_filename = None
+	    
 	else:
 	    init_filename = None
-
+	
 	#if this training stage has already succesfully finished, skipt it
 	if os.path.exists(os.path.join(expdir, segment_lengths[i], 'model', 'network.ckpt.index')):
 	    print 'Already found a fully trained model for segment length %s' %segment_length
 	else:
+	  
+	    #create the cluster and server
+	    server = create_server.create_server(
+		clusterfile=clusterfile,
+		job_name=job_name,
+		task_index=task_index,
+		expdir=expdir,
+		ssh_command=ssh_command)
+	
 	    #parameter server
 	    if job_name == 'ps':
 
@@ -114,7 +119,7 @@ def train(clusterfile,
 
 	    #train the model
 	    tr.train()
-
+	    
 if __name__ == '__main__':
 
     #define the FLAGS
