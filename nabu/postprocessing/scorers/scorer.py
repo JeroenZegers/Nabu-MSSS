@@ -65,7 +65,7 @@ class Scorer(object):
         '''
 
 	for utt_ind in range(self.tot_utt):
-	    if np.mod(utt_ind,100) == 0:
+	    if np.mod(utt_ind,10) == 0:
 		print 'Getting results for utterance %d' %utt_ind
 	    
 	    #get the source signals

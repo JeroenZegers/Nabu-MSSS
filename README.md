@@ -1,4 +1,4 @@
-**Disclaimer: this code is till under development**
+**Disclaimer: this code is still under development**
 
 # Nabu-MSSS
 
@@ -9,8 +9,8 @@ end-to-end networks built on top of TensorFlow. Nabu's design focusses on
 adaptibility, making it easy for the designer to adjust everything from the
 model structure to the way it is trained. 
 
-Because of this adaptibility, many parts of the original code of Nabu-MSSS
-were inheritted from Nabu. As a consequence, however, one may still find 
+Because of this adaptibility, many parts of the code of Nabu-MSSS were 
+originaly inheritted from Nabu. As a consequence, however, one may still find 
 'leftovers' of the original code that do not make much sense for the MSSS
 task, eg variable names, code structure, etc. Over time these problems will
 be fixed.

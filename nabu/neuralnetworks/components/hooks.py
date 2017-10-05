@@ -3,6 +3,7 @@ contains session hooks'''
 
 import tensorflow as tf
 import warnings
+import pdb
 
 class LoadAtBegin(tf.train.SessionRunHook):
     '''a training hook for loading a model at beginning of training'''

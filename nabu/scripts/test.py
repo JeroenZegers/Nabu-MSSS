@@ -18,7 +18,7 @@ import pdb
 
 def test(expdir):
     '''does everything for testing'''
-
+    
     #read the database config file
     database_cfg = configparser.ConfigParser()
     database_cfg.read(os.path.join(expdir, 'database.cfg'))
