@@ -3,11 +3,7 @@
 *.conf
 cluster
 nabu/computing/condor/create_environment.sh
-config/recipes/LAS/GP
-config/recipes/DBLSTM/GP
-config/recipes/phonology
 # .gitignore
-config/recipes/ali_phonology
 sweeps
-nabu/neuralnetworks/trainers/multi_task_trainer.py
 *debug*
+*Old*

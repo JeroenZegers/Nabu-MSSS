@@ -10,7 +10,7 @@ import tensorflow as tf
 from six.moves import configparser
 from nabu.computing import create_server
 #from nabu.neuralnetworks.trainers import trainer_factory
-from nabu.neuralnetworks.trainers import trainer
+from nabu.neuralnetworks.trainers import multi_task_trainer
 import pdb
 
 def train(clusterfile,
@@ -65,6 +65,10 @@ def train(clusterfile,
 	segment_parsed_trainer_cfg.read(
 	    os.path.join(segment_expdir, 'trainer.cfg'))
 	segment_trainer_cfg = dict(segment_parsed_trainer_cfg.items('trainer'))
+	
+	segment_tasks_cfg = dict()
+	for task in segment_trainer_cfg['tasks'].split(' '):
+	    segment_tasks_cfg[task]= dict(segment_parsed_trainer_cfg.items(task))
 	 
 	#If there was no previously validated training sessions, use the model of the 
 	#previous segment length as initialization for the current one
@@ -93,8 +97,9 @@ def train(clusterfile,
 	    if job_name == 'ps':
 
 		#create the parameter server
-		ps = trainer.ParameterServer(
+		ps = multi_task_trainer.ParameterServer(
 		    conf=segment_trainer_cfg,
+		    tasksconf=segment_tasks_cfg,
 		    modelconf=model_cfg,
 		    dataconf=segment_parsed_database_cfg,
 		    server=server,
@@ -105,8 +110,9 @@ def train(clusterfile,
 		    ps.join()
 		    return
 
-	    tr = trainer.Trainer(
+	    tr = multi_task_trainer.MultiTaskTrainer(
 		conf=segment_trainer_cfg,
+		tasksconf=segment_tasks_cfg,
 		dataconf=segment_parsed_database_cfg,
 		modelconf=model_cfg,
 		evaluatorconf=evaluator_cfg,
