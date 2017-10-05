@@ -40,7 +40,7 @@ class Trainer():
             server: optional server to be used for distributed training
             task_index: optional index of the worker task in the cluster
         '''
-
+	print 'lala'
         self.expdir = expdir
         self.server = server
         self.conf = conf
