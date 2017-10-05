@@ -177,7 +177,7 @@ class Trainer():
 				    len(data_queue_elements)/
 				    (self.batch_size*
 				    int(conf['numbatches_to_aggregate'])))
-		    num_steps = 1
+
                     #set the number of steps
                     self.set_num_steps = self.num_steps.assign(num_steps).op
                     self.done = tf.no_op()
