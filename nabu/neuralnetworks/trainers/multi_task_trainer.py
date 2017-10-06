@@ -291,7 +291,7 @@ class MultiTaskTrainer():
 			    
 						
 			    #compute the loss
-			    task_loss = self.loss_computer(
+			    task_loss = loss_computer(
 				targets, logits, seq_length)
 			    
 			tasks_losses.append(task_loss)

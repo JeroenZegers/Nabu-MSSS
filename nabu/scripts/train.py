@@ -122,7 +122,7 @@ def train(clusterfile,
 		task_index=task_index)
 
 	    print 'starting training for segment length: %s' %segment_length
-
+	    
 	    #train the model
 	    tr.train()
 	    
