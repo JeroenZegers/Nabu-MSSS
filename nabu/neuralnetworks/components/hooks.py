@@ -111,15 +111,6 @@ class ValidationSaveHook(tf.train.SessionRunHook):
         #pylint: disable=W0201
         self._sess = session
         
-        #Restore a previoulsy validated training session if available
-        try:
-	    with warnings.catch_warnings():
-		warnings.simplefilter("ignore")
-		self.restore()
-	    print 'Found a previously validated training session. Restoring it.'
-	except:
-	    pass
-
     def save(self):
         '''save the current parameters'''
 

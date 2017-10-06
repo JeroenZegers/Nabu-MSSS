@@ -199,7 +199,7 @@ class AudioFeatProcessor(processor.Processor):
 	    with open(os.path.join(seg_dir, 'dim'), 'w') as fid:
 		fid.write(str(self.dim))
 	    with open(os.path.join(seg_dir, 'nontime_dims'), 'w') as fid:
-		fid.write(str(self.nontime_dims))
+		fid.write(str(self.nontime_dims)[1:-1])
 
 def _read_wav(wavfile):
     '''
