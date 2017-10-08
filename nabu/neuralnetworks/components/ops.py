@@ -112,6 +112,73 @@ def dense_sequence_to_sparse(sequences, sequence_lengths):
 
     return sparse
 
+
+def deepattractornet_loss(binary_targets, spectogram_targets, mixture, embeddings, usedbins, seq_length, batch_size):
+    '''
+    Compute the deep attractor net loss (as described in Deep attractor network for single-microphone speaker separation,
+        Zhuo Chen, et al. [1])
+    
+    Args:
+        binary_targets: a [batch_size x time (T) x (number_of_sources*feature_dim(F))] tensor containing the binary targets
+        spectogram_targets: a [batch_size x number_of_sources x (time (T) * feature_dim (F))] tensor containing 
+            the clean spectogram of the sources
+        mixture = a [batch_size x (time(T)*feature_dim(F))] tensor containing the spectograms of the mixture
+        embeddings: a [batch_size x time (T) x (feature_dim * emb_dim)] tensor containing the embeddingsvectors
+        used_bins: a [batch_size x time(T) x feature_dim] tensor indication the bins to use in the loss function calculation
+            As suggested in [1] bins with a to low energy are discarted
+        seq_length: a [batch_size] vector containing the sequence lengths
+        batch_size: batch_size (# of batches)
+    Returns:
+        a scalar value containing the loss
+    '''
+    with tf.name.scope('deepattactornet_loss'):
+        # feat_dim : F
+        feat_dim = tf.shape(used_bins)[2]
+        emb_dim = tf.shape(embeddings)[2]/feat_dim
+        nb_sources = tf.shape(binary_targets)[2]/feat_dim
+        loss = 0
+        
+        for batch_ind in range(batch_size):
+            # T : length of the current timeframe
+            T = seq_length[batch_ind]
+            # nb_bins : number of bins in current spectogram
+            nb_bins = T*feat_dim
+            # Which time/frequency-bins are used in this batch
+            usedbins_batch = usedbins[batch_ind,:N,:]
+            
+            #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
+    	    #targets will give 0 contribution to loss.
+            ubresh=tf.reshape(usedbins_bashed,[nb_bins,1],name='ubresh')
+            ubreshV=tf.tile(ubresh,[1,emb_dim])
+            ubreshV=tf.to_float(ubreshV)
+            ubreshY=tf.tile(ubresh,[1,nrS])
+            
+            # TODO: selecteren actieve bins zoals in reconstructor
+            # V : matrix containing the embeddingsvectors for this batch, 
+            # has shape [nb_bins ( =T*F = N ) x emb_dim]
+            V = tf.reshape(embeddings[batch_ind,:T,:],[nb_bins,emb_dim],name='V')
+            Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
+            Vnorm=tf.multiply(Vnorm,ubreshV) # elementwise multiplication
+            Y = tf.reshape(binary_targets[batch_ind,:T,:],[nb_bins,nb_sources],name='Y')
+            Y=tf.multiply(Y,ubreshY)
+            Y=tf.to_float(Y)
+            
+            numerator=tf.matmul(Y,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
+			    b_is_sparse=True, name='YTV')
+			nb_bins_class = tf.reduce_sum(Y,axis = 0)
+			denominator = tf.tile(tf.transpose(nb_bins_class),[1,emb_dim])
+			A = tf.divide(numerator,denominator)
+			
+			prod_1 = tf.matmul(A,V,transpose_a=False, transpose_b = True,name='AVT')
+			ones_M = tf.ones([nb_sources,N],name='ones_M')
+			M = tf.divide(ones_M,ones_M+tf.exp(prod_1))
+			
+			X = tf.tile(mixture[batch_ind,:],[nb_sources,1])
+			S = spectogram_targets[batch_ind]
+			# TODO: nieuwe loss
+			loss += tf.reduce_sum(tf.square(S-tf.multiply(M,X)))
+		return loss
+
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
     '''
     Compute the deep clustering loss
@@ -120,8 +187,7 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
         targets: a [batch_size x time x (feat_dim*nrS)] tensor containing the binary targets
         logits: a [batch_size x time x (feat_dim*emb_dim)] tensor containing the logits
         usedbins: a [batch_size x time x feat_dim] tensor indicating the bins to use in the loss function
-        seq_length: a [batch_size] vector containing the
-            sequence lengths
+        seq_length: a [batch_size] vector containing the sequence lengths
         batch_size: the batch size
 
     Returns:
@@ -129,7 +195,7 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
     '''
 
     with tf.name_scope('deepclustering_loss'):
-	feat_dim = tf.shape(usedbins)[2]
+        feat_dim = tf.shape(usedbins)[2]
         output_dim = tf.shape(logits)[2]
         emb_dim = output_dim/feat_dim
         target_dim = tf.shape(targets)[2]
@@ -137,44 +203,43 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
                 
         loss = 0
         for utt_ind in range(batch_size):
-	    N = seq_length[utt_ind]
-	    Nspec = N*feat_dim
-	    usedbins_utt = usedbins[utt_ind]
-	    usedbins_utt = usedbins_utt[:N,:]
-	    logits_utt = logits[utt_ind]
-	    logits_utt = logits_utt[:N,:]
-	    targets_utt = targets[utt_ind]
-	    targets_utt = targets_utt[:N,:]
+            N = seq_length[utt_ind]
+            Nspec = N*feat_dim
+            usedbins_utt = usedbins[utt_ind]
+            usedbins_utt = usedbins_utt[:N,:]
+            logits_utt = logits[utt_ind]
+            logits_utt = logits_utt[:N,:]
+            targets_utt = targets[utt_ind]
+            targets_utt = targets_utt[:N,:]
 		               
-	    #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
-	    #targets will give 0 contribution to loss.
-	    ubresh=tf.reshape(usedbins_utt,[Nspec,1],name='ubresh')
-	    ubreshV=tf.tile(ubresh,[1,emb_dim])
-	    ubreshV=tf.to_float(ubreshV)
-	    ubreshY=tf.tile(ubresh,[1,nrS])
+    	    #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
+    	    #targets will give 0 contribution to loss.
+            ubresh=tf.reshape(usedbins_utt,[Nspec,1],name='ubresh')
+            ubreshV=tf.tile(ubresh,[1,emb_dim])
+            ubreshV=tf.to_float(ubreshV)
+            ubreshY=tf.tile(ubresh,[1,nrS])
 	    
-	    V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V')  # cost function based on Hershey et al. 2016
-	    Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
-	    Vnorm=tf.multiply(Vnorm,ubreshV)
-	    Y=tf.reshape(targets_utt,[Nspec,nrS],name='Y')
-	    Y=tf.multiply(Y,ubreshY)
-	    Y=tf.to_float(Y)
+            V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V')  # cost function based on Hershey et al. 2016
+            Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
+            Vnorm=tf.multiply(Vnorm,ubreshV)
+            Y=tf.reshape(targets_utt,[Nspec,nrS],name='Y')
+            Y=tf.multiply(Y,ubreshY)
+            Y=tf.to_float(Y)
 
-	    prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
+            prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
 			    b_is_sparse=True, name='VTV')
-	    prod2=tf.matmul(Vnorm,Y,transpose_a=True, transpose_b=False, a_is_sparse=True, 
+            prod2=tf.matmul(Vnorm,Y,transpose_a=True, transpose_b=False, a_is_sparse=True, 
 			    b_is_sparse=True, name='VTY')
 	    
-	    term1=tf.reduce_sum(tf.square(prod1),name='frob_1')
-	    term2=tf.reduce_sum(tf.square(prod2),name='frob_2')
+            term1=tf.reduce_sum(tf.square(prod1),name='frob_1')
+            term2=tf.reduce_sum(tf.square(prod2),name='frob_2')
 	    
-	    loss_utt = tf.add(term1,-2*term2,name='term1and2')
-	    #normalizer= tf.to_float(tf.square(tf.reduce_sum(ubresh)))
-	    #loss += loss_utt/normalizer*(10**9)
-	    loss += loss_utt
+            loss_utt = tf.add(term1,-2*term2,name='term1and2')
+            #normalizer= tf.to_float(tf.square(tf.reduce_sum(ubresh)))
+            #loss += loss_utt/normalizer*(10**9)
+            loss += loss_utt
 	    
-    #loss = loss/tf.to_float(batch_size)
-    
+    #loss = loss/tf.to_float(batch_size)   
     return loss
   
 def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
@@ -194,7 +259,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
     '''
 
     with tf.name_scope('deepclustering_loss'):
-	feat_dim = tf.shape(targets)[2]
+        feat_dim = tf.shape(targets)[2]
         output_dim = tf.shape(logits)[2]
         nrS = targets.get_shape()[3]
         nrS_tf = tf.shape(targets)[3]
