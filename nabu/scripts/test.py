@@ -90,16 +90,24 @@ def test(expdir):
     #from here on there is no need for a GPU anymore ==> score script to be run separately on
     #different machine? reconstructor.rec_dir has to be known though. can be put in evaluator_cfg
     
-    #create the scorer
     score_type = evaluator_cfg.get('scorer', 'score_type')
-    scorer = scorer_factory.factory(score_type)(
-        conf=evaluator_cfg,
-        dataconf=database_cfg,
-        rec_dir=reconstructor.rec_dir,
-        numbatches=numbatches)
     
-    #run the scorer
-    scorer()
+    for _ in range(5):
+	# Sometime it fails and not sure why. Just retry then. max 5 times
+	try:
+	    #create the scorer
+	    scorer = scorer_factory.factory(score_type)(
+		conf=evaluator_cfg,
+		dataconf=database_cfg,
+		rec_dir=reconstructor.rec_dir,
+		numbatches=numbatches)
+    
+	    #run the scorer
+	    scorer()
+	except:
+	  continue
+	break
+    
     with open(os.path.join(expdir, 'results_complete.json'), 'w') as fid:
         json.dump(scorer.results,fid)
     
