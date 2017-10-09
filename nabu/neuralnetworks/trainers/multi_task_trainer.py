@@ -56,8 +56,73 @@ class MultiTaskTrainer():
 
         #create the graph
         self.graph = tf.Graph()
+        
+        #3 model types for multi task: single one to one; single one to many; multiple one to one
+        #single one to one: the whole model is shared for all tasks, only loss function can be different
+        #single one to many: each task has a separate output so only part of the network is shared, eg evrything but the output layer
+        #multiple one to one: each task has its own network. Possibly the outputs are combined in a loss function
 
+        #create the model
+        modelfile = os.path.join(expdir, 'model', 'model.pkl')
+        with open(modelfile, 'wb') as fid:
+            self.model = model_factory.factory(
+		modelconf.get('model','architecture'))(
+                conf=modelconf)
+            pickle.dump(self.model, fid)
+             
+	evaltype = evaluatorconf.get('evaluator', 'evaluator')
+        
+        #get the database configurations
+        input_dataconfs = dict()
+        target_dataconfs = dict()
+        loss_computers = dict()
+        nr_input_sections = dict()
+        if evaltype != 'None':
+	    evaluators = dict()
+        
+        for task in self.conf['tasks'].split(' '):
+	    taskconf = self.tasksconf[task]
+	    
+	    #get the database configurations
+	    input_names = modelconf.get('io', 'inputs').split(' ')
+	    if input_names == ['']:
+		input_names = []
+	    input_sections = [taskconf[i].split(' ') for i in input_names]
+	    nr_input_sections[task] = len(input_sections)
+	    task_input_dataconfs = []
+	    for sectionset in input_sections:
+		task_input_dataconfs.append([])
+		for section in sectionset:
+		    task_input_dataconfs[-1].append(dict(dataconf.items(section)))
+	    input_dataconfs[task]=task_input_dataconfs
+	    
+	    output_names = taskconf['targets'].split(' ')
+	    if output_names == ['']:
+		output_names = []
+	    target_sections = [taskconf[o].split(' ') for o in output_names]
+	    task_target_dataconfs = []
+	    for sectionset in target_sections:
+		task_target_dataconfs.append([])
+		for section in sectionset:
+		    task_target_dataconfs[-1].append(dict(dataconf.items(section)))
+	    target_dataconfs[task]=task_target_dataconfs
+		    
+	    #create the loss computer
+	    loss_computer = loss_computer_factory.factory(
+		    taskconf['loss_type'])(self.batch_size)
+	    
+	    loss_computers[task]=loss_computer
+	    
+	    if evaltype != 'None':
+		evaluator = evaluator_factory.factory(evaltype)(
+		    conf=evaluatorconf,
+		    dataconf=dataconf,
+		    model=self.model,
+		    task=task)
+		
+		evaluators[task] = evaluator
 
+		
         if 'local' in cluster.as_dict():
             num_replicas = 1
             device = tf.DeviceSpec(job='local')
@@ -78,19 +143,6 @@ class MultiTaskTrainer():
 
         self.is_chief = task_index == 0
         
-        
-        #create the model
-        modelfile = os.path.join(expdir, 'model', 'model.pkl')
-        with open(modelfile, 'wb') as fid:
-            self.model = model_factory.factory(
-		modelconf.get('model','architecture'))(
-                conf=modelconf)
-            pickle.dump(self.model, fid)
-
-	
-	evaltype = evaluatorconf.get('evaluator', 'evaluator')
-	
-
         #define the placeholders in the graph
         with self.graph.as_default():
 
@@ -123,76 +175,20 @@ class MultiTaskTrainer():
             #create a check if training should continue
             self.should_stop = tf.logical_or(
                 tf.greater_equal(self.global_step, self.num_steps),
-                should_terminate)	    
-	    	    
+                should_terminate)	
+	    
 	    with tf.device(device):
-	      
-		with tf.variable_scope('train'):
-		  
-		    tasks_losses=[]
-		    
-		if evaltype != 'None':
-
-                    with tf.variable_scope('validate'):
-		  
-			tasks_val_losses=[]
-
-        
-        #3 model types for multi task: single one to one; single one to many; multiple one to one
-        #single one to one: the whole model is shared for all tasks, only loss function can be different
-        #single one to many: each task has a separate output so only part of the network is shared, eg evrything but the output layer
-        #multiple one to one: each task has its own network. Possibly the outputs are combined in a loss function
-        
-        for task in self.conf['tasks'].split(' '):
-	    taskconf = self.tasksconf[task]
-	    
-	    #get the database configurations
-	    input_names = modelconf.get('io', 'inputs').split(' ')
-	    if input_names == ['']:
-		input_names = []
-	    input_sections = [taskconf[i].split(' ') for i in input_names]
-	    input_dataconfs = []
-	    for sectionset in input_sections:
-		input_dataconfs.append([])
-		for section in sectionset:
-		    input_dataconfs[-1].append(dict(dataconf.items(section)))
-
-	    output_names = taskconf['targets'].split(' ')
-	    if output_names == ['']:
-		output_names = []
-	    target_sections = [taskconf[o].split(' ') for o in output_names]
-	    target_dataconfs = []
-	    for sectionset in target_sections:
-		target_dataconfs.append([])
-		for section in sectionset:
-		    target_dataconfs[-1].append(dict(dataconf.items(section)))
-
-	    #create the loss computer
-	    loss_computer = loss_computer_factory.factory(
-		    taskconf['loss_type'])(self.batch_size)
-	    
-	    	
-	    #create the evaluator
-	    if evaltype != 'None':
-		evaluator = evaluator_factory.factory(evaltype)(
-		    conf=evaluatorconf,
-		    dataconf=dataconf,
-		    model=self.model,
-		    task=task
-		)
-	    
-
-
-	    with self.graph.as_default():
-
-		with tf.device(device):
+		data_queues = dict()
+		num_steps = []
+		done_ops = []
+		for task in self.conf['tasks'].split(' '):
 
 		    #check if running in distributed model
 		    if 'local' in cluster.as_dict():
 
 			#get the filenames
 			data_queue_elements, _ = input_pipeline.get_filenames(
-			    input_dataconfs + target_dataconfs)
+			    input_dataconfs[task] + target_dataconfs[task])
 			
 			#create the data queue and queue runners (inputs get shuffled! I already did this so set to False)
 			data_queue = tf.train.string_input_producer(
@@ -200,21 +196,24 @@ class MultiTaskTrainer():
 			    shuffle=False,
 			    seed=None,
 			    capacity=self.batch_size*2,
-			    shared_name='data_queue')
+			    shared_name='data_queue_' + task)
+			
+			data_queues[task] = data_queue
 
 			#compute the number of steps
 			if int(conf['numbatches_to_aggregate']) == 0:
-			    num_steps = (int(conf['num_epochs'])*
+			    task_num_steps = (int(conf['num_epochs'])*
 					len(data_queue_elements)/
 					self.batch_size)
 			else:
-			    num_steps = (int(conf['num_epochs'])*
+			    task_num_steps = (int(conf['num_epochs'])*
 					len(data_queue_elements)/
 					(self.batch_size*
 					int(conf['numbatches_to_aggregate'])))
+
 			#set the number of steps
-			self.set_num_steps = self.num_steps.assign(num_steps).op
-			self.done = tf.no_op()
+			num_steps.append(task_num_steps)
+			done_ops.append(tf.no_op())
 
 		    else:
 			with tf.device(chief_ps):
@@ -222,10 +221,12 @@ class MultiTaskTrainer():
 			    #get the data queue
 			    data_queue = tf.FIFOQueue(
 				capacity=self.batch_size*(num_replicas+1),
-				shared_name='data_queue',
-				name='data_queue',
+				shared_name='data_queue_' + task,
+				name='data_queue_' + task,
 				dtypes=[tf.string],
 				shapes=[[]])
+			
+			    data_queues[task] = data_queue
 
 			    #get the number of steps from the parameter server
 			    num_steps_queue = tf.FIFOQueue(
@@ -237,11 +238,9 @@ class MultiTaskTrainer():
 			    )
 
 			    #set the number of steps
-			    self.set_num_steps = self.num_steps.assign(
-				num_steps_queue.dequeue()).op
+			    task_num_steps = num_steps_queue.dequeue()
 
 			#get the done queues
-			done_ops = []
 			for i in range(num_servers):
 			    with tf.device('job:ps/task:%d' % i):
 				done_queue = tf.FIFOQueue(
@@ -254,203 +253,202 @@ class MultiTaskTrainer():
 
 				done_ops.append(done_queue.enqueue(True))
 
-			self.done = tf.group(*done_ops)
+		self.set_num_steps = self.num_steps.assign(min(num_steps)).op
+		self.done = tf.group(*done_ops)
+	    	    
+		#training part
+                with tf.variable_scope('train'):
 
-		    #training part
-		    with tf.variable_scope('train'):
+		    
+                    #a variable to scale the learning rate (used to reduce the
+                    #learning rate in case validation performance drops)
+                    learning_rate_fact = tf.get_variable(
+                        name='learning_rate_fact',
+                        shape=[],
+                        initializer=tf.constant_initializer(1.0),
+                        trainable=False)
+
+                    #compute the learning rate with exponential decay and scale
+                    #with the learning rate factor
+                    self.learning_rate = (tf.train.exponential_decay(
+                        learning_rate=float(conf['initial_learning_rate']),
+                        global_step=self.global_step,
+                        decay_steps=self.num_steps,
+                        decay_rate=float(conf['learning_rate_decay']))
+                                          * learning_rate_fact)
+
+                    #create the optimizer
+                    optimizer = tf.train.AdamOptimizer(self.learning_rate)
+                    
+		    self.total_loss = tf.get_variable(
+			    name='total_loss',
+			    shape=[],
+			    dtype=tf.float32,
+			    initializer=tf.constant_initializer(0),
+			    trainable=False)
 		      
-			
+		    self.reset_loss = self.total_loss.assign(0.0)
+
+		    loss = []
+		    
+		    for task in self.conf['tasks'].split(' '):
+		      
 			with tf.variable_scope(task):
+
 
 			    #create the input pipeline
 			    data, seq_length = input_pipeline.input_pipeline(
-				data_queue=data_queue,
+				data_queue=data_queues[task],
 				batch_size=self.batch_size,
 				numbuckets=int(conf['numbuckets']),
-				dataconfs=input_dataconfs + target_dataconfs
+				dataconfs=input_dataconfs[task] + target_dataconfs[task]
 			    )
 
 			    inputs = {
 				input_names[i]: d
-				for i, d in enumerate(data[:len(input_sections)])}
+				for i, d in enumerate(data[:nr_input_sections[task]])}
 			    seq_length = {
 				input_names[i]: d
-				for i, d in enumerate(seq_length[:len(input_sections)])}
+				for i, d in enumerate(seq_length[:nr_input_sections[task]])}
 			    targets = {
 				output_names[i]: d
-				for i, d in enumerate(data[len(input_sections):])}
+				for i, d in enumerate(data[nr_input_sections[task]:])}
 			    #target_seq_length = {
 				#output_names[i]: d
-				#for i, d in enumerate(seq_length[len(input_sections):])}
+				#for i, d in enumerate(seq_length[nr_input_sections[task]:])}
 
 			    #compute the training outputs of the model
 			    logits = self.model(
 				inputs=inputs,
 				input_seq_length=seq_length,
 				is_training=True)
+
+
+			    #TODO: The proper way to exploit data paralellism is via the 
+			    #SyncReplicasOptimizer defined below. However for some reason it hangs
+			    #and I have not yet found a solution for it. For the moment the gradients
+			    #are accumulated in a way that does not allow data paralellism and there
+			    # is no advantage on having multiple workers. (We also accumulate the loss)
 			    
-						
+			    #create an optimizer that aggregates gradients
+			    #if int(conf['numbatches_to_aggregate']) > 0:
+				#optimizer = tf.train.SyncReplicasOptimizer(
+				    #opt=optimizer,
+				    #replicas_to_aggregate=int(
+					#conf['numbatches_to_aggregate'])#,
+				    ##total_num_replicas=num_replicas
+				    #)
+
+			
 			    #compute the loss
-			    task_loss = loss_computer(
+			    task_loss = loss_computers[task](
 				targets, logits, seq_length)
 			    
-			tasks_losses.append(task_loss)
-			
-		    #validation part
-		    if evaltype != 'None':
-		      
-			  with tf.variable_scope('validate'):
-			    
-			      with tf.variable_scope(task): 
-
-				  task_val_batch_loss, self.valbatches, _, _ = evaluator.evaluate()
-			      
-			      tasks_val_losses.append(task_val_batch_loss)
-
-
-	with self.graph.as_default():
-
-	    with tf.device(device):
-	      
-		with tf.variable_scope('train'):
-	      
-		    #a variable to scale the learning rate (used to reduce the
-		    #learning rate in case validation performance drops)
-		    learning_rate_fact = tf.get_variable(
-			name='learning_rate_fact',
-			shape=[],
-			initializer=tf.constant_initializer(1.0),
-			trainable=False)
-
-		    #compute the learning rate with exponential decay and scale
-		    #with the learning rate factor
-		    self.learning_rate = (tf.train.exponential_decay(
-			learning_rate=float(conf['initial_learning_rate']),
-			global_step=self.global_step,
-			decay_steps=self.num_steps,
-			decay_rate=float(conf['learning_rate_decay']))
-					  * learning_rate_fact)
-
-		    #create the optimizer
-		    optimizer = tf.train.AdamOptimizer(self.learning_rate)
-
-		    #TODO: The proper way to exploit data paralellism is via the 
-		    #SyncReplicasOptimizer defined below. However for some reason it hangs
-		    #and I have not yet found a solution for it. For the moment the gradients
-		    #are accumulated in a way that does not allow data paralellism and there
-		    # is no advantage on having multiple workers. (We also accumulate the loss)
+			    #append the task loss to the global loss
+			    loss.append(task_loss)
 		    
-		    #create an optimizer that aggregates gradients
-		    #if int(conf['numbatches_to_aggregate']) > 0:
-			#optimizer = tf.train.SyncReplicasOptimizer(
-			    #opt=optimizer,
-			    #replicas_to_aggregate=int(
-				#conf['numbatches_to_aggregate'])#,
-			    ##total_num_replicas=num_replicas
-			    #)
-
-		    loss = tf.reduce_mean(tasks_losses)
-
-		    self.total_loss = tf.get_variable(
-			name='total_loss',
-			shape=[],
-			dtype=tf.float32,
-			initializer=tf.constant_initializer(0),
-			trainable=False)
+		    #accumulate losses from tasks
+		    with tf.variable_scope('accumulate_loss_from_tasks'):
+			loss = tf.reduce_mean(loss)
 		    
-		    self.reset_loss = self.total_loss.assign(0.0)
-		    
+		    #accumulate losses from batches
 		    self.acc_loss = self.total_loss.assign_add(loss)
 
-		    ##compute the gradients
-		    #grads_and_vars = optimizer.compute_gradients(self.loss)
+                    ##compute the gradients
+                    #grads_and_vars = optimizer.compute_gradients(self.loss)
 
-		    #with tf.variable_scope('clip'):
+                    #with tf.variable_scope('clip'):
 			#clip_value = float(conf['clip_grad_value'])
-			##clip the gradients
-			#grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
-				  #for grad, var in grads_and_vars]
-		    
-		    
+                        ##clip the gradients
+                        #grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
+                                 #for grad, var in grads_and_vars]
 	    
 		    self.params = tf.trainable_variables()
 		  
 		    grads = [tf.get_variable(
-			param.op.name, param.get_shape().as_list(),
-			initializer=tf.constant_initializer(0),
-			trainable=False) for param in self.params]
+                        param.op.name, param.get_shape().as_list(),
+                        initializer=tf.constant_initializer(0),
+                        trainable=False) for param in self.params]
 		    
 		    self.reset_grad = tf.variables_initializer(grads)
-		
-		    #compute the gradients
-		    minibatch_grads_and_vars = optimizer.compute_gradients(loss)
+	       
+                    #compute the gradients
+                    minibatch_grads_and_vars = optimizer.compute_gradients(loss)
 
-		    with tf.variable_scope('clip'):
+                    with tf.variable_scope('clip'):
 			clip_value = float(conf['clip_grad_value'])
-			#clip the gradients
-			minibatch_grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
-				  for grad, var in minibatch_grads_and_vars]		    
-		  
+                        #clip the gradients
+                        minibatch_grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
+                                 for grad, var in minibatch_grads_and_vars]		    
+		 
 		    (minibatchgrads,minibatchvars)=zip(*minibatch_grads_and_vars)
-		    
-		    #update gradients by accumulating them
+                    
+                    #update gradients by accumulating them
 		    self.update_gradients = [grad.assign_add(batchgrad)
 		      for batchgrad, grad in zip(minibatchgrads,grads)]
 
 
-		    #opperation to apply the gradients
+                    #opperation to apply the gradients
 		    grads_and_vars=list(zip(grads,minibatchvars))
-		    apply_gradients_op = optimizer.apply_gradients(
-			grads_and_vars=grads_and_vars,
-			global_step=self.global_step,
-			name='apply_gradients')
+                    apply_gradients_op = optimizer.apply_gradients(
+                        grads_and_vars=grads_and_vars,
+                        global_step=self.global_step,
+                        name='apply_gradients')
 
-		    #all remaining operations with the UPDATE_OPS GraphKeys
-		    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                    #all remaining operations with the UPDATE_OPS GraphKeys
+                    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-		    #create an operation to update the gradients, the batch_loss
-		    #and do all other update ops
-		    self.update_op = tf.group(
-			*([apply_gradients_op] + update_ops),
-			name='update')
-   
-	               
-
-	with self.graph.as_default():
+                    #create an operation to update the gradients, the batch_loss
+                    #and do all other update ops
+                    self.update_op = tf.group(
+                        *([apply_gradients_op] + update_ops),
+                        name='update')
+	    
 		
-	    with tf.device(device):
-	      
 		if evaltype != 'None':
-                    #validation part
-                    with tf.variable_scope('validate'):
 
-                        #create a variable to hold the validation loss
-                        self.validation_loss = tf.get_variable(
-                            name='validation_loss',
-                            shape=[],
-                            dtype=tf.float32,
-                            initializer=tf.constant_initializer(0),
-                            trainable=False)
+		    #validation part
+		    with tf.variable_scope('validate'):
 
-                        #create a variable to save the last step where the model
-                        #was validated
-                        validated_step = tf.get_variable(
-                            name='validated_step',
-                            shape=[],
-                            dtype=tf.int32,
-                            initializer=tf.constant_initializer(
-                                -int(conf['valid_frequency'])),
-                            trainable=False)
+			#create a variable to hold the validation loss
+			self.validation_loss = tf.get_variable(
+			    name='validation_loss',
+			    shape=[],
+			    dtype=tf.float32,
+			    initializer=tf.constant_initializer(0),
+			    trainable=False)
 
-                        #a check if validation is due
-                        self.should_validate = tf.greater_equal(
-                            self.global_step - validated_step,
-                            int(conf['valid_frequency']))
+			#create a variable to save the last step where the model
+			#was validated
+			validated_step = tf.get_variable(
+			    name='validated_step',
+			    shape=[],
+			    dtype=tf.int32,
+			    initializer=tf.constant_initializer(
+				-int(conf['valid_frequency'])),
+			    trainable=False)
 
-                        #compute the loss
-                        val_batch_loss = tf.reduce_mean(tasks_val_losses)
-
-                        self.update_loss = self.validation_loss.assign(
+			#a check if validation is due
+			self.should_validate = tf.greater_equal(
+			    self.global_step - validated_step,
+			    int(conf['valid_frequency']))
+	    
+	    
+			val_batch_loss = []
+			valbatches = []
+			
+			for task in self.conf['tasks'].split(' '):
+			  
+			    with tf.variable_scope(task):
+			      
+				task_val_batch_loss, task_valbatches, _, _ = evaluators[task].evaluate()
+				val_batch_loss.append(task_val_batch_loss)
+				valbatches.append(task_valbatches)
+	    
+			val_batch_loss = tf.reduce_mean(val_batch_loss)
+			self.valbatches = min(valbatches)
+	    
+			self.update_loss = self.validation_loss.assign(
                             self.validation_loss +
                             val_batch_loss#/self.valbatches
                         ).op
@@ -496,17 +494,21 @@ class MultiTaskTrainer():
 
                         tf.summary.scalar('validation loss',
                                           self.validation_loss)
-                else:
+	    
+	    
+		else:
                     self.update_loss = None
 
-                tf.summary.scalar('learning rate', self.learning_rate)
+		tf.summary.scalar('learning rate', self.learning_rate)
 
-                #create a histogram for all trainable parameters
-                for param in tf.trainable_variables():
-                    tf.summary.histogram(param.name, param)
+		#create a histogram for all trainable parameters
+		for param in tf.trainable_variables():
+		    tf.summary.histogram(param.name, param)
 
-                #create the scaffold
-                self.scaffold = tf.train.Scaffold()
+		#create the scaffold
+		self.scaffold = tf.train.Scaffold()
+	    
+	    	
 
     def train(self):
         '''train the model'''
@@ -541,7 +543,6 @@ class MultiTaskTrainer():
 
         #number of times validation performance was worse
         num_tries = 0
-
 
         with self.graph.as_default():
             with tf.train.MonitoredTrainingSession(
