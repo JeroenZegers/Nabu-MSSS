@@ -56,10 +56,18 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 	#only keep the active bins (above threshold) for clustering
 	usedbins_resh = np.reshape(usedbins, T*F)
 	output_speech_resh = output_resh[usedbins_resh]
-	
+	    
 	#apply kmeans clustering and assign each bin to a clustering
 	kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=-1)
-	kmeans_model.fit(output_speech_resh)
+	
+	for _ in range(5):
+	# Sometime it fails and not sure why. Just retry then. max 5 times
+	try:
+	    kmeans_model.fit(output_speech_resh)
+	except:
+	  continue
+	break
+	
 	predicted_labels = kmeans_model.predict(output_resh)
 	predicted_labels_resh = np.reshape(predicted_labels,[T,F])
 	
