@@ -61,12 +61,12 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 	kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=-1)
 	
 	for _ in range(5):
-	# Sometime it fails and not sure why. Just retry then. max 5 times
-	try:
-	    kmeans_model.fit(output_speech_resh)
-	except:
-	  continue
-	break
+	# Sometime it fails due to some indexerror and I'm not sure why. Just retry then. max 5 times
+	    try:
+		kmeans_model.fit(output_speech_resh)
+	    except IndexError:
+	      continue
+	    break
 	
 	predicted_labels = kmeans_model.predict(output_resh)
 	predicted_labels_resh = np.reshape(predicted_labels,[T,F])
