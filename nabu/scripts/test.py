@@ -48,45 +48,44 @@ def test(expdir):
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
     #create the graph
-    #graph = tf.Graph()
+    graph = tf.Graph()
 
-    #with graph.as_default():
-        ##compute the loss
-        #batch_loss, numbatches, batch_outputs, batch_seq_length = evaluator.evaluate()
+    with graph.as_default():
+        #compute the loss
+        batch_loss, numbatches, batch_outputs, batch_seq_length = evaluator.evaluate()
 
-        ##create a hook that will load the model
-        #load_hook = LoadAtBegin(
-            #os.path.join(expdir, 'model', 'network.ckpt'),
-            #model)
+        #create a hook that will load the model
+        load_hook = LoadAtBegin(
+            os.path.join(expdir, 'model', 'network.ckpt'),
+            model)
 
-        ##create a hook for summary writing
-        #summary_hook = SummaryHook(os.path.join(expdir, 'logdir'))
+        #create a hook for summary writing
+        summary_hook = SummaryHook(os.path.join(expdir, 'logdir'))
 
-        ##start the session
-        #with tf.train.SingularMonitoredSession(
-            #hooks=[load_hook, summary_hook]) as sess:
+        #start the session
+        with tf.train.SingularMonitoredSession(
+            hooks=[load_hook, summary_hook]) as sess:
 
-            #loss = 0.0
+            loss = 0.0
 
-            #for batch_ind in range(0,numbatches):
-		#print 'evaluating batch number %d' %batch_ind
+            for batch_ind in range(0,numbatches):
+		print 'evaluating batch number %d' %batch_ind
 
-		#batch_loss_eval, batch_outputs_eval, batch_seq_length_eval = sess.run(
-		      #fetches=[batch_loss, batch_outputs, batch_seq_length])
+		batch_loss_eval, batch_outputs_eval, batch_seq_length_eval = sess.run(
+		      fetches=[batch_loss, batch_outputs, batch_seq_length])
 
-                #loss += batch_loss_eval
+                loss += batch_loss_eval
 
-                #reconstructor(batch_outputs_eval['outputs'],
-			      #batch_seq_length_eval['features'])              
+                reconstructor(batch_outputs_eval['outputs'],
+			      batch_seq_length_eval['features'])              
                 
-            #loss = loss#/numbatches
+            loss = loss#/numbatches
 
-    #print 'loss = %0.6g' % loss
+    print 'loss = %0.6g' % loss
     
-    ##write the loss to disk
-    #with open(os.path.join(expdir, 'loss'), 'w') as fid:
-        #fid.write(str(loss))
-    numbatches = 100
+    #write the loss to disk
+    with open(os.path.join(expdir, 'loss'), 'w') as fid:
+        fid.write(str(loss))
         
     #from here on there is no need for a GPU anymore ==> score script to be run separately on
     #different machine? reconstructor.rec_dir has to be known though. can be put in evaluator_cfg
