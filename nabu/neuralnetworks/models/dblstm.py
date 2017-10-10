@@ -26,8 +26,9 @@ class DBLSTM(model.Model):
 
         #the blstm layer
         blstm = layer.BLSTMLayer(
-            num_units=int(self.conf['num_units']))#,
-            #layer_norm=self.conf['layer_norm'] == 'True')
+            num_units=int(self.conf['num_units']),
+            layer_norm=self.conf['layer_norm'] == 'True',
+            recurrent_dropout=float(self.conf['recurrent_dropout']))
 
         #do the forward computation
         outputs = {}

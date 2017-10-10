@@ -35,12 +35,14 @@ class NumpyFloatArrayAsTfrecordReader(tfreader.TfReader):
 
         with open(os.path.join(datadirs[0], 'nontime_dims')) as fid:
             metadata['nontime_dims'] = fid.read().split(',')
-            metadata['nontime_dims'][-1] = metadata['nontime_dims'][-1][:-1]
+            if metadata['nontime_dims'][-1][-1] == '\n':
+		metadata['nontime_dims'][-1] = metadata['nontime_dims'][-1][:-1]
             metadata['nontime_dims'] = map(int,metadata['nontime_dims'])
         for datadir in datadirs:
             with open(os.path.join(datadir, 'nontime_dims')) as fid:
 		tmp = fid.read().split(',')
-		tmp[-1] = tmp[-1][:-1]
+		if tmp[-1][-1] == '\n':
+		    tmp[-1] = tmp[-1][:-1]
 		tmp = map(int,tmp)
                 if metadata['nontime_dims'] != tmp:
                     raise Exception(

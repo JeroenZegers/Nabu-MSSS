@@ -177,6 +177,7 @@ class Trainer():
 				    len(data_queue_elements)/
 				    (self.batch_size*
 				    int(conf['numbatches_to_aggregate'])))
+
                     #set the number of steps
                     self.set_num_steps = self.num_steps.assign(num_steps).op
                     self.done = tf.no_op()
@@ -615,6 +616,7 @@ class Trainer():
                             global_step,
                             num_steps,
                             loss, lr, time.time()-start))
+
 
 class ParameterServer(object):
     '''a class for parameter servers'''
