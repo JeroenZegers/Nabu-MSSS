@@ -26,12 +26,12 @@ class PITLoss(loss_computer.LossComputer):
             a scalar value containing the loss
         '''
                    
-	outputs = logits['outputs']         
-	multi_targets=targets['multi_targets']            
-	mix_to_mask = targets['mix_to_mask']
-	seq_length = seq_length['features']
+        outputs = logits['outputs']         
+        multi_targets=targets['multi_targets']            
+        mix_to_mask = targets['mix_to_mask']
+        seq_length = seq_length['features']
 		    
-	loss = ops.pit_loss(multi_targets, outputs, mix_to_mask, 
+        loss = ops.pit_loss(multi_targets, outputs, mix_to_mask, 
 					seq_length,self.batch_size)
             
         return loss
