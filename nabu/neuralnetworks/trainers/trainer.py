@@ -18,6 +18,7 @@ class Trainer():
 
     def __init__(self,
                  conf,
+                 tasksconf,
                  dataconf,
                  modelconf,
                  evaluatorconf,
@@ -30,6 +31,7 @@ class Trainer():
 
         Args:
             conf: the trainer config
+            taskconf: will be ignored in Trainer. It is used in multi_task_trainer.MultiTaskTrainer()
             dataconf: the data configuration as a ConfigParser
             modelconf: the neural net model configuration
             evaluatorconf: the evaluator configuration for evaluating
