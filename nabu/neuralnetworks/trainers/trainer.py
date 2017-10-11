@@ -301,6 +301,7 @@ class Trainer():
                     #compute the loss
                     loss = self.loss_computer(
                         targets, logits, seq_length)
+		    loss = loss / float(self.conf['numbatches_to_aggregate'])
 		    
 		    self.acc_loss = self.total_loss.assign_add(loss)
 
@@ -389,7 +390,7 @@ class Trainer():
 
                         self.update_loss = self.validation_loss.assign(
                             self.validation_loss +
-                            val_batch_loss#/self.valbatches
+                            val_batch_loss/self.valbatches
                         ).op
 
                         #update the learning rate factor

@@ -79,7 +79,7 @@ def test(expdir):
                 reconstructor(batch_outputs_eval['outputs'],
 			      batch_seq_length_eval['features'])              
                 
-            loss = loss#/numbatches
+            loss = loss/numbatches
 
     print 'loss = %0.6g' % loss
     

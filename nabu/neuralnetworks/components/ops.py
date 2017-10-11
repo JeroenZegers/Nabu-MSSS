@@ -135,7 +135,9 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
         target_dim = tf.shape(targets)[2]
         nrS = target_dim/feat_dim
                 
-        loss = 0
+        loss = 0.0
+        norm = 0
+        
         for utt_ind in range(batch_size):
 	    N = seq_length[utt_ind]
 	    Nspec = N*feat_dim
@@ -173,7 +175,10 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
 	    #loss += loss_utt/normalizer*(10**9)
 	    loss += loss_utt
 	    
+	    norm += tf.square(tf.reduce_sum(usedbins_utt))
+	    
     #loss = loss/tf.to_float(batch_size)
+    loss = loss / tf.to_float(norm)
     
     return loss
   
@@ -200,7 +205,8 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
         nrS_tf = tf.shape(targets)[3]
         permutations = list(itertools.permutations(range(nrS),nrS))
                 
-        loss = 0
+        loss = 0.0
+        norm = nrS_tf * feat_dim * tf.reduce_sum(seq_length)
         for utt_ind in range(batch_size):
 	    N = seq_length[utt_ind]
 	    logits_utt = logits[utt_ind]
@@ -221,7 +227,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 		               
 	    perm_cost = []
 	    for perm in permutations:
-		tmp = tf.norm(tf.gather(recs,perm)-logits_resh,ord='fro',axis=[1,2])
+		tmp = tf.square(tf.norm(tf.gather(recs,perm)-logits_resh,ord='fro',axis=[1,2]))
 		perm_cost.append(tf.reduce_sum(tmp))
 		
 	    loss_utt = tf.reduce_min(perm_cost)
@@ -229,6 +235,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 	    loss += loss_utt
 	    
     #loss = loss/tf.to_float(batch_size)
+    loss = loss/tf.to_float(norm)
     
     return loss
 
