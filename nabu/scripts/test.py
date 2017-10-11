@@ -92,8 +92,13 @@ def test(expdir):
     
     score_type = evaluator_cfg.get('scorer', 'score_type')
     
+<<<<<<< HEAD
     for i in range(10):
 	# Sometime it fails and not sure why. Just retry then. max 10 times
+=======
+    for _ in range(5):
+	# Sometime it fails and not sure why. Just retry then. max 5 times
+>>>>>>> aa03c5cc3e3b78c9e0959a1adf892f66b073cdc8
 	try:
 	    #create the scorer
 	    scorer = scorer_factory.factory(score_type)(
@@ -104,11 +109,16 @@ def test(expdir):
     
 	    #run the scorer
 	    scorer()
+<<<<<<< HEAD
 	except Exception:
 	  if i==9:
 	      raise Exception
 	  else:
 	      continue
+=======
+	except:
+	  continue
+>>>>>>> aa03c5cc3e3b78c9e0959a1adf892f66b073cdc8
 	break
     
     with open(os.path.join(expdir, 'results_complete.json'), 'w') as fid:
