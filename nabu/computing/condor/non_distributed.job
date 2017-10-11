@@ -4,6 +4,7 @@ Universe         = vanilla
 RequestMemory    = 3G
 #number of GPUs equal to the number of workers
 request_GPUs      = 1
+requestcpus = 4
 #request a week of wall time
 +RequestWalltime = 604800
 #specify that the cuda capability should be at least 3.0 and set the memory

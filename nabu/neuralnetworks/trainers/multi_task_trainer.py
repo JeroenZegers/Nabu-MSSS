@@ -1,4 +1,4 @@
-'''@file trainer.py
+'''@file multi_task_trainer.py
 neural network trainer environment'''
 
 import os
@@ -13,8 +13,8 @@ from nabu.neuralnetworks.evaluators import evaluator_factory, loss_evaluator
 from nabu.neuralnetworks.components import hooks
 import pdb
 
-class Trainer():
-    '''General class outlining the training environment of a model.'''
+class MultiTaskTrainer():
+    '''General class outlining the multi task training environment of a model.'''
 
     def __init__(self,
                  conf,
@@ -31,7 +31,7 @@ class Trainer():
 
         Args:
             conf: the trainer config
-            taskconf: will be ignored in Trainer. It is used in multi_task_trainer.MultiTaskTrainer()
+            taskconf: the config file for each task
             dataconf: the data configuration as a ConfigParser
             modelconf: the neural net model configuration
             evaluatorconf: the evaluator configuration for evaluating
@@ -46,6 +46,7 @@ class Trainer():
         self.expdir = expdir
         self.server = server
         self.conf = conf
+        self.tasksconf = tasksconf
         self.task_index = task_index
         self.init_filename = init_filename
         
@@ -55,27 +56,11 @@ class Trainer():
 
         #create the graph
         self.graph = tf.Graph()
-
-        #get the database configurations
-        input_names = modelconf.get('io', 'inputs').split(' ')
-        if input_names == ['']:
-            input_names = []
-        input_sections = [conf[i].split(' ') for i in input_names]
-        input_dataconfs = []
-        for sectionset in input_sections:
-            input_dataconfs.append([])
-            for section in sectionset:
-                input_dataconfs[-1].append(dict(dataconf.items(section)))
-
-        output_names = conf['targets'].split(' ')
-        if output_names == ['']:
-            output_names = []
-        target_sections = [conf[o].split(' ') for o in output_names]
-        target_dataconfs = []
-        for sectionset in target_sections:
-            target_dataconfs.append([])
-            for section in sectionset:
-                target_dataconfs[-1].append(dict(dataconf.items(section)))
+        
+        #3 model types for multi task: single one to one; single one to many; multiple one to one
+        #single one to one: the whole model is shared for all tasks, only loss function can be different
+        #single one to many: each task has a separate output so only part of the network is shared, eg evrything but the output layer
+        #multiple one to one: each task has its own network. Possibly the outputs are combined in a loss function
 
         #create the model
         modelfile = os.path.join(expdir, 'model', 'model.pkl')
@@ -84,20 +69,60 @@ class Trainer():
 		modelconf.get('model','architecture'))(
                 conf=modelconf)
             pickle.dump(self.model, fid)
-
-	#create the loss computer
-	self.loss_computer = loss_computer_factory.factory(
-		conf['loss_type'])(self.batch_size)
-		
-        #create the evaluator
-        evaltype = evaluatorconf.get('evaluator', 'evaluator')
+             
+	evaltype = evaluatorconf.get('evaluator', 'evaluator')
+        
+        #get the database configurations
+        input_dataconfs = dict()
+        target_dataconfs = dict()
+        loss_computers = dict()
+        nr_input_sections = dict()
         if evaltype != 'None':
-	    evaluator = evaluator_factory.factory(evaltype)(
-		conf=evaluatorconf,
-		dataconf=dataconf,
-		model=self.model
-	    )
+	    evaluators = dict()
+        
+        for task in self.conf['tasks'].split(' '):
+	    taskconf = self.tasksconf[task]
+	    
+	    #get the database configurations
+	    input_names = modelconf.get('io', 'inputs').split(' ')
+	    if input_names == ['']:
+		input_names = []
+	    input_sections = [taskconf[i].split(' ') for i in input_names]
+	    nr_input_sections[task] = len(input_sections)
+	    task_input_dataconfs = []
+	    for sectionset in input_sections:
+		task_input_dataconfs.append([])
+		for section in sectionset:
+		    task_input_dataconfs[-1].append(dict(dataconf.items(section)))
+	    input_dataconfs[task]=task_input_dataconfs
+	    
+	    output_names = taskconf['targets'].split(' ')
+	    if output_names == ['']:
+		output_names = []
+	    target_sections = [taskconf[o].split(' ') for o in output_names]
+	    task_target_dataconfs = []
+	    for sectionset in target_sections:
+		task_target_dataconfs.append([])
+		for section in sectionset:
+		    task_target_dataconfs[-1].append(dict(dataconf.items(section)))
+	    target_dataconfs[task]=task_target_dataconfs
+		    
+	    #create the loss computer
+	    loss_computer = loss_computer_factory.factory(
+		    taskconf['loss_type'])(self.batch_size)
+	    
+	    loss_computers[task]=loss_computer
+	    
+	    if evaltype != 'None':
+		evaluator = evaluator_factory.factory(evaltype)(
+		    conf=evaluatorconf,
+		    dataconf=dataconf,
+		    model=self.model,
+		    task=task)
+		
+		evaluators[task] = evaluator
 
+		
         if 'local' in cluster.as_dict():
             num_replicas = 1
             device = tf.DeviceSpec(job='local')
@@ -117,7 +142,7 @@ class Trainer():
                 task=0)
 
         self.is_chief = task_index == 0
-
+        
         #define the placeholders in the graph
         with self.graph.as_default():
 
@@ -150,110 +175,91 @@ class Trainer():
             #create a check if training should continue
             self.should_stop = tf.logical_or(
                 tf.greater_equal(self.global_step, self.num_steps),
-                should_terminate)
+                should_terminate)	
+	    
+	    with tf.device(device):
+		data_queues = dict()
+		num_steps = []
+		done_ops = []
+		for task in self.conf['tasks'].split(' '):
 
-            with tf.device(device):
+		    #check if running in distributed model
+		    if 'local' in cluster.as_dict():
 
-                #check if running in distributed model
-                if 'local' in cluster.as_dict():
+			#get the filenames
+			data_queue_elements, _ = input_pipeline.get_filenames(
+			    input_dataconfs[task] + target_dataconfs[task])
+			
+			#create the data queue and queue runners (inputs get shuffled! I already did this so set to False)
+			data_queue = tf.train.string_input_producer(
+			    string_tensor=data_queue_elements,
+			    shuffle=False,
+			    seed=None,
+			    capacity=self.batch_size*2,
+			    shared_name='data_queue_' + task)
+			
+			data_queues[task] = data_queue
 
-                    #get the filenames
-                    data_queue_elements, _ = input_pipeline.get_filenames(
-                        input_dataconfs + target_dataconfs)
-		    
-                    #create the data queue and queue runners (inputs get shuffled! I already did this so set to False)
-                    data_queue = tf.train.string_input_producer(
-                        string_tensor=data_queue_elements,
-                        shuffle=False,
-                        seed=None,
-                        capacity=self.batch_size*2,
-                        shared_name='data_queue')
+			#compute the number of steps
+			if int(conf['numbatches_to_aggregate']) == 0:
+			    task_num_steps = (int(conf['num_epochs'])*
+					len(data_queue_elements)/
+					self.batch_size)
+			else:
+			    task_num_steps = (int(conf['num_epochs'])*
+					len(data_queue_elements)/
+					(self.batch_size*
+					int(conf['numbatches_to_aggregate'])))
 
-                    #compute the number of steps
-                    if int(conf['numbatches_to_aggregate']) == 0:
-			num_steps = (int(conf['num_epochs'])*
-				    len(data_queue_elements)/
-				    self.batch_size)
+			#set the number of steps
+			num_steps.append(task_num_steps)
+			done_ops.append(tf.no_op())
+
 		    else:
-			num_steps = (int(conf['num_epochs'])*
-				    len(data_queue_elements)/
-				    (self.batch_size*
-				    int(conf['numbatches_to_aggregate'])))
+			with tf.device(chief_ps):
 
-                    #set the number of steps
-                    self.set_num_steps = self.num_steps.assign(num_steps).op
-                    self.done = tf.no_op()
+			    #get the data queue
+			    data_queue = tf.FIFOQueue(
+				capacity=self.batch_size*(num_replicas+1),
+				shared_name='data_queue_' + task,
+				name='data_queue_' + task,
+				dtypes=[tf.string],
+				shapes=[[]])
+			
+			    data_queues[task] = data_queue
 
-                else:
-                    with tf.device(chief_ps):
+			    #get the number of steps from the parameter server
+			    num_steps_queue = tf.FIFOQueue(
+				capacity=num_replicas,
+				dtypes=[tf.int32],
+				shared_name='num_steps_queue',
+				name='num_steps_queue',
+				shapes=[[]]
+			    )
 
-                        #get the data queue
-                        data_queue = tf.FIFOQueue(
-                            capacity=self.batch_size*(num_replicas+1),
-                            shared_name='data_queue',
-                            name='data_queue',
-                            dtypes=[tf.string],
-                            shapes=[[]])
+			    #set the number of steps
+			    task_num_steps = num_steps_queue.dequeue()
 
-                        #get the number of steps from the parameter server
-                        num_steps_queue = tf.FIFOQueue(
-                            capacity=num_replicas,
-                            dtypes=[tf.int32],
-                            shared_name='num_steps_queue',
-                            name='num_steps_queue',
-                            shapes=[[]]
-                        )
+			#get the done queues
+			for i in range(num_servers):
+			    with tf.device('job:ps/task:%d' % i):
+				done_queue = tf.FIFOQueue(
+				    capacity=num_replicas,
+				    dtypes=[tf.bool],
+				    shapes=[[]],
+				    shared_name='done_queue%d' % i,
+				    name='done_queue%d' % i
+				)
 
-                        #set the number of steps
-                        self.set_num_steps = self.num_steps.assign(
-                            num_steps_queue.dequeue()).op
+				done_ops.append(done_queue.enqueue(True))
 
-                    #get the done queues
-                    done_ops = []
-                    for i in range(num_servers):
-                        with tf.device('job:ps/task:%d' % i):
-                            done_queue = tf.FIFOQueue(
-                                capacity=num_replicas,
-                                dtypes=[tf.bool],
-                                shapes=[[]],
-                                shared_name='done_queue%d' % i,
-                                name='done_queue%d' % i
-                            )
-
-                            done_ops.append(done_queue.enqueue(True))
-
-                    self.done = tf.group(*done_ops)
-
-                #training part
+		self.set_num_steps = self.num_steps.assign(min(num_steps)).op
+		self.done = tf.group(*done_ops)
+	    	    
+		#training part
                 with tf.variable_scope('train'):
 
-                    #create the input pipeline
-                    data, seq_length = input_pipeline.input_pipeline(
-                        data_queue=data_queue,
-                        batch_size=self.batch_size,
-                        numbuckets=int(conf['numbuckets']),
-                        dataconfs=input_dataconfs + target_dataconfs
-                    )
-
-                    inputs = {
-                        input_names[i]: d
-                        for i, d in enumerate(data[:len(input_sections)])}
-                    seq_length = {
-                        input_names[i]: d
-                        for i, d in enumerate(seq_length[:len(input_sections)])}
-                    targets = {
-                        output_names[i]: d
-                        for i, d in enumerate(data[len(input_sections):])}
-                    #target_seq_length = {
-                        #output_names[i]: d
-                        #for i, d in enumerate(seq_length[len(input_sections):])}
-
-                    #compute the training outputs of the model
-                    logits = self.model(
-                        inputs=inputs,
-                        input_seq_length=seq_length,
-                        is_training=True)
-
+		    
                     #a variable to scale the learning rate (used to reduce the
                     #learning rate in case validation performance drops)
                     learning_rate_fact = tf.get_variable(
@@ -273,35 +279,79 @@ class Trainer():
 
                     #create the optimizer
                     optimizer = tf.train.AdamOptimizer(self.learning_rate)
-
-		    #TODO: The proper way to exploit data paralellism is via the 
-		    #SyncReplicasOptimizer defined below. However for some reason it hangs
-		    #and I have not yet found a solution for it. For the moment the gradients
-		    #are accumulated in a way that does not allow data paralellism and there
-		    # is no advantage on having multiple workers. (We also accumulate the loss)
-		    
-                    #create an optimizer that aggregates gradients
-                    #if int(conf['numbatches_to_aggregate']) > 0:
-                        #optimizer = tf.train.SyncReplicasOptimizer(
-                            #opt=optimizer,
-                            #replicas_to_aggregate=int(
-                                #conf['numbatches_to_aggregate'])#,
-                            ##total_num_replicas=num_replicas
-                            #)
-
+                    
 		    self.total_loss = tf.get_variable(
-			name='total_loss',
-			shape=[],
-			dtype=tf.float32,
-			initializer=tf.constant_initializer(0),
-			trainable=False)
-		    
+			    name='total_loss',
+			    shape=[],
+			    dtype=tf.float32,
+			    initializer=tf.constant_initializer(0),
+			    trainable=False)
+		      
 		    self.reset_loss = self.total_loss.assign(0.0)
+
+		    loss = []
 		    
-                    #compute the loss
-                    loss = self.loss_computer(
-                        targets, logits, seq_length)
+		    for task in self.conf['tasks'].split(' '):
+		      
+			with tf.variable_scope(task):
+
+
+			    #create the input pipeline
+			    data, seq_length = input_pipeline.input_pipeline(
+				data_queue=data_queues[task],
+				batch_size=self.batch_size,
+				numbuckets=int(conf['numbuckets']),
+				dataconfs=input_dataconfs[task] + target_dataconfs[task]
+			    )
+
+			    inputs = {
+				input_names[i]: d
+				for i, d in enumerate(data[:nr_input_sections[task]])}
+			    seq_length = {
+				input_names[i]: d
+				for i, d in enumerate(seq_length[:nr_input_sections[task]])}
+			    targets = {
+				output_names[i]: d
+				for i, d in enumerate(data[nr_input_sections[task]:])}
+			    #target_seq_length = {
+				#output_names[i]: d
+				#for i, d in enumerate(seq_length[nr_input_sections[task]:])}
+
+			    #compute the training outputs of the model
+			    logits = self.model(
+				inputs=inputs,
+				input_seq_length=seq_length,
+				is_training=True)
+
+
+			    #TODO: The proper way to exploit data paralellism is via the 
+			    #SyncReplicasOptimizer defined below. However for some reason it hangs
+			    #and I have not yet found a solution for it. For the moment the gradients
+			    #are accumulated in a way that does not allow data paralellism and there
+			    # is no advantage on having multiple workers. (We also accumulate the loss)
+			    
+			    #create an optimizer that aggregates gradients
+			    #if int(conf['numbatches_to_aggregate']) > 0:
+				#optimizer = tf.train.SyncReplicasOptimizer(
+				    #opt=optimizer,
+				    #replicas_to_aggregate=int(
+					#conf['numbatches_to_aggregate'])#,
+				    ##total_num_replicas=num_replicas
+				    #)
+
+			
+			    #compute the loss
+			    task_loss = loss_computers[task](
+				targets, logits, seq_length)
+			    
+			    #append the task loss to the global loss
+			    loss.append(task_loss)
 		    
+		    #accumulate losses from tasks
+		    with tf.variable_scope('accumulate_loss_from_tasks'):
+			loss = tf.reduce_mean(loss)
+		    
+		    #accumulate losses from batches
 		    self.acc_loss = self.total_loss.assign_add(loss)
 
                     ##compute the gradients
@@ -312,8 +362,6 @@ class Trainer():
                         ##clip the gradients
                         #grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
                                  #for grad, var in grads_and_vars]
-		    
-		    
 	    
 		    self.params = tf.trainable_variables()
 		  
@@ -355,39 +403,52 @@ class Trainer():
                     self.update_op = tf.group(
                         *([apply_gradients_op] + update_ops),
                         name='update')
+	    
+		
+		if evaltype != 'None':
 
-                if evaltype != 'None':
+		    #validation part
+		    with tf.variable_scope('validate'):
 
-                    #validation part
-                    with tf.variable_scope('validate'):
+			#create a variable to hold the validation loss
+			self.validation_loss = tf.get_variable(
+			    name='validation_loss',
+			    shape=[],
+			    dtype=tf.float32,
+			    initializer=tf.constant_initializer(0),
+			    trainable=False)
 
-                        #create a variable to hold the validation loss
-                        self.validation_loss = tf.get_variable(
-                            name='validation_loss',
-                            shape=[],
-                            dtype=tf.float32,
-                            initializer=tf.constant_initializer(0),
-                            trainable=False)
+			#create a variable to save the last step where the model
+			#was validated
+			validated_step = tf.get_variable(
+			    name='validated_step',
+			    shape=[],
+			    dtype=tf.int32,
+			    initializer=tf.constant_initializer(
+				-int(conf['valid_frequency'])),
+			    trainable=False)
 
-                        #create a variable to save the last step where the model
-                        #was validated
-                        validated_step = tf.get_variable(
-                            name='validated_step',
-                            shape=[],
-                            dtype=tf.int32,
-                            initializer=tf.constant_initializer(
-                                -int(conf['valid_frequency'])),
-                            trainable=False)
-
-                        #a check if validation is due
-                        self.should_validate = tf.greater_equal(
-                            self.global_step - validated_step,
-                            int(conf['valid_frequency']))
-
-                        #compute the loss
-                        val_batch_loss, self.valbatches, _, _ = evaluator.evaluate()
-
-                        self.update_loss = self.validation_loss.assign(
+			#a check if validation is due
+			self.should_validate = tf.greater_equal(
+			    self.global_step - validated_step,
+			    int(conf['valid_frequency']))
+	    
+	    
+			val_batch_loss = []
+			valbatches = []
+			
+			for task in self.conf['tasks'].split(' '):
+			  
+			    with tf.variable_scope(task):
+			      
+				task_val_batch_loss, task_valbatches, _, _ = evaluators[task].evaluate()
+				val_batch_loss.append(task_val_batch_loss)
+				valbatches.append(task_valbatches)
+	    
+			val_batch_loss = tf.reduce_mean(val_batch_loss)
+			self.valbatches = min(valbatches)
+	    
+			self.update_loss = self.validation_loss.assign(
                             self.validation_loss +
                             val_batch_loss#/self.valbatches
                         ).op
@@ -433,17 +494,21 @@ class Trainer():
 
                         tf.summary.scalar('validation loss',
                                           self.validation_loss)
-                else:
+	    
+	    
+		else:
                     self.update_loss = None
 
-                tf.summary.scalar('learning rate', self.learning_rate)
+		tf.summary.scalar('learning rate', self.learning_rate)
 
-                #create a histogram for all trainable parameters
-                for param in tf.trainable_variables():
-                    tf.summary.histogram(param.name, param)
+		#create a histogram for all trainable parameters
+		for param in tf.trainable_variables():
+		    tf.summary.histogram(param.name, param)
 
-                #create the scaffold
-                self.scaffold = tf.train.Scaffold()
+		#create the scaffold
+		self.scaffold = tf.train.Scaffold()
+	    
+	    	
 
     def train(self):
         '''train the model'''
@@ -478,7 +543,6 @@ class Trainer():
 
         #number of times validation performance was worse
         num_tries = 0
-
 
         with self.graph.as_default():
             with tf.train.MonitoredTrainingSession(
@@ -619,7 +683,6 @@ class Trainer():
                             num_steps,
                             loss, lr, time.time()-start))
 
-
 class ParameterServer(object):
     '''a class for parameter servers'''
 
@@ -639,7 +702,9 @@ class ParameterServer(object):
             server: optional server to be used for distributed training
             task_index: optional index of the worker task in the cluster
         '''
-
+	
+	raise 'class parameterserver has not yet been adapted to the multi taks trainer'
+	
         self.graph = tf.Graph()
         self.server = server
         self.task_index = task_index
