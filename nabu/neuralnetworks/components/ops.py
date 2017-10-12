@@ -113,17 +113,17 @@ def dense_sequence_to_sparse(sequences, sequence_lengths):
     return sparse
 
 
-def deepattractornet_loss(binary_targets, spectogram_targets, mixture, embeddings, usedbins, seq_length, batch_size):
+def deepattractornet_loss(binary_targets, multi_targets, mixture, embeddings, usedbins, seq_length, batch_size):
     '''
     Compute the deep attractor net loss (as described in Deep attractor network for single-microphone speaker separation,
         Zhuo Chen, et al. [1])
     
     Args:
-        binary_targets: a [batch_size x time (T) x (number_of_sources*feature_dim(F))] tensor containing the binary targets
-        spectogram_targets: a [batch_size x number_of_sources x (time (T) * feature_dim (F))] tensor containing 
+        binary_targets: a [batch_size x time (T) x (feature_dim(F)*number_of_sources)] tensor containing the binary targets
+        multi_targets: a [batch_size x time x feat_dim  x nrS] tensor containing 
             the clean spectogram of the sources
-        mixture = a [batch_size x (time(T)*feature_dim(F))] tensor containing the spectograms of the mixture
-        embeddings: a [batch_size x time (T) x (feature_dim * emb_dim)] tensor containing the embeddingsvectors
+        mixture = a [batch_size x time x feat_dim] tensor containing the spectograms of the mixture
+        embeddings: a [batch_size x time (T) x (feature_dim(F) * emb_dim)] tensor containing the embeddingsvectors
         used_bins: a [batch_size x time(T) x feature_dim] tensor indication the bins to use in the loss function calculation
             As suggested in [1] bins with a to low energy are discarted
         seq_length: a [batch_size] vector containing the sequence lengths
@@ -141,17 +141,21 @@ def deepattractornet_loss(binary_targets, spectogram_targets, mixture, embedding
         for batch_ind in range(batch_size):
             # T : length of the current timeframe
             T = seq_length[batch_ind]
-            # nb_bins : number of bins in current spectogram
-            nb_bins = T*feat_dim
+            # N: number of bins in current spectogram
+            N = T*feat_dim
             # Which time/frequency-bins are used in this batch
-            usedbins_batch = usedbins[batch_ind,:N,:]
+            usedbins_batch = usedbins[batch_ind,:T,:]
             
+
+
             #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
     	    #targets will give 0 contribution to loss.
-            ubresh=tf.reshape(usedbins_bashed,[nb_bins,1],name='ubresh')
+            ubresh = tf.reshape(usedbins_bashed,[N,1],name='ubresh')
             ubreshV=tf.tile(ubresh,[1,emb_dim])
             ubreshV=tf.to_float(ubreshV)
             ubreshY=tf.tile(ubresh,[1,nrS])
+            
+
             
             # TODO: selecteren actieve bins zoals in reconstructor
             # V : matrix containing the embeddingsvectors for this batch, 
@@ -165,18 +169,24 @@ def deepattractornet_loss(binary_targets, spectogram_targets, mixture, embedding
             
             numerator=tf.matmul(Y,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
 			    b_is_sparse=True, name='YTV')
-			nb_bins_class = tf.reduce_sum(Y,axis = 0)
-			denominator = tf.tile(tf.transpose(nb_bins_class),[1,emb_dim])
+			nb_bins_class = tf.reduce_sum(Y,axis = 0) # dim: 1x number_sources
+			if (tf.count_nonzero(nb_bin_class) != nb_sources):
+			    raise ValueError("One of the sources doesn't dominate any tf bin")
+			denominator = tf.tile(tf.transpose(nb_bins_class),[1,emb_dim]) #number_sources x emb_dim
 			A = tf.divide(numerator,denominator)
 			
 			prod_1 = tf.matmul(A,V,transpose_a=False, transpose_b = True,name='AVT')
 			ones_M = tf.ones([nb_sources,N],name='ones_M')
-			M = tf.divide(ones_M,ones_M+tf.exp(prod_1))
+			M = tf.divide(ones_M,ones_M+tf.exp(prod_1)) # dim: number_sources x N
 			
-			X = tf.tile(mixture[batch_ind,:],[nb_sources,1])
-			S = spectogram_targets[batch_ind]
-			# TODO: nieuwe loss
-			loss += tf.reduce_sum(tf.square(S-tf.multiply(M,X)))
+            mix_to_mask_utt = mixture[utt_ind,:T,:]
+			
+	        X = tf.transpose(tf.reshape(mix_to_mask_utt,[N,1],name='X'))
+	        masked_sources = tf.multiply(M,X) # dim: number_sources x N
+			multi_targets_utt = multi_targets[batch_ind]
+			S = tf.reshape(tf.transpose(multi_targets_utt,perm=[2,0,1]),[number_sources,N])
+
+			loss += tf.reduce_sum(tf.square(S-masked_sources))
 		return loss
 
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
@@ -281,7 +291,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 	    mix_to_mask_utt = tf.expand_dims(mix_to_mask_utt,-1)
 	    recs = tf.multiply(Masks, mix_to_mask_utt)
 	    
-	    logits_resh = tf.transpose(logits_resh,perm=[2,0,1])
+	    logits_resh = tf.transpose(logits_resh,perm=[2,0,1]) # https://www.tensorflow.org/api_docs/python/tf/transpose
 	    recs = tf.transpose(recs,perm=[2,0,1])
 		               
 	    perm_cost = []

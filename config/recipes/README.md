@@ -9,7 +9,7 @@ the following configurations files:
 (training features, training text, testing features ...) it contains a section
 that specifies where to read and write the data in your file system and wich
 processors should be used to process the data. Every recipe contains a template
-for the database configuration, but because the pahs are different ofor each
+for the database configuration, but because the paths are different for each
 person this has to be completed. You can put the completed database configuation
 in database.conf (which will automatically be added to the gitignore)
 - processor configuration files: One or multiple files for the data processors

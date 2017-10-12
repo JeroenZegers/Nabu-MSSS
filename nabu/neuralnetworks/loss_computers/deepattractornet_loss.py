@@ -9,14 +9,14 @@ class DeepattractornetLoss(loss_computer.LossComputer):
     '''A loss computer that calculates the loss'''
 
     def __call__(self, targets, embeddings,mixture, seq_length):
-        #TODO: Improve method description !!!!
+
         '''
         Compute the loss 
 
         Creates the operation to compute the deep clustering loss
 
         Args:
-            targets: a dictionary of [batch_size x time x (feature_dim * nb_of_sources)] tensor containing
+            targets: a dictionary of [batch_size x time x ... ] tensor containing
                 the targets
             embeddings: a dictionary of [batch_size x time x (feature_dim*embedding_dim)] tensor containing
                 the embeddings
@@ -30,12 +30,14 @@ class DeepattractornetLoss(loss_computer.LossComputer):
                    
         outputs = embeddings['outputs']
         binary_target=targets['binary_targets']
-        ## TODO: Reshape spectogram_target
-        spectogram_target = targets['spectogram_targets']
+
+        multi_targets=targets['multi_targets']
+        # Spectogram of the mixture, used to mask
+        mix_to_mask = targets['mix_to_mask']
         usedbins = targets['usedbins']
         seq_length = seq_length['features']
 		    
-        loss = ops.deepattractornet_loss(binary_target, spectogram_target, mixture, outputs, usedbins, 
+        loss = ops.deepattractornet_loss(binary_target, multi_targets, mix_to_mask, outputs, usedbins, 
 					seq_length,self.batch_size)
             
         return loss

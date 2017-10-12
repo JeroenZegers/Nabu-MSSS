@@ -28,12 +28,14 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
         usedbins_dataconf = dict(dataconf.items(usedbins_name))
         self.usedbins_reader = data_reader.DataReader(usedbins_dataconf,self.segment_lengths)
         
-
+      
+        
     def _get_masks(self, output):
         '''estimate the masks
 
         Args:
             output: the output of a single utterance of the neural network
+                    tensor of dimension [Txfeature_dimension*emb_dim]
 
         Returns:
             the estimated masks'''
@@ -52,19 +54,21 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
         output_resh = np.reshape(output,[T*F,emb_dim])
         output_resh_norm = np.linalg.norm(output_resh,axis=1,keepdims=True)
         output_resh = output_resh/output_resh_norm
-	
+	    
         #only keep the active bins (above threshold) for clustering
         usedbins_resh = np.reshape(usedbins, T*F)
-        output_speech_resh = output_resh[usedbins_resh]
+        output_speech_resh = output_resh[usedbins_resh] # dim:N x embdim
 	
         #apply kmeans clustering and assign each bin to a clustering
         kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=-1)
         kmeans_model.fit(output_speech_resh)
-        A = kmeans_model.cluster_centers_
         
-        prod_1 = np.matmul(A,V.T)
-		ones_M = np.ones([nb_sources,N])
-		M = np.divide(ones_M,ones_M+np.exp(prod_1))
+        A = kmeans_model.cluster_centers_ # dim: nrS x embdim
+        
+        
+        prod_1 = tf.matmul(A,output_resh,transpose_a=False, transpose_b = True,name='AVT')
+		ones_M = tf.ones([nb_sources,N],name='ones_M')
+		M = tf.divide(ones_M,ones_M+tf.exp(prod_1)) # dim: number_sources x N
 	    
         #reconstruct the masks from the cluster labels
         mask = np.reshape(M,[self.nrS,T,F])
