@@ -27,6 +27,7 @@ class LoadAtBegin(tf.train.SessionRunHook):
     def after_create_session(self, session, _):
         '''this will be run after session creation'''
 
+        print 'restoring from model' + self.filename
         self._saver.restore(session, self.filename)
 
 class SummaryHook(tf.train.SessionRunHook):
