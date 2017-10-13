@@ -206,7 +206,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
         permutations = list(itertools.permutations(range(nrS),nrS))
                 
         loss = 0.0
-        norm = nrS_tf * feat_dim * tf.reduce_sum(seq_length)
+        norm = nrS_tf * feat_dim * tf.reduce_sum(seq_length)*batch_size
         for utt_ind in range(batch_size):
 	    N = seq_length[utt_ind]
 	    logits_utt = logits[utt_ind]
