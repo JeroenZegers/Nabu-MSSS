@@ -23,7 +23,8 @@ class PITLoss(loss_computer.LossComputer):
                 the sequence lengths
 
         Returns:
-            a scalar value containing the loss
+            loss: a scalar value containing the loss
+            norm: a scalar value indicating how to normalize the loss
         '''
                    
 	outputs = logits['outputs']         
@@ -31,7 +32,7 @@ class PITLoss(loss_computer.LossComputer):
 	mix_to_mask = targets['mix_to_mask']
 	seq_length = seq_length['features']
 		    
-	loss = ops.pit_loss(multi_targets, outputs, mix_to_mask, 
+	loss, norm = ops.pit_loss(multi_targets, outputs, mix_to_mask, 
 					seq_length,self.batch_size)
             
-        return loss
+        return loss, norm

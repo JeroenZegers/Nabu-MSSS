@@ -175,12 +175,11 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
 	    #loss += loss_utt/normalizer*(10**9)
 	    loss += loss_utt
 	    
-	    norm += tf.square(tf.reduce_sum(usedbins_utt))
+	    norm += tf.to_float(tf.square(tf.reduce_sum(usedbins_utt)))
 	    
     #loss = loss/tf.to_float(batch_size)
-    loss = loss / tf.to_float(norm)
     
-    return loss
+    return loss , norm
   
 def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
     '''
@@ -206,7 +205,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
         permutations = list(itertools.permutations(range(nrS),nrS))
                 
         loss = 0.0
-        norm = nrS_tf * feat_dim * tf.reduce_sum(seq_length)
+        norm = tf.to_float(nrS_tf * feat_dim * tf.reduce_sum(seq_length))
         for utt_ind in range(batch_size):
 	    N = seq_length[utt_ind]
 	    logits_utt = logits[utt_ind]
@@ -235,9 +234,8 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 	    loss += loss_utt
 	    
     #loss = loss/tf.to_float(batch_size)
-    loss = loss/tf.to_float(norm)
     
-    return loss
+    return loss, norm
 
 def cross_entropy_loss_eos(targets, logits, logit_seq_length,
                            target_seq_length):

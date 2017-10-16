@@ -173,73 +173,39 @@ class MultiTaskTrainer():
 
                     #create the optimizer
                     optimizer = tf.train.AdamOptimizer(self.learning_rate)
-                    
-		    self.total_loss = tf.get_variable(
-			    name='total_loss',
-			    shape=[],
-			    dtype=tf.float32,
-			    initializer=tf.constant_initializer(0),
-			    trainable=False)
-		      
-		    self.reset_loss = self.total_loss.assign(0.0)
 
-		    loss = []
 		    
 		    for task_trainer in task_trainers:
 		      
-			task_loss = task_trainer.get_minibatch_loss()
+			task_trainer.get_batch_loss()
 		      		    
-			#append the task loss to the global loss
-			loss.append(task_loss)
+		    self.acc_loss_and_norm=tf.group([task_trainer.acc_loss_and_norm]
+				      for task_trainer in task_trainers)
+		    
+		    self.reset_batch_loss_and_norm = tf.group([task_trainer.reset_batch_loss_and_norm]
+					    for task_trainer in task_trainers)
 		    
 		    #accumulate losses from tasks
 		    with tf.variable_scope('accumulate_loss_from_tasks'):
-			loss = tf.reduce_mean(loss)
+			normalized_losses = []
+			for task_trainer in task_trainers:
+			    normalized_losses.append(task_trainer.batch_loss/task_trainer.batch_loss_norm)
+			self.global_loss = tf.reduce_mean(normalized_losses)
 		    
-		    #accumulate losses from batches
-		    self.acc_loss = self.total_loss.assign_add(loss)
-
-                    ##compute the gradients
-                    #grads_and_vars = optimizer.compute_gradients(self.loss)
-
-                    #with tf.variable_scope('clip'):
-			#clip_value = float(conf['clip_grad_value'])
-                        ##clip the gradients
-                        #grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
-                                 #for grad, var in grads_and_vars]
-	    
-		    self.params = tf.trainable_variables()
-		  
-		    grads = [tf.get_variable(
-                        param.op.name, param.get_shape().as_list(),
-                        initializer=tf.constant_initializer(0),
-                        trainable=False) for param in self.params]
 		    
-		    self.reset_grad = tf.variables_initializer(grads)
-	       
-                    #compute the gradients
-                    minibatch_grads_and_vars = optimizer.compute_gradients(loss)
-
-                    with tf.variable_scope('clip'):
+		    batch_grads_and_vars = optimizer.compute_gradients(self.global_loss)
+		    
+		    with tf.variable_scope('clip'):
 			clip_value = float(conf['clip_grad_value'])
                         #clip the gradients
-                        minibatch_grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
-                                 for grad, var in minibatch_grads_and_vars]		    
-		 
-		    (minibatchgrads,minibatchvars)=zip(*minibatch_grads_and_vars)
-                    
-                    #update gradients by accumulating them
-		    self.update_gradients = [grad.assign_add(batchgrad)
-		      for batchgrad, grad in zip(minibatchgrads,grads)]
-
-
-                    #opperation to apply the gradients
-		    grads_and_vars=list(zip(grads,minibatchvars))
-                    apply_gradients_op = optimizer.apply_gradients(
-                        grads_and_vars=grads_and_vars,
+                        batch_grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
+                                 for grad, var in batch_grads_and_vars]
+			
+		    apply_gradients_op = optimizer.apply_gradients(
+                        grads_and_vars=batch_grads_and_vars,
                         global_step=self.global_step,
                         name='apply_gradients')
-
+		    
                     #all remaining operations with the UPDATE_OPS GraphKeys
                     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
@@ -293,7 +259,7 @@ class MultiTaskTrainer():
 	    
 			self.update_loss = self.validation_loss.assign(
                             self.validation_loss +
-                            val_batch_loss#/self.valbatches
+                            val_batch_loss/self.valbatches
                         ).op
 
                         #update the learning rate factor
@@ -506,18 +472,18 @@ class MultiTaskTrainer():
 
 		    #First, accumulate the gradients
 		    for _ in range(int(self.conf['numbatches_to_aggregate'])):
-			sess.run(fetches=[self.update_gradients, self.acc_loss])
+			sess.run(fetches=[self.acc_loss_and_norm])
 			    
 		    #Finally, apply the gradients
 		    _, loss, lr, global_step, num_steps = sess.run(
 			fetches=[self.update_op,
-				self.total_loss,
+				self.global_loss,
 				self.learning_rate,
 				self.global_step,
 				self.num_steps])
 				
 		    #reset the gradients for the next step
-		    sess.run(fetches=[self.reset_grad,self.reset_loss])
+		    sess.run(fetches=[self.reset_batch_loss_and_norm])
 
                     print(('WORKER %d: step %d/%d loss: %.6g, learning rate: %f, '
                            'time: %f sec')

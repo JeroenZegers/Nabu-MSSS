@@ -23,7 +23,8 @@ class DeepclusteringLoss(loss_computer.LossComputer):
                 the sequence lengths
 
         Returns:
-            a scalar value containing the loss
+            loss: a scalar value containing the loss
+            norm: a scalar value indicating how to normalize the loss
         '''
                    
 	outputs = logits['outputs']         
@@ -31,7 +32,7 @@ class DeepclusteringLoss(loss_computer.LossComputer):
 	usedbins = targets['usedbins']
 	seq_length = seq_length['features']
 		    
-	loss = ops.deepclustering_loss(binary_target, outputs, usedbins, 
+	loss, norm = ops.deepclustering_loss(binary_target, outputs, usedbins, 
 					seq_length,self.batch_size)
             
-        return loss
+        return loss, norm

@@ -145,7 +145,7 @@ class TaskTrainer():
 
 	return num_steps, done_ops
     
-    def get_minibatch_loss(self):
+    def get_batch_loss(self):
       
 	with tf.variable_scope(self.task_name):
       
@@ -193,11 +193,33 @@ class TaskTrainer():
 		    #)
 
 	
+	    self.batch_loss = tf.get_variable(
+			    name='batch_loss',
+			    shape=[],
+			    dtype=tf.float32,
+			    initializer=tf.constant_initializer(0),
+			    trainable=False)
+		      
+	    reset_batch_loss = self.batch_loss.assign(0.0)
+	
+	    self.batch_loss_norm = tf.get_variable(
+			    name='batch_loss_norm',
+			    shape=[],
+			    dtype=tf.float32,
+			    initializer=tf.constant_initializer(0),
+			    trainable=False)
+		      
+	    reset_batch_loss_norm = self.batch_loss_norm.assign(0.0)
+	    
+	    self.reset_batch_loss_and_norm = tf.group(reset_batch_loss + reset_batch_loss_norm)
+	    
 	    #compute the loss
-	    task_loss = self.loss_computer(
+	    task_minibatch_loss, task_minibatch_loss_norm = self.loss_computer(
 		targets, logits, seq_length)
 	    
-	return task_loss
+	    acc_loss = self.batch_loss.assign_add(task_minibatch_loss)
+	    acc_loss_norm  = self.batch_loss.assign_add(task_minibatch_loss_norm)
+	    self.acc_loss_and_norm = tf.group(acc_loss + acc_loss_norm)
       
       
     def evaluate_evaluator(self):

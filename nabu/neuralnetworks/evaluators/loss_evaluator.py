@@ -58,6 +58,7 @@ class LossEvaluator(evaluator.Evaluator):
             the loss as a scalar'''
 
         with tf.name_scope('evaluate_loss'):
-            loss = self.loss_computer(targets, logits, seq_length)
+            loss, norm = self.loss_computer(targets, logits, seq_length)
+            loss /= norm
 
         return loss

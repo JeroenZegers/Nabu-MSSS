@@ -15,7 +15,7 @@ import pdb
 
 class Trainer():
     '''General class outlining the training environment of a model.'''
-
+    
     def __init__(self,
                  conf,
                  tasksconf,
@@ -299,8 +299,9 @@ class Trainer():
 		    self.reset_loss = self.total_loss.assign(0.0)
 		    
                     #compute the loss
-                    loss = self.loss_computer(
+                    loss, norm = self.loss_computer(
                         targets, logits, seq_length)
+		    loss = loss / norm
 		    loss = loss / float(self.conf['numbatches_to_aggregate'])
 		    
 		    self.acc_loss = self.total_loss.assign_add(loss)
