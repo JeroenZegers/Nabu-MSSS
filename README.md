@@ -78,6 +78,8 @@ extra parameter; mode (default: non_distributed). Mode is the distribution mode.
 This should be one of non_distributed, single_machine or multi_machine.
 You can find more information about this [here](nabu/computing/README.md)
 
+**Warning: Currently only 'nondistributed' is allowed for computing**
+
 ### Testing
 
 **Warning: testing is not yet adapated for multi task training**

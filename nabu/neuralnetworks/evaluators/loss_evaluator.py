@@ -8,17 +8,18 @@ from nabu.neuralnetworks.loss_computers import loss_computer_factory
 class LossEvaluator(evaluator.Evaluator):
     '''The Decoder Evaluator is used to evaluate a decoder'''
 
-    def __init__(self, conf, dataconf, model):
+    def __init__(self, conf, dataconf, model, output_name):
         '''Evaluator constructor
 
         Args:
             conf: the evaluator configuration as a ConfigParser
             dataconf: the database configuration
             model: the model to be evaluated
+            output_name: the name of the output of the model to concider
         '''
 
 
-        super(LossEvaluator, self).__init__(conf, dataconf, model)
+        super(LossEvaluator, self).__init__(conf, dataconf, model, output_name)
         self.loss_computer = loss_computer_factory.factory(
 		conf.get('evaluator','loss_type'))(
 		int(conf.get('evaluator','batch_size')))

@@ -67,15 +67,17 @@ class Trainer():
             for section in sectionset:
                 input_dataconfs[-1].append(dict(dataconf.items(section)))
 
-        output_names = conf['targets'].split(' ')
-        if output_names == ['']:
-            output_names = []
-        target_sections = [conf[o].split(' ') for o in output_names]
+        target_names = conf['targets'].split(' ')
+        if target_names == ['']:
+            target_names = []
+        target_sections = [conf[o].split(' ') for o in target_names]
         target_dataconfs = []
         for sectionset in target_sections:
             target_dataconfs.append([])
             for section in sectionset:
                 target_dataconfs[-1].append(dict(dataconf.items(section)))
+                
+        output_name = modelconf.get('io', 'outputs')
 
         #create the model
         modelfile = os.path.join(expdir, 'model', 'model.pkl')
@@ -95,7 +97,8 @@ class Trainer():
 	    evaluator = evaluator_factory.factory(evaltype)(
 		conf=evaluatorconf,
 		dataconf=dataconf,
-		model=self.model
+		model=self.model,
+		output_name=output_name
 	    )
 
         if 'local' in cluster.as_dict():
@@ -242,10 +245,10 @@ class Trainer():
                         input_names[i]: d
                         for i, d in enumerate(seq_length[:len(input_sections)])}
                     targets = {
-                        output_names[i]: d
+                        target_names[i]: d
                         for i, d in enumerate(data[len(input_sections):])}
                     #target_seq_length = {
-                        #output_names[i]: d
+                        #target_names[i]: d
                         #for i, d in enumerate(seq_length[len(input_sections):])}
 
                     #compute the training outputs of the model
@@ -311,7 +314,7 @@ class Trainer():
 		    
                     #compute the loss
                     loss, norm = self.loss_computer(
-                        targets, logits, seq_length)
+                        targets, logits[output_name], seq_length)
 		    
 		    acc_loss = total_loss.assign_add(loss)
 		    acc_loss_norm = total_loss_norm.assign_add(norm)
@@ -707,16 +710,16 @@ class ParameterServer(object):
 		    input_dataconfs.append([])
 		    for section in sectionset:
 			input_dataconfs[-1].append(dict(dataconf.items(section)))
-                output_names = conf['targets'].split(' ')
-		if output_names == ['']:
-		    output_names = []
-		target_sections = [conf[o].split(' ') for o in output_names]
+                target_names = conf['targets'].split(' ')
+		if target_names == ['']:
+		    target_names = []
+		target_sections = [conf[o].split(' ') for o in target_names]
 		target_dataconfs = []
 		for sectionset in target_sections:
 		    target_dataconfs.append([])
 		    for section in sectionset:
 			target_dataconfs[-1].append(dict(dataconf.items(section)))
-
+			
                 data_queue_elements, _ = input_pipeline.get_filenames(
                     input_dataconfs + target_dataconfs)
 

@@ -13,17 +13,20 @@ class Evaluator(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, conf, dataconf, model):
+    def __init__(self, conf, dataconf, model, output_name):
         '''Evaluator constructor
 
         Args:
             conf: the evaluator configuration as a ConfigParser
             dataconf: the database configuration
+            output_name: the name of the output of the model to concider
             model: the model to be evaluated
         '''
 
         self.conf = conf
         self.model = model
+        
+        self.output_name = output_name
 
         #get the database configurations
         inputs = self.model.input_names
@@ -106,7 +109,7 @@ class Evaluator(object):
 	    
 	    outputs = self._get_outputs(inputs, seq_length)
 
-            loss, norm = self.compute_loss(targets, outputs, seq_length)
+            loss, norm = self.compute_loss(targets, outputs[self.output_name], seq_length)
 
         return loss, norm, numbatches, outputs, seq_length
 

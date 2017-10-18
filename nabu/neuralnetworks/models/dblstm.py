@@ -32,7 +32,11 @@ class DBLSTM(model.Model):
 
         #do the forward computation
         outputs = {}
-
+	
+	#code not available for multiple inputs!!
+	if len(inputs) > 1:
+	    raise 'The implementation DBLSTM expects 1 input and not %d' %len(inputs)
+	  
 	with tf.variable_scope(self.scope):
 	    for inp in inputs:
 		if is_training and float(self.conf['input_noise']) > 0:
@@ -40,21 +44,22 @@ class DBLSTM(model.Model):
                         tf.shape(inputs[inp]),
                         stddev=float(self.conf['input_noise']))
 		    
-	    #code not available for multiple inputs
-	    for o in self.output_dims:
-		logits = inputs.values()[0]
+	    logits = inputs.values()[0]
+	    
+	    for l in range(int(self.conf['num_layers'])):
+		logits = blstm(logits, input_seq_length.values()[0],
+			      'layer' + str(l))
+
+	    if is_training and float(self.conf['dropout']) < 1:
+		logits = tf.nn.dropout(logits, float(self.conf['dropout']))
 		
-		for l in range(int(self.conf['num_layers'])):
-		    logits = blstm(logits, input_seq_length.values()[0],
-				  'layer' + str(l))
-
-		if is_training and float(self.conf['dropout']) < 1:
-		    logits = tf.nn.dropout(logits, float(self.conf['dropout']))
-
+	    #if multiple outputs requested, model is completely shared, except for the
+	    #output layer
+	    for o in self.output_dims:
 		output = tf.contrib.layers.linear(
 		    inputs=logits,
 		    num_outputs=self.output_dims[o],
-		    scope='outlayer')
+		    scope=('outlayer_%s')%(o))
 
 		outputs[o] = output
 

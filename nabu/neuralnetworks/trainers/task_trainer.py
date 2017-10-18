@@ -55,15 +55,25 @@ class TaskTrainer():
 	    for section in sectionset:
 		self.input_dataconfs[-1].append(dict(dataconf.items(section)))
 	
-	self.output_names = taskconf['targets'].split(' ')
-	if self.output_names == ['']:
-	    self.output_names = []
-	target_sections = [taskconf[o].split(' ') for o in self.output_names]
+	self.target_names = taskconf['targets'].split(' ')
+	if self.target_names == ['']:
+	    self.target_names = []
+	target_sections = [taskconf[o].split(' ') for o in self.target_names]
 	self.target_dataconfs = []
 	for sectionset in target_sections:
 	    self.target_dataconfs.append([])
 	    for section in sectionset:
 		self.target_dataconfs[-1].append(dict(dataconf.items(section)))
+		
+	if trainerconf['multi_trainer']=='single_1to1':
+	    #the model has the same output for every task
+	    self.output_name = modelconf.get('io', 'outputs')
+	    
+	elif trainerconf['multi_trainer']=='single_1tomany':
+	    #the model has a separate output per task
+	    self.output_name = taskconf['output']
+	else:
+	    raise 'did not understand multi_trainer style: %s' %trainerconf['multi_trainer']
 		
 	#create the loss computer
 	self.loss_computer = loss_computer_factory.factory(
@@ -76,6 +86,7 @@ class TaskTrainer():
 		conf=evaluatorconf,
 		dataconf=dataconf,
 		model=self.model,
+		output_name=self.output_name,
 		task=task_name)
 	    	
     
@@ -171,10 +182,10 @@ class TaskTrainer():
 		self.input_names[i]: d
 		for i, d in enumerate(seq_length[:self.nr_input_sections])}
 	    targets = {
-		self.output_names[i]: d
+		self.target_names[i]: d
 		for i, d in enumerate(data[self.nr_input_sections:])}
 	    #target_seq_length = {
-		#self.output_names[i]: d
+		#self.target_names[i]: d
 		#for i, d in enumerate(seq_length[self.nr_input_sections:])}
 
 	    #compute the training outputs of the model
@@ -228,7 +239,7 @@ class TaskTrainer():
 	    
 	    #compute the loss
 	    task_minibatch_loss, task_minibatch_loss_norm = self.loss_computer(
-		targets, logits, seq_length)
+		targets, logits[self.output_name], seq_length)
 	    
 	    task_minibatch_grads_and_vars = optimizer.compute_gradients(task_minibatch_loss)
 	    

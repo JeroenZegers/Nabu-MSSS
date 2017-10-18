@@ -8,17 +8,19 @@ from nabu.neuralnetworks.loss_computers import loss_computer_factory
 class TaskLossEvaluator(task_evaluator.TaskEvaluator):
     '''The TaskLossEvaluator is used to evaluate'''
 
-    def __init__(self, conf, dataconf, model, task):
+    def __init__(self, conf, dataconf, model, output_name, task):
         '''TaskLossEvaluator constructor
 
         Args:
             conf: the evaluator configuration as a ConfigParser
             dataconf: the database configuration
             model: the model to be evaluated
+            output_name: the name of the output of the model to concider
+            task: the name of the task being evaluated
         '''
 
 
-        super(TaskLossEvaluator, self).__init__(conf, dataconf, model, task)
+        super(TaskLossEvaluator, self).__init__(conf, dataconf, model, output_name, task)
         self.loss_computer = loss_computer_factory.factory(
 		conf.get(task,'loss_type'))(
 		int(conf.get('evaluator','batch_size')))
