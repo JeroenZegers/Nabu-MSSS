@@ -425,7 +425,7 @@ class Trainer():
                         acc_val_loss  = val_loss.assign_add(val_batch_loss)
 			acc_val_loss_norm  = val_loss_norm.assign_add(val_batch_norm)
 
-			self.process_val_batch = tf.group(*([acc_loss, acc_loss_norm])
+			self.process_val_batch = tf.group(*([acc_val_loss, acc_val_loss_norm])
 						    ,name='process_val_batch')
 			
 			self.reset_val_loss_norm = tf.group(*([reset_loss, reset_loss_norm])
