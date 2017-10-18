@@ -25,7 +25,7 @@ class MultiTaskTrainer():
                  server,
                  task_index):
         '''
-        NnetTrainer constructor, creates the training graph
+        MultiTaskTrainer constructor, creates the training graph
 
         Args:
             conf: the trainer config
@@ -70,15 +70,15 @@ class MultiTaskTrainer():
             
         evaltype = evaluatorconf.get('evaluator', 'evaluator')   
 
-        
-        task_trainers=[]
+        #define a trainer per traintask
+        self.task_trainers=[]
         for task in self.conf['tasks'].split(' '):
 	    taskconf = self.tasksconf[task]
 	    
 	    task_trainer=task_trainer_script.TaskTrainer(task,conf,taskconf,self.model,modelconf,
 					   dataconf,evaluatorconf,self.batch_size)
 	    
-	    task_trainers.append(task_trainer)
+	    self.task_trainers.append(task_trainer)
 
 
 		
@@ -140,7 +140,8 @@ class MultiTaskTrainer():
 		num_steps = []
 		done_ops = []
 
-		for task_trainer in task_trainers:
+		#set the dataqueues for each trainer
+		for task_trainer in self.task_trainers:
 		  
 		    task_num_steps, task_done_ops = task_trainer.set_dataqueues(cluster)
 		    
@@ -170,49 +171,46 @@ class MultiTaskTrainer():
                         decay_steps=self.num_steps,
                         decay_rate=float(conf['learning_rate_decay']))
                                           * learning_rate_fact)
-
-                    #create the optimizer
-                    optimizer = tf.train.AdamOptimizer(self.learning_rate)
-
 		    
-		    for task_trainer in task_trainers:
+		    #For each task, set the task specific training ops
+		    for task_trainer in self.task_trainers:
 		      
-			task_trainer.get_batch_loss()
-		      		    
-		    self.acc_loss_and_norm=tf.group([task_trainer.acc_loss_and_norm]
-				      for task_trainer in task_trainers)
+			task_trainer.train(self.learning_rate)
 		    
-		    self.reset_batch_loss_and_norm = tf.group([task_trainer.reset_batch_loss_and_norm]
-					    for task_trainer in task_trainers)
+		    #Group ops over tasks
+		    self.process_minibatch = tf.group(*([task_trainer.process_minibatch
+					for task_trainer in self.task_trainers]),
+					name='process_minibatch_all_tasks')
+		    
+		    self.reset_grad_loss_norm = tf.group(*([task_trainer.reset_grad_loss_norm
+					    for task_trainer in self.task_trainers]),
+					    name='reset_grad_loss_norm_all_tasks')
+		    
+		    tmp=[]
+		    for task in self.task_trainers:
+			tmp += task_trainer.normalize_gradients
+		    self.normalize_gradients = tf.group(*(tmp), 
+				     name='normalize_gradients_all_tasks')
 		    
 		    #accumulate losses from tasks
-		    with tf.variable_scope('accumulate_loss_from_tasks'):
-			normalized_losses = []
-			for task_trainer in task_trainers:
-			    normalized_losses.append(task_trainer.batch_loss/task_trainer.batch_loss_norm)
-			self.global_loss = tf.reduce_mean(normalized_losses)
+		    with tf.variable_scope('accumulate_losses_from_tasks'):		
+			tmp = [task_trainer.normalized_loss for task_trainer in self.task_trainers]			
+			self.total_loss = tf.reduce_mean(tmp, name='acc_loss')
 		    
-		    
-		    batch_grads_and_vars = optimizer.compute_gradients(self.global_loss)
-		    
-		    with tf.variable_scope('clip'):
-			clip_value = float(conf['clip_grad_value'])
-                        #clip the gradients
-                        batch_grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
-                                 for grad, var in batch_grads_and_vars]
-			
-		    apply_gradients_op = optimizer.apply_gradients(
-                        grads_and_vars=batch_grads_and_vars,
-                        global_step=self.global_step,
-                        name='apply_gradients')
+		    tmp=[]
+		    for task_trainer in self.task_trainers:
+			tmp.append(task_trainer.apply_gradients)
 		    
                     #all remaining operations with the UPDATE_OPS GraphKeys
                     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                    
+                    #an op to increment the global step
+                    global_step_inc = self.global_step.assign_add(1)
 
                     #create an operation to update the gradients, the batch_loss
                     #and do all other update ops
                     self.update_op = tf.group(
-                        *([apply_gradients_op] + update_ops),
+                        *(tmp + update_ops + [global_step_inc]),
                         name='update')
 	    
 		
@@ -220,14 +218,6 @@ class MultiTaskTrainer():
 
 		    #validation part
 		    with tf.variable_scope('validate'):
-
-			#create a variable to hold the validation loss
-			self.validation_loss = tf.get_variable(
-			    name='validation_loss',
-			    shape=[],
-			    dtype=tf.float32,
-			    initializer=tf.constant_initializer(0),
-			    trainable=False)
 
 			#create a variable to save the last step where the model
 			#was validated
@@ -244,24 +234,26 @@ class MultiTaskTrainer():
 			    self.global_step - validated_step,
 			    int(conf['valid_frequency']))
 	    
-	    
-			val_batch_loss = []
+			#For each task, set the task specific validation ops
+			#The number of validation batches is the minimum number of validation 
+			#batches over all tasks.
 			valbatches = []
-			
-			for task_trainer in task_trainers:
-			  
-				task_val_batch_loss, task_valbatches = task_trainer.evaluate_evaluator()
-				val_batch_loss.append(task_val_batch_loss)
-				valbatches.append(task_valbatches)
-	    
-			val_batch_loss = tf.reduce_mean(val_batch_loss)
+			for task_trainer in self.task_trainers:			  
+			    valbatches.append(task_trainer.evaluate_evaluator())
 			self.valbatches = min(valbatches)
-	    
-			self.update_loss = self.validation_loss.assign(
-                            self.validation_loss +
-                            val_batch_loss/self.valbatches
-                        ).op
+			
+			#Group ops over tasks
+			self.process_val_batch = tf.group(*([task_trainer.process_val_batch
+					for task_trainer in self.task_trainers]))
+			
+			self.reset_val_loss_norm = tf.group(*([task_trainer.reset_val_loss_norm
+					for task_trainer in self.task_trainers]))
 
+			tmp=[]
+			for task_trainer in self.task_trainers:
+			    tmp.append(task_trainer.val_loss_normalized)
+			self.validation_loss = tf.reduce_mean(tmp)
+			
                         #update the learning rate factor
                         self.half_lr = learning_rate_fact.assign(
                             learning_rate_fact/2).op
@@ -306,7 +298,7 @@ class MultiTaskTrainer():
 	    
 	    
 		else:
-                    self.update_loss = None
+                    self.process_val_batch = None
 
 		tf.summary.scalar('learning rate', self.learning_rate)
 
@@ -325,8 +317,8 @@ class MultiTaskTrainer():
         #look for the master if distributed training is done
         master = self.server.target
 
-        #start the session and standart servises
-        config = tf.ConfigProto()
+        #start the session and standard services
+        config = tf.ConfigProto(device_count = {'CPU': 0})
         config.gpu_options.allow_growth = True
         config.allow_soft_placement = True
         #config.log_device_placement = True
@@ -372,7 +364,7 @@ class MultiTaskTrainer():
                            self.should_stop.eval(session=sess)):
 		  
                     #check if validation is due
-                    if (self.update_loss is not None
+                    if (self.process_val_batch is not None
                             and self.should_validate.eval(session=sess)):
                         if self.is_chief:
                             print ('WORKER %d: validating model'
@@ -383,18 +375,17 @@ class MultiTaskTrainer():
                                 session=sess)
 
                             #reset the validation loss
-                            self.validation_loss.initializer.run(session=sess)
+                            self.reset_val_loss_norm.run(session=sess)
                             
 			    #start time
 			    start = time.time()
                     
                             #compute the validation loss
                             for _ in range(self.valbatches):
-                                self.update_loss.run(session=sess)
+                                self.process_val_batch.run(session=sess)
 
                             #get the current validation loss
-                            validation_loss = self.validation_loss.eval(
-                                session=sess)
+                            [validation_loss] = sess.run([self.validation_loss])
 
                             print ('WORKER %d: validation loss:%.6g,'
 				    'time: %f sec' %
@@ -457,7 +448,7 @@ class MultiTaskTrainer():
 
                         else:
                             if (self.conf['go_back'] == 'True'
-                                    and self.update_loss is not None):
+                                    and self.process_val_batch is not None):
                                 self.waiting.run(session=sess)
                                 while (self.should_validate.eval(session=sess)
                                        and not
@@ -470,21 +461,30 @@ class MultiTaskTrainer():
                     #start time
                     start = time.time()
 
+		    #reset the gradients for the next step
+		    sess.run(fetches=[self.reset_grad_loss_norm])
+		    
 		    #First, accumulate the gradients
 		    for _ in range(int(self.conf['numbatches_to_aggregate'])):
-			sess.run(fetches=[self.acc_loss_and_norm])
+		      	_= sess.run([self.process_minibatch])
+
+			#_, batch_loss, batch_loss_norm = sess.run(fetches=[self.process_minibatch,
+					  #self.task_trainers[0].batch_loss,
+					  #self.task_trainers[0].batch_loss_norm])
+			#print (('batchloss: %.6g, batch_loss_norm: %.6g, batch_normalized_loss: %.6g')
+			      #%(batch_loss,batch_loss_norm,batch_loss/(batch_loss_norm+1e-20)))
 			    
+		    #Then, normalize the gradients
+		    _ = sess.run([self.normalize_gradients])
+		    
 		    #Finally, apply the gradients
 		    _, loss, lr, global_step, num_steps = sess.run(
 			fetches=[self.update_op,
-				self.global_loss,
+				self.total_loss,
 				self.learning_rate,
 				self.global_step,
 				self.num_steps])
 				
-		    #reset the gradients for the next step
-		    sess.run(fetches=[self.reset_batch_loss_and_norm])
-
                     print(('WORKER %d: step %d/%d loss: %.6g, learning rate: %f, '
                            'time: %f sec')
                           %(self.task_index,

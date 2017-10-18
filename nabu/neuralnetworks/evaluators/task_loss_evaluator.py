@@ -59,6 +59,5 @@ class TaskLossEvaluator(task_evaluator.TaskEvaluator):
 
         with tf.name_scope('evaluate_loss'):
             loss, norm = self.loss_computer(targets, logits, seq_length)
-            loss /= norm
-
-        return loss
+            
+        return loss, norm

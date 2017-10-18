@@ -19,18 +19,19 @@ class TaskTrainer():
 		  evaluatorconf,
 		  batch_size):
 	'''
-        xxx
+        TaskTrainer constructor, gathers the dataconfigs and sets the loss_computer and
+        evaluator for this task.
 
         Args:
 	    task_name: a name for the training task
             trainerconf: the trainer config
             taskconf: the config file for each task
-            dataconf: the data configuration as a ConfigParser
+            model: the neural net model
             modelconf: the neural net model configuration
             dataconf: the data configuration as a ConfigParser
             evaluatorconf: the evaluator configuration for evaluating
                 if None no evaluation will be done
-            batch_size: the size of the batch. moet zelfde zijn voor elke taak in huidige manier implementatie multi_task_trainer
+            batch_size: the size of the batch.
         '''
         
         self.task_name = task_name
@@ -68,6 +69,7 @@ class TaskTrainer():
 	self.loss_computer = loss_computer_factory.factory(
 		taskconf['loss_type'])(self.batch_size)
 	
+	#create valiation evaluator
 	evaltype = evaluatorconf.get('evaluator', 'evaluator')
 	if evaltype != 'None':
 	    self.evaluator = evaluator_factory.factory(evaltype)(
@@ -78,6 +80,7 @@ class TaskTrainer():
 	    	
     
     def set_dataqueues(self, cluster):
+	'''sets the data queues'''
       
 	#check if running in distributed model
 	if 'local' in cluster.as_dict():
@@ -145,10 +148,14 @@ class TaskTrainer():
 
 	return num_steps, done_ops
     
-    def get_batch_loss(self):
+    def train(self, learning_rate):
+	'''set the training ops for this task'''
       
 	with tf.variable_scope(self.task_name):
       
+	    #create the optimizer
+            optimizer = tf.train.AdamOptimizer(learning_rate)
+                    
 	    #create the input pipeline
 	    data, seq_length = input_pipeline.input_pipeline(
 		data_queue=self.data_queue,
@@ -191,8 +198,6 @@ class TaskTrainer():
 			#conf['numbatches_to_aggregate'])#,
 		    ##total_num_replicas=num_replicas
 		    #)
-
-	
 	    self.batch_loss = tf.get_variable(
 			    name='batch_loss',
 			    shape=[],
@@ -201,7 +206,7 @@ class TaskTrainer():
 			    trainable=False)
 		      
 	    reset_batch_loss = self.batch_loss.assign(0.0)
-	
+	    
 	    self.batch_loss_norm = tf.get_variable(
 			    name='batch_loss_norm',
 			    shape=[],
@@ -211,21 +216,99 @@ class TaskTrainer():
 		      
 	    reset_batch_loss_norm = self.batch_loss_norm.assign(0.0)
 	    
-	    self.reset_batch_loss_and_norm = tf.group(reset_batch_loss + reset_batch_loss_norm)
+	    #Assuming all params are trainable for this task. TODO: fix this
+	    params = tf.trainable_variables()
+		  
+	    self.grads = [tf.get_variable(
+		param.op.name, param.get_shape().as_list(),
+		initializer=tf.constant_initializer(0),
+		trainable=False) for param in params]
+	    
+	    reset_grad = tf.variables_initializer(self.grads)
 	    
 	    #compute the loss
 	    task_minibatch_loss, task_minibatch_loss_norm = self.loss_computer(
 		targets, logits, seq_length)
 	    
-	    acc_loss = self.batch_loss.assign_add(task_minibatch_loss)
-	    acc_loss_norm  = self.batch_loss.assign_add(task_minibatch_loss_norm)
-	    self.acc_loss_and_norm = tf.group(acc_loss + acc_loss_norm)
+	    task_minibatch_grads_and_vars = optimizer.compute_gradients(task_minibatch_loss)
+	    
+	    (task_minibatch_grads, task_vars)=zip(*task_minibatch_grads_and_vars)
+	    
+	    with tf.variable_scope('update_gradients'):
+		update_gradients = [grad.assign_add(batchgrad)
+			  for batchgrad, grad in zip(task_minibatch_grads,self.grads)]
+	    
+	    with tf.variable_scope('normalize_loss'):
+	      self.normalized_loss = self.batch_loss/self.batch_loss_norm
+	    
+	    acc_loss  = self.batch_loss.assign_add(task_minibatch_loss)
+	    acc_loss_norm  = self.batch_loss_norm.assign_add(task_minibatch_loss_norm)
+	    
+	    self.process_minibatch = tf.group(*(update_gradients+[acc_loss]
+					 +[acc_loss_norm])
+					 ,name='update_grads_loss_norm')
+	    
+	    self.reset_grad_loss_norm = tf.group(*([reset_grad,reset_batch_loss,
+					     reset_batch_loss_norm])
+					     ,name='reset_grad_loss_norm')
+	    
+	    with tf.variable_scope('normalize_gradients'):
+		if self.trainerconf['normalize_gradients']=='True':
+		    self.normalize_gradients = [grad.assign(tf.divide(grad,self.batch_loss_norm))
+			      for grad in self.grads]
+		else:
+		    self.normalize_gradients = [grad.assign(grad)
+			      for grad in self.grads]
+	    
+	    batch_grads_and_vars = zip(self.grads, task_vars)
+	    
+	    with tf.variable_scope('clip'):
+		clip_value = float(self.trainerconf['clip_grad_value'])
+		#clip the gradients
+		batch_grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
+			  for grad, var in batch_grads_and_vars]
+	    
+	    self.apply_gradients = optimizer.apply_gradients(
+                        grads_and_vars=batch_grads_and_vars,
+                        name='apply_gradients')
+
       
       
     def evaluate_evaluator(self):
+	'''set the evaluation ops for this task'''
 	
 	with tf.variable_scope(self.task_name):
 	  
-	    val_batch_loss, valbatches, _, _ = self.evaluator.evaluate()
+	    loss = tf.get_variable(
+			    name='loss',
+			    shape=[],
+			    dtype=tf.float32,
+			    initializer=tf.constant_initializer(0),
+			    trainable=False)
+		      
+	    reset_loss = loss.assign(0.0)
 	    
-	    return val_batch_loss, valbatches
+	    loss_norm = tf.get_variable(
+			    name='loss_norm',
+			    shape=[],
+			    dtype=tf.float32,
+			    initializer=tf.constant_initializer(0),
+			    trainable=False)
+		      
+	    reset_loss_norm = loss_norm.assign(0.0)
+	  
+	    val_batch_loss, val_batch_norm, valbatches, _, _ = self.evaluator.evaluate()
+	    
+	    acc_loss  = loss.assign_add(val_batch_loss)
+	    acc_loss_norm  = loss_norm.assign_add(val_batch_norm)
+	    
+	    self.process_val_batch = tf.group(*([acc_loss, acc_loss_norm])
+					 ,name='update_loss')
+	    
+	    self.reset_val_loss_norm = tf.group(*([reset_loss, reset_loss_norm])
+					     ,name='reset_val_loss_norm')
+	    
+	    self.val_loss_normalized = loss/loss_norm
+	    
+	return valbatches
+	    

@@ -27,7 +27,7 @@ class Trainer():
                  server,
                  task_index):
         '''
-        NnetTrainer constructor, creates the training graph
+        Trainer constructor, creates the training graph
 
         Args:
             conf: the trainer config
@@ -289,22 +289,32 @@ class Trainer():
                             ##total_num_replicas=num_replicas
                             #)
 
-		    self.total_loss = tf.get_variable(
+		    total_loss = tf.get_variable(
 			name='total_loss',
 			shape=[],
 			dtype=tf.float32,
 			initializer=tf.constant_initializer(0),
 			trainable=False)
 		    
-		    self.reset_loss = self.total_loss.assign(0.0)
+		    reset_loss = total_loss.assign(0.0)
+		    
+		    total_loss_norm = tf.get_variable(
+			name='total_loss_norm',
+			shape=[],
+			dtype=tf.float32,
+			initializer=tf.constant_initializer(0),
+			trainable=False)
+		    
+		    reset_loss_norm = total_loss_norm.assign(0.0)
+		    
+		    self.normalized_loss = total_loss/total_loss_norm
 		    
                     #compute the loss
                     loss, norm = self.loss_computer(
                         targets, logits, seq_length)
-		    loss = loss / norm
-		    loss = loss / float(self.conf['numbatches_to_aggregate'])
 		    
-		    self.acc_loss = self.total_loss.assign_add(loss)
+		    acc_loss = total_loss.assign_add(loss)
+		    acc_loss_norm = total_loss_norm.assign_add(norm)
 
                     ##compute the gradients
                     #grads_and_vars = optimizer.compute_gradients(self.loss)
@@ -324,7 +334,17 @@ class Trainer():
                         initializer=tf.constant_initializer(0),
                         trainable=False) for param in self.params]
 		    
-		    self.reset_grad = tf.variables_initializer(grads)
+		    if 'normalize_gradients' in conf and conf['normalize_gradients'] == 'True':
+			self.normalize_gradients = [grad.assign(tf.divide(grad,total_loss_norm))
+					 for grad in grads]
+		    else:
+			self.normalize_gradients = [grad.assign(grad)
+					 for grad in grads]
+		    
+		    reset_grad = tf.variables_initializer(grads)
+		    
+		    self.reset_grad_loss_norm = tf.group(*([reset_loss,reset_loss_norm,
+					   reset_grad]))
 	       
                     #compute the gradients
                     minibatch_grads_and_vars = optimizer.compute_gradients(loss)
@@ -338,10 +358,13 @@ class Trainer():
 		    (minibatchgrads,minibatchvars)=zip(*minibatch_grads_and_vars)
                     
                     #update gradients by accumulating them
-		    self.update_gradients = [grad.assign_add(batchgrad)
+		    update_gradients = [grad.assign_add(batchgrad)
 		      for batchgrad, grad in zip(minibatchgrads,grads)]
-
-
+		    
+		    self.process_minibatch = tf.group(*([acc_loss,acc_loss_norm]+
+					  update_gradients),
+					  name='process_minibatch')
+		    
                     #opperation to apply the gradients
 		    grads_and_vars=list(zip(grads,minibatchvars))
                     apply_gradients_op = optimizer.apply_gradients(
@@ -363,14 +386,6 @@ class Trainer():
                     #validation part
                     with tf.variable_scope('validate'):
 
-                        #create a variable to hold the validation loss
-                        self.validation_loss = tf.get_variable(
-                            name='validation_loss',
-                            shape=[],
-                            dtype=tf.float32,
-                            initializer=tf.constant_initializer(0),
-                            trainable=False)
-
                         #create a variable to save the last step where the model
                         #was validated
                         validated_step = tf.get_variable(
@@ -386,13 +401,37 @@ class Trainer():
                             self.global_step - validated_step,
                             int(conf['valid_frequency']))
 
+			val_loss = tf.get_variable(
+					name='loss',
+					shape=[],
+					dtype=tf.float32,
+					initializer=tf.constant_initializer(0),
+					trainable=False)
+				  
+			reset_val_loss = val_loss.assign(0.0)
+			
+			val_loss_norm = tf.get_variable(
+					name='loss_norm',
+					shape=[],
+					dtype=tf.float32,
+					initializer=tf.constant_initializer(0),
+					trainable=False)
+				  
+			reset_val_loss_norm = val_loss_norm.assign(0.0)
+	    
                         #compute the loss
-                        val_batch_loss, self.valbatches, _, _ = evaluator.evaluate()
+                        val_batch_loss, val_batch_norm, self.valbatches, _, _ = evaluator.evaluate()
+                        
+                        acc_val_loss  = val_loss.assign_add(val_batch_loss)
+			acc_val_loss_norm  = val_loss_norm.assign_add(val_batch_norm)
 
-                        self.update_loss = self.validation_loss.assign(
-                            self.validation_loss +
-                            val_batch_loss/self.valbatches
-                        ).op
+			self.process_val_batch = tf.group(*([acc_loss, acc_loss_norm])
+						    ,name='process_val_batch')
+			
+			self.reset_val_loss_norm = tf.group(*([reset_loss, reset_loss_norm])
+							,name='reset_val_loss_norm')
+			
+			self.validation_loss = val_loss/val_loss_norm
 
                         #update the learning rate factor
                         self.half_lr = learning_rate_fact.assign(
@@ -436,7 +475,7 @@ class Trainer():
                         tf.summary.scalar('validation loss',
                                           self.validation_loss)
                 else:
-                    self.update_loss = None
+                    self.process_val_batch = None
 
                 tf.summary.scalar('learning rate', self.learning_rate)
 
@@ -501,7 +540,7 @@ class Trainer():
                            self.should_stop.eval(session=sess)):
 		  
                     #check if validation is due
-                    if (self.update_loss is not None
+                    if (self.process_val_batch is not None
                             and self.should_validate.eval(session=sess)):
                         if self.is_chief:
                             print ('WORKER %d: validating model'
@@ -512,18 +551,17 @@ class Trainer():
                                 session=sess)
 
                             #reset the validation loss
-                            self.validation_loss.initializer.run(session=sess)
+                            self.reset_val_loss_norm.run(session=sess)
                             
 			    #start time
 			    start = time.time()
                     
                             #compute the validation loss
                             for _ in range(self.valbatches):
-                                self.update_loss.run(session=sess)
+                                self.process_val_batch.run(session=sess)
 
                             #get the current validation loss
-                            validation_loss = self.validation_loss.eval(
-                                session=sess)
+                            [validation_loss] = sess.run([self.validation_loss])
 
                             print ('WORKER %d: validation loss:%.6g,'
 				    'time: %f sec' %
@@ -586,7 +624,7 @@ class Trainer():
 
                         else:
                             if (self.conf['go_back'] == 'True'
-                                    and self.update_loss is not None):
+                                    and self.process_val_batch is not None):
                                 self.waiting.run(session=sess)
                                 while (self.should_validate.eval(session=sess)
                                        and not
@@ -598,21 +636,25 @@ class Trainer():
 		    
                     #start time
                     start = time.time()
+                    
+                    #reset the gradients for the next step
+		    sess.run(fetches=[self.reset_grad_loss_norm])
 
 		    #First, accumulate the gradients
 		    for _ in range(int(self.conf['numbatches_to_aggregate'])):
-			sess.run(fetches=[self.update_gradients, self.acc_loss])
+			sess.run(fetches=[self.process_minibatch])
+			
+		    #Then, normalize the gradients
+		    _ = sess.run([self.normalize_gradients])
 			    
 		    #Finally, apply the gradients
 		    _, loss, lr, global_step, num_steps = sess.run(
 			fetches=[self.update_op,
-				self.total_loss,
+				self.normalized_loss,
 				self.learning_rate,
 				self.global_step,
 				self.num_steps])
 				
-		    #reset the gradients for the next step
-		    sess.run(fetches=[self.reset_grad,self.reset_loss])
 
                     print(('WORKER %d: step %d/%d loss: %.6g, learning rate: %f, '
                            'time: %f sec')

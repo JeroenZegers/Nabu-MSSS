@@ -106,9 +106,9 @@ class Evaluator(object):
 	    
 	    outputs = self._get_outputs(inputs, seq_length)
 
-            loss = self.compute_loss(targets, outputs, seq_length)
+            loss, norm = self.compute_loss(targets, outputs, seq_length)
 
-        return loss, numbatches, outputs, seq_length
+        return loss, norm, numbatches, outputs, seq_length
 
     @abstractmethod
     def _get_outputs(self, inputs, seq_length):
