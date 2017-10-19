@@ -167,27 +167,26 @@ def deepattractornet_loss(binary_targets, multi_targets, mixture, embeddings, us
             Y=tf.multiply(Y,ubreshY)
             Y=tf.to_float(Y)
             
-            numerator=tf.matmul(Y,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
-			    b_is_sparse=True, name='YTV')
-			nb_bins_class = tf.reduce_sum(Y,axis = 0) # dim: 1x number_sources
-			if (tf.count_nonzero(nb_bin_class) != nb_sources):
+            numerator=tf.matmul(Y,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=True, name='YTV')
+            nb_bins_class = tf.reduce_sum(Y,axis = 0) # dim: 1x number_sources
+            if (tf.count_nonzero(nb_bin_class) != nb_sources):
 			    raise ValueError("One of the sources doesn't dominate any tf bin")
-			denominator = tf.tile(tf.transpose(nb_bins_class),[1,emb_dim]) #number_sources x emb_dim
-			A = tf.divide(numerator,denominator)
+            denominator = tf.tile(tf.transpose(nb_bins_class),[1,emb_dim]) #number_sources x emb_dim
+            A = tf.divide(numerator,denominator)
 			
-			prod_1 = tf.matmul(A,V,transpose_a=False, transpose_b = True,name='AVT')
-			ones_M = tf.ones([nb_sources,N],name='ones_M')
-			M = tf.divide(ones_M,ones_M+tf.exp(prod_1)) # dim: number_sources x N
+            prod_1 = tf.matmul(A,V,transpose_a=False, transpose_b = True,name='AVT')
+            ones_M = tf.ones([nb_sources,N],name='ones_M')
+            M = tf.divide(ones_M,ones_M+tf.exp(prod_1)) # dim: number_sources x N
 			
             mix_to_mask_utt = mixture[utt_ind,:T,:]
 			
-	        X = tf.transpose(tf.reshape(mix_to_mask_utt,[N,1],name='X'))
-	        masked_sources = tf.multiply(M,X) # dim: number_sources x N
-			multi_targets_utt = multi_targets[batch_ind]
-			S = tf.reshape(tf.transpose(multi_targets_utt,perm=[2,0,1]),[number_sources,N])
+            X = tf.transpose(tf.reshape(mix_to_mask_utt,[N,1],name='X'))
+            masked_sources = tf.multiply(M,X) # dim: number_sources x N
+            multi_targets_utt = multi_targets[batch_ind]
+            S = tf.reshape(tf.transpose(multi_targets_utt,perm=[2,0,1]),[number_sources,N])
 
-			loss += tf.reduce_sum(tf.square(S-masked_sources))
-		return loss
+            loss += tf.reduce_sum(tf.square(S-masked_sources))
+        return loss
 
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
     '''
