@@ -5,6 +5,7 @@ import tensorflow as tf
 from nabu.neuralnetworks.loss_computers import loss_computer_factory
 from nabu.neuralnetworks.evaluators import evaluator_factory, loss_evaluator
 from nabu.processing import input_pipeline
+import pdb
 
 class TaskTrainer():
     '''General class on how to train for a single task.'''
@@ -199,7 +200,7 @@ class TaskTrainer():
 	    #SyncReplicasOptimizer defined below. However for some reason it hangs
 	    #and I have not yet found a solution for it. For the moment the gradients
 	    #are accumulated in a way that does not allow data paralellism and there
-	    # is no advantage on having multiple workers. (We also accumulate the loss)
+	    # is no advantage on having multiple workers.
 	    
 	    #create an optimizer that aggregates gradients
 	    #if int(conf['numbatches_to_aggregate']) > 0:
@@ -209,6 +210,8 @@ class TaskTrainer():
 			#conf['numbatches_to_aggregate'])#,
 		    ##total_num_replicas=num_replicas
 		    #)
+		    
+	    #a variable to hold the batch loss
 	    self.batch_loss = tf.get_variable(
 			    name='batch_loss',
 			    shape=[],
@@ -218,6 +221,7 @@ class TaskTrainer():
 		      
 	    reset_batch_loss = self.batch_loss.assign(0.0)
 	    
+	    #a variable to hold the batch loss norm
 	    self.batch_loss_norm = tf.get_variable(
 			    name='batch_loss_norm',
 			    shape=[],
@@ -227,9 +231,10 @@ class TaskTrainer():
 		      
 	    reset_batch_loss_norm = self.batch_loss_norm.assign(0.0)
 	    
-	    #Assuming all params are trainable for this task. TODO: fix this
+	    #gather all trainable parameters
 	    params = tf.trainable_variables()
 		  
+	    #a variable to hold all the gradients
 	    self.grads = [tf.get_variable(
 		param.op.name, param.get_shape().as_list(),
 		initializer=tf.constant_initializer(0),
@@ -245,24 +250,35 @@ class TaskTrainer():
 	    
 	    (task_minibatch_grads, task_vars)=zip(*task_minibatch_grads_and_vars)
 	    
+	    #update the batch gradients with the minibatch gradients.
+	    #If a minibatchgradients is None, the loss does not depent on the specific
+	    #variable(s) and it will thus not be updated
 	    with tf.variable_scope('update_gradients'):
 		update_gradients = [grad.assign_add(batchgrad)
-			  for batchgrad, grad in zip(task_minibatch_grads,self.grads)]
-	    
-	    with tf.variable_scope('normalize_loss'):
-	      self.normalized_loss = self.batch_loss/self.batch_loss_norm
-	    
+			  for batchgrad, grad in zip(task_minibatch_grads,self.grads)
+			  if batchgrad is not None]
+	    	    
 	    acc_loss  = self.batch_loss.assign_add(task_minibatch_loss)
 	    acc_loss_norm  = self.batch_loss_norm.assign_add(task_minibatch_loss_norm)
 	    
+	    #group all the operations together that need to be executed to process 
+	    #a minibatch
 	    self.process_minibatch = tf.group(*(update_gradients+[acc_loss]
 					 +[acc_loss_norm])
 					 ,name='update_grads_loss_norm')
 	    
+	    #an op to reset the grads, the loss and the loss norm
 	    self.reset_grad_loss_norm = tf.group(*([reset_grad,reset_batch_loss,
 					     reset_batch_loss_norm])
 					     ,name='reset_grad_loss_norm')
 	    
+	    
+	    #normalize the loss
+	    with tf.variable_scope('normalize_loss'):
+	      self.normalized_loss = self.batch_loss/self.batch_loss_norm
+	    
+	    #normalize the gradients if requested. This is actually useless for 
+	    #many learning algorithms, like adam.
 	    with tf.variable_scope('normalize_gradients'):
 		if self.trainerconf['normalize_gradients']=='True':
 		    self.normalize_gradients = [grad.assign(tf.divide(grad,self.batch_loss_norm))
@@ -279,6 +295,7 @@ class TaskTrainer():
 		batch_grads_and_vars = [(tf.clip_by_value(grad, -clip_value, clip_value), var)
 			  for grad, var in batch_grads_and_vars]
 	    
+	    #an op to apply the accumulated gradients to the variables
 	    self.apply_gradients = optimizer.apply_gradients(
                         grads_and_vars=batch_grads_and_vars,
                         name='apply_gradients')
@@ -289,7 +306,7 @@ class TaskTrainer():
 	'''set the evaluation ops for this task'''
 	
 	with tf.variable_scope(self.task_name):
-	  
+	    #a variable to hold the validation loss
 	    loss = tf.get_variable(
 			    name='loss',
 			    shape=[],
@@ -299,6 +316,7 @@ class TaskTrainer():
 		      
 	    reset_loss = loss.assign(0.0)
 	    
+	    #a variable to hold the validation loss norm
 	    loss_norm = tf.get_variable(
 			    name='loss_norm',
 			    shape=[],
@@ -308,17 +326,22 @@ class TaskTrainer():
 		      
 	    reset_loss_norm = loss_norm.assign(0.0)
 	  
+	    #evaluate a validation batch
 	    val_batch_loss, val_batch_norm, valbatches, _, _ = self.evaluator.evaluate()
 	    
 	    acc_loss  = loss.assign_add(val_batch_loss)
 	    acc_loss_norm  = loss_norm.assign_add(val_batch_norm)
 	    
+	    #group all the operations together that need to be executed to process 
+	    #a validation batch
 	    self.process_val_batch = tf.group(*([acc_loss, acc_loss_norm])
 					 ,name='update_loss')
 	    
+	    #an op to reset the loss and the loss norm
 	    self.reset_val_loss_norm = tf.group(*([reset_loss, reset_loss_norm])
 					     ,name='reset_val_loss_norm')
 	    
+	    #normalize the loss
 	    self.val_loss_normalized = loss/loss_norm
 	    
 	return valbatches
