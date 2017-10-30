@@ -107,10 +107,11 @@ class TaskEvaluator(object):
             #target_seq_length = {
                 #target_names[i]: d
                 #for i, d in enumerate(seq_length[len(self.input_dataconfs):])}
-	    
-	    outputs = self._get_outputs(inputs, seq_length)
 
-            loss, norm = self.compute_loss(targets, outputs[self.output_name], seq_length)
+	    outputs = self._get_outputs(inputs, seq_length)
+	    outputs = outputs[self.output_name]
+
+            loss, norm = self.compute_loss(targets, outputs, seq_length)
 
         return loss, norm, numbatches, outputs, seq_length
 
