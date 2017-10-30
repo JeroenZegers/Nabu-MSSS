@@ -184,7 +184,10 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
   
 def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
     '''
-    Compute the deep clustering loss
+    Compute the permutation invariant loss.
+    Remark: There is actually a more efficient approach to calculate this loss. First calculate
+    the loss for every reconstruction to every target ==> nrS^2 combinations and then add 
+    together the losses to form every possible permutation.
 
     Args:
         targets: a [batch_size x time x feat_dim  x nrS)] tensor containing the multiple targets
@@ -197,7 +200,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
     Returns:
         a scalar value containing the loss
     '''
-
+    
     with tf.name_scope('deepclustering_loss'):
 	feat_dim = tf.shape(targets)[2]
         output_dim = tf.shape(logits)[2]
