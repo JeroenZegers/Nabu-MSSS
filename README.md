@@ -82,8 +82,6 @@ You can find more information about this [here](nabu/computing/README.md)
 
 ### Testing
 
-**Warning: testing is not yet adapated for multi task training**
-
 In the testing stage the performance of the model is evaluated on a testing set.
 The outputs of the model are used to reconstruct the signal estimates and these
 are scored using some scoring metric. To modify the way the model in is evaluated

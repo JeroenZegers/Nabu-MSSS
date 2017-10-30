@@ -20,7 +20,7 @@ class LoadAtBegin(tf.train.SessionRunHook):
 
     def begin(self):
         '''this will be run at session creation'''
-
+	
         #pylint: disable=W0201
         self._saver = tf.train.Saver(self.model.variables, sharded=True,
 				     name='LoaderAtBegin')
