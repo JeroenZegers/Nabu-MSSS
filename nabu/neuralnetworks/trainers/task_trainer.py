@@ -101,6 +101,15 @@ class TaskTrainer():
 	    data_queue_elements, _ = input_pipeline.get_filenames(
 		self.input_dataconfs + self.target_dataconfs)
 	    
+	    number_of_elements = len(data_queue_elements)
+	    if 'trainset_frac' in self.taskconf:
+		number_of_elements=int(float(number_of_elements)*
+			     float(self.taskconf['trainset_frac']))
+            print '%d utterances will be used for training' %(number_of_elements)
+
+            data_queue_elements = data_queue_elements[:number_of_elements]
+		
+	    
 	    #create the data queue and queue runners (inputs are allowed to get shuffled. I already did this so set to False)
 	    self.data_queue = tf.train.string_input_producer(
 		string_tensor=data_queue_elements,
@@ -277,8 +286,7 @@ class TaskTrainer():
 	    with tf.variable_scope('normalize_loss'):
 	      self.normalized_loss = self.batch_loss/self.batch_loss_norm
 	    
-	    #normalize the gradients if requested. This is actually useless for 
-	    #many learning algorithms, like adam.
+	    #normalize the gradients if requested.
 	    with tf.variable_scope('normalize_gradients'):
 		if self.trainerconf['normalize_gradients']=='True':
 		    self.normalize_gradients = [grad.assign(tf.divide(grad,self.batch_loss_norm))

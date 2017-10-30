@@ -15,6 +15,7 @@ def factory(train_type='single_task'):
     '''
 
     if train_type == 'single_task':
+	raise 'single_task training is no longer supported. Define atleast 1 task using the multi_task_trainer'
         return trainer.Trainer
     elif train_type == 'multi_task':
         return multi_task_trainer.MultiTaskTrainer

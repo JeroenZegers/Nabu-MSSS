@@ -164,6 +164,14 @@ class Trainer():
                     data_queue_elements, _ = input_pipeline.get_filenames(
                         input_dataconfs + target_dataconfs)
 		    
+		    number_of_elements = len(data_queue_elements)
+		    if 'trainset_frac' in conf:
+			number_of_elements=int(float(number_of_elements)*
+				    float(conf['trainset_frac']))
+		    print '%d utterances will be used for training' %(number_of_elements)
+
+		    data_queue_elements = data_queue_elements[:number_of_elements]
+            
                     #create the data queue and queue runners (inputs get shuffled! I already did this so set to False)
                     data_queue = tf.train.string_input_producer(
                         string_tensor=data_queue_elements,
