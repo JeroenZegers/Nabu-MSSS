@@ -35,7 +35,7 @@ class DBLSTM(model.Model):
 	
 	#code not available for multiple inputs!!
 	if len(inputs) > 1:
-	    raise 'The implementation DBLSTM expects 1 input and not %d' %len(inputs)
+	    raise 'The implementation of DBLSTM expects 1 input and not %d' %len(inputs)
 	  
 	with tf.variable_scope(self.scope):
 	    for inp in inputs:
@@ -56,10 +56,14 @@ class DBLSTM(model.Model):
 	    #if multiple outputs requested, model is completely shared, except for the
 	    #output layer
 	    for o in self.output_dims:
+		if len(self.output_dims) == 1:
+		    outlayername='outlayer'
+		else:
+		    outlayername='outlayer_%s'%(o)
 		output = tf.contrib.layers.linear(
 		    inputs=logits,
 		    num_outputs=self.output_dims[o],
-		    scope=('outlayer_%s')%(o))
+		    scope=outlayername)
 
 		outputs[o] = output
 
