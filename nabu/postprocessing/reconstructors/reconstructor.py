@@ -12,24 +12,26 @@ class Reconstructor(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, conf, dataconf, expdir):
+    def __init__(self, conf, evalconf, dataconf, expdir, task):
         '''Reconstructor constructor
 
         Args:
-            conf: the evaluator configuration as a ConfigParser
+            conf: the reconstructor configuration as a dictionary
+            evalconf: the evaluator configuration as a ConfigParser
             dataconf: the database configuration
             expdir: the experiment directory
+            task: name of the task
         '''
 
         self.conf = conf
         self.dataconf = dataconf
-        self.batch_size = int(conf.get('evaluator','batch_size'))
-        self.segment_lengths = conf.get('evaluator','segment_length').split(' ')
+        self.batch_size = int(evalconf.get('evaluator','batch_size'))
+        self.segment_lengths = evalconf.get('evaluator','segment_length').split(' ')
         
-        self.nrS = int(conf.get('reconstructor','nrs'))
+        self.nrS = int(conf['nrs'])
         
         #create the directory to write down the reconstructions
-        self.rec_dir = os.path.join(expdir,'reconstructions')
+        self.rec_dir = os.path.join(expdir,'reconstructions',task)
         if not os.path.isdir(self.rec_dir):
 	    os.makedirs(self.rec_dir)
 	for spk in range(self.nrS):

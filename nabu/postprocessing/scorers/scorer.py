@@ -15,34 +15,34 @@ class Scorer(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, conf, dataconf, rec_dir, numbatches):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches):
         '''Reconstructor constructor
 
         Args:
-            conf: the evaluator configuration as a ConfigParser
+            conf: the scorer configuration as a dictionary
+            evalconf: the evaluator configuration as a ConfigParser
             dataconf: the database configuration
             rec_dir: the directory where the reconstructions are
             numbatches: the number of batches to process
         '''
 
-        self.conf = conf
-        self.dataconf = dataconf
-        self.tot_utt = int(conf.get('evaluator','batch_size')) * numbatches
+
+        self.tot_utt = int(evalconf.get('evaluator','batch_size')) * numbatches
         self.rec_dir = rec_dir
-        self.segment_lengths = conf.get('evaluator','segment_length').split(' ')
+        self.segment_lengths = evalconf.get('evaluator','segment_length').split(' ')
 	    
         #get the original source signals reader 
-        org_src_name = conf.get('scorer','org_src')
+        org_src_name = conf['org_src']
         org_src_dataconf = dict(dataconf.items(org_src_name))
         self.org_src_reader = data_reader.DataReader(org_src_dataconf,self.segment_lengths)
         
         #get the base signal (original mixture) reader 
-        base_name = conf.get('scorer','base')
+        base_name = conf['base']
         base_dataconf = dict(dataconf.items(base_name))
         self.base_reader = data_reader.DataReader(base_dataconf,self.segment_lengths)
         
         #get the speaker info
-        spkinfo_name = conf.get('scorer','spkinfo')
+        spkinfo_name = conf['spkinfo']
         spkinfo_dataconf = dict(dataconf.items(spkinfo_name))
         spkinfo_file = spkinfo_dataconf['datafiles']
         
@@ -116,10 +116,6 @@ class Scorer(object):
 	    self.results[utt_name]['score']=utt_score_dict
 	    self.results[utt_name]['spk_info']=spk_info
 	    
-	self.finished_scoring()
-
-    def finished_scoring(self):
-	''' allow action after scoring all utterances, e.g. to close a MATLAB session'''
 	
     def summarize(self):
         '''summarize the results of all utterances

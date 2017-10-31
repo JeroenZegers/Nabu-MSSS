@@ -20,9 +20,10 @@ class LoadAtBegin(tf.train.SessionRunHook):
 
     def begin(self):
         '''this will be run at session creation'''
-
+	
         #pylint: disable=W0201
-        self._saver = tf.train.Saver(self.model.variables, sharded=True)
+        self._saver = tf.train.Saver(self.model.variables, sharded=True,
+				     name='LoaderAtBegin')
 
     def after_create_session(self, session, _):
         '''this will be run after session creation'''
@@ -81,7 +82,8 @@ class SaveAtEnd(tf.train.SessionRunHook):
         '''this will be run at session creation'''
 
         #pylint: disable=W0201
-        self._saver = tf.train.Saver(self.model.variables, sharded=True)
+        self._saver = tf.train.Saver(self.model.variables, sharded=True,
+				     name='SaverAtEnd')
 
     def end(self, session):
         '''this will be run at session closing'''
@@ -104,7 +106,8 @@ class ValidationSaveHook(tf.train.SessionRunHook):
         '''this will be run at session creation'''
 
         #pylint: disable=W0201
-        self._saver = tf.train.Saver(sharded=True)
+        self._saver = tf.train.Saver(sharded=True,
+				     name='SaverValidation')
 
     def after_create_session(self, session, _):
         '''this will be run after session creation'''

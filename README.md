@@ -78,9 +78,9 @@ extra parameter; mode (default: non_distributed). Mode is the distribution mode.
 This should be one of non_distributed, single_machine or multi_machine.
 You can find more information about this [here](nabu/computing/README.md)
 
-### Testing
+**Warning: Currently only 'nondistributed' is allowed for computing**
 
-**Warning: testing is not yet adapated for multi task training**
+### Testing
 
 In the testing stage the performance of the model is evaluated on a testing set.
 The outputs of the model are used to reconstruct the signal estimates and these

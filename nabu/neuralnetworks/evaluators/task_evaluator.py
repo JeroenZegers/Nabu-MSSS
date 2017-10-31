@@ -13,18 +13,21 @@ class TaskEvaluator(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, conf, dataconf, model, task):
+    def __init__(self, conf, dataconf, model, output_name, task):
         '''TaskEvaluator constructor
 
         Args:
             conf: the evaluator configuration as a ConfigParser
             dataconf: the database configuration
+            output_name: the name of the output of the model to concider
             model: the model to be evaluated
         '''
 
         self.conf = conf
         self.model = model
         self.task = task
+        
+        self.output_name = output_name
 
         #get the database configurations
         inputs = self.model.input_names
@@ -104,12 +107,13 @@ class TaskEvaluator(object):
             #target_seq_length = {
                 #target_names[i]: d
                 #for i, d in enumerate(seq_length[len(self.input_dataconfs):])}
-	    
+
 	    outputs = self._get_outputs(inputs, seq_length)
+	    outputs = outputs[self.output_name]
 
-            loss = self.compute_loss(targets, outputs, seq_length)
+            loss, norm = self.compute_loss(targets, outputs, seq_length)
 
-        return loss, numbatches, outputs, seq_length
+        return loss, norm, numbatches, outputs, seq_length
 
     @abstractmethod
     def _get_outputs(self, inputs, seq_length):

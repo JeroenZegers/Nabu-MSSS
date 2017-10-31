@@ -6,8 +6,6 @@ import os
 sys.path.append(os.getcwd())
 import cPickle as pickle
 from six.moves import configparser
-import matlab.engine
-import matlab
 import tensorflow as tf
 from nabu.neuralnetworks.evaluators import evaluator_factory
 from nabu.neuralnetworks.components.hooks import LoadAtBegin, SummaryHook
@@ -18,105 +16,150 @@ import pdb
 
 def test(expdir):
     '''does everything for testing'''
-    
+
     #read the database config file
     database_cfg = configparser.ConfigParser()
     database_cfg.read(os.path.join(expdir, 'database.cfg'))
 
-    #load the model
-    with open(os.path.join(expdir, 'model', 'model.pkl'), 'rb') as fid:
-        model = pickle.load(fid)
+    #read the model config file
+    model_cfg = configparser.ConfigParser()
+    model_cfg.read(os.path.join(expdir, 'model.cfg'))
 
     #read the evaluator config file
     evaluator_cfg = configparser.ConfigParser()
     evaluator_cfg.read(os.path.join(expdir, 'evaluator.cfg'))
+    #quick fix
+    evaluator_cfg.set('evaluator','batch_size','5')
 
-    #create the evaluator
-    evaltype = evaluator_cfg.get('evaluator', 'evaluator')
-    evaluator = evaluator_factory.factory(evaltype)(
-        conf=evaluator_cfg,
-        dataconf=database_cfg,
-        model=model)
-    
-    #create the reconstructor
-    reconstruct_type = evaluator_cfg.get('reconstructor', 'reconstruct_type')
-    reconstructor = reconstructor_factory.factory(reconstruct_type)(
-        conf=evaluator_cfg,
-        dataconf=database_cfg,
-        expdir=expdir)
-	     
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    #read the reconstructor config file
+    reconstructor_cfg = configparser.ConfigParser()
+    reconstructor_cfg.read(os.path.join(expdir, 'reconstructor.cfg'))
 
-    #create the graph
-    graph = tf.Graph()
+    #read the scorer config file
+    scorer_cfg = configparser.ConfigParser()
+    scorer_cfg.read(os.path.join(expdir, 'scorer.cfg'))
 
-    with graph.as_default():
-        #compute the loss
-        batch_loss, numbatches, batch_outputs, batch_seq_length = evaluator.evaluate()
+    if evaluator_cfg.get('evaluator','evaluator') == 'multi_task':
+	tasks = evaluator_cfg.get('evaluator','tasks').split(' ')
+      
+    elif evaluator_cfg.get('evaluator','evaluator') == 'single_task':
+	raise 'Did not yet implement testing for single_task'
+      
+    else:
+	raise 'unkown type of evaluation %s' %evaluator_cfg.get('evaluator','evaluator')
+    #pdb.set_trace()  
+    #evaluate each task separately
+    for task in tasks:
+	if os.path.isfile(os.path.join(expdir, 'results_%s_summary.json'%task)):
+	    print 'Already found a score for task %s, skipping it.' %task
+	else:
+	    print 'Evaluating task %s' %task
+	    
+	    #load the model
+	    with open(os.path.join(expdir, 'model', 'model.pkl'), 'rb') as fid:
+		model = pickle.load(fid)
+	  
+	    if evaluator_cfg.get('evaluator','multi_trainer')=='single_1to1':
+		#the model has the same output for every task
+		output_name = model_cfg.get('io', 'outputs')
+		
+	    elif evaluator_cfg.get('evaluator','multi_trainer')=='single_1tomany':
+		#the model has a separate output per task
+		output_name = evaluator_cfg.get(task,'output')
+	    else:
+		raise 'did not understand multi_trainer style: %s' %evaluator_cfg.get('evaluator','multi_trainer')
+	  
+	    #create the evaluator
+	    evaltype = evaluator_cfg.get(task, 'evaluator')
+	    evaluator = evaluator_factory.factory(evaltype)(
+		conf=evaluator_cfg,
+		dataconf=database_cfg,
+		model=model,
+		output_name=output_name,
+		task=task)
+	    
+	    #create the reconstructor
+	    task_reconstructor_cfg = dict(reconstructor_cfg.items(task))
+	    reconstruct_type = task_reconstructor_cfg['reconstruct_type']
+	    reconstructor = reconstructor_factory.factory(reconstruct_type)(
+		conf=task_reconstructor_cfg,
+		evalconf=evaluator_cfg,
+		dataconf=database_cfg,
+		expdir=expdir,
+		task=task)
+		    
+	    if os.path.isfile(os.path.join(expdir, 'loss_%s'%task)):
+		print 'already reconstructed all signals for task %s, going straight to scoring'%task
+		numbatches = int(float(evaluator_cfg.get('evaluator','requested_utts'))/
+				 float(evaluator_cfg.get('evaluator','batch_size')))
+	    else:
+	      
+		#create the graph
+		graph = tf.Graph()
 
-        #create a hook that will load the model
-        load_hook = LoadAtBegin(
-            os.path.join(expdir, 'model', 'network.ckpt'),
-            model)
+		with graph.as_default():
+		    #compute the loss
+		    batch_loss, batch_norm, numbatches, batch_outputs, batch_seq_length = evaluator.evaluate()
 
-        #create a hook for summary writing
-        summary_hook = SummaryHook(os.path.join(expdir, 'logdir'))
+		    #create a hook that will load the model
+		    load_hook = LoadAtBegin(
+			os.path.join(expdir, 'model', 'network.ckpt'),
+			model)
 
-        #start the session
-        with tf.train.SingularMonitoredSession(
-            hooks=[load_hook, summary_hook]) as sess:
+		    #create a hook for summary writing
+		    summary_hook = SummaryHook(os.path.join(expdir, 'logdir'))
+		    config = tf.ConfigProto(device_count = {'GPU': 0})
+		    #start the session
+		    with tf.train.SingularMonitoredSession(
+			hooks=[load_hook, summary_hook],config=config) as sess:
 
-            loss = 0.0
+			loss = 0.0
+			loss_norm = 0.0
 
-            for batch_ind in range(0,numbatches):
-		print 'evaluating batch number %d' %batch_ind
+			for batch_ind in range(0,numbatches):
+			    print 'evaluating batch number %d' %batch_ind
 
-		batch_loss_eval, batch_outputs_eval, batch_seq_length_eval = sess.run(
-		      fetches=[batch_loss, batch_outputs, batch_seq_length])
+			    [batch_loss_eval, batch_norm_eval, batch_outputs_eval, 
+				  batch_seq_length_eval] = sess.run(
+				  fetches=[batch_loss, batch_norm, batch_outputs, batch_seq_length])
 
-                loss += batch_loss_eval
+			    loss += batch_loss_eval
+			    loss_norm += batch_norm_eval
 
-                reconstructor(batch_outputs_eval['outputs'],
-			      batch_seq_length_eval['features'])              
-                
-            loss = loss/numbatches
+			    reconstructor(batch_outputs_eval,
+					  batch_seq_length_eval['features'])              
+			    
+			loss = loss/loss_norm
 
-    print 'loss = %0.6g' % loss
-    
-    #write the loss to disk
-    with open(os.path.join(expdir, 'loss'), 'w') as fid:
-        fid.write(str(loss))
-        
-    #from here on there is no need for a GPU anymore ==> score script to be run separately on
-    #different machine? reconstructor.rec_dir has to be known though. can be put in evaluator_cfg
-    
-    score_type = evaluator_cfg.get('scorer', 'score_type')
-    
-    for i in range(10):
-	# Sometime it fails and not sure why. Just retry then. max 10 times
-	try:
+		print 'task %s: loss = %0.6g' %(task, loss)
+	    
+		#write the loss to disk
+		with open(os.path.join(expdir, 'loss_%s'%task), 'w') as fid:
+		    fid.write(str(loss))
+		
+	    #from here on there is no need for a GPU anymore ==> score script to be run separately on
+	    #different machine? reconstructor.rec_dir has to be known though. can be put in evaluator_cfg
+	    
+	    task_scorer_cfg = dict(scorer_cfg.items(task))
+	    score_type = task_scorer_cfg['score_type']
+	    
 	    #create the scorer
 	    scorer = scorer_factory.factory(score_type)(
-		conf=evaluator_cfg,
+		conf=task_scorer_cfg,
+		evalconf=evaluator_cfg,
 		dataconf=database_cfg,
 		rec_dir=reconstructor.rec_dir,
 		numbatches=numbatches)
-    
+
 	    #run the scorer
 	    scorer()
-	except Exception:
-	  if i==9:
-	      raise Exception
-	  else:
-	      continue
-	break
-    
-    with open(os.path.join(expdir, 'results_complete.json'), 'w') as fid:
-        json.dump(scorer.results,fid)
-    
-    result_summary = scorer.summarize()
-    with open(os.path.join(expdir, 'results_summary.json'), 'w') as fid:
-        json.dump(result_summary,fid)
+
+	    with open(os.path.join(expdir, 'results_%s_complete.json'%task), 'w') as fid:
+		json.dump(scorer.results,fid)
+	    
+	    result_summary = scorer.summarize()
+	    with open(os.path.join(expdir, 'results_%s_summary.json'%task), 'w') as fid:
+		json.dump(result_summary,fid)
 
 
 if __name__ == '__main__':

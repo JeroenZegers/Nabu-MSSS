@@ -12,19 +12,21 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 
     a reconstructor using deep clustering'''
 
-    def __init__(self, conf, dataconf, expdir):
+    def __init__(self, conf, evalconf, dataconf, expdir, task):
         '''DeepclusteringReconstructor constructor
 
         Args:
-            conf: the evaluator configuration as a ConfigParser
+            conf: the reconstructor configuration as a dictionary
+            evalconf: the evaluator configuration as a ConfigParser
             dataconf: the database configurationn
             expdir: the experiment directory
+            task: name of the task
         '''
         
-        super(DeepclusteringReconstructor, self).__init__(conf, dataconf, expdir)
+        super(DeepclusteringReconstructor, self).__init__(conf, evalconf, dataconf, expdir,task)
         
         #get the usedbins reader
-        usedbins_name = conf.get('reconstructor','usedbins')
+        usedbins_name = conf['usedbins']
         usedbins_dataconf = dict(dataconf.items(usedbins_name))
         self.usedbins_reader = data_reader.DataReader(usedbins_dataconf,self.segment_lengths)
         

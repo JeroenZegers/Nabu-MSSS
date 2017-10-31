@@ -1,7 +1,8 @@
 '''@file reconstructor_factory.py
 contains the Reconstructor factory'''
 
-from . import  deepclustering_reconstructor, stackedmasks_reconstructor
+from . import  deepclustering_reconstructor, stackedmasks_reconstructor, \
+deepXclustering_reconstructor
 
 def factory(reconstructor):
     '''
@@ -16,6 +17,8 @@ def factory(reconstructor):
 
     if reconstructor == 'deepclustering':
         return deepclustering_reconstructor.DeepclusteringReconstructor
+    if reconstructor == 'deepXclustering':
+        return deepXclustering_reconstructor.DeepXclusteringReconstructor  
     elif reconstructor == 'stackedmasks':
         return stackedmasks_reconstructor.StackedmasksReconstructor
     else:

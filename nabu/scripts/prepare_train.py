@@ -10,8 +10,6 @@ import atexit
 import subprocess
 from time import sleep
 import copy
-import matlab.engine
-import matlab
 import tensorflow as tf
 from six.moves import configparser
 from nabu.computing import cluster, local_cluster

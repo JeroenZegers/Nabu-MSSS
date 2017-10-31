@@ -4,8 +4,6 @@ does the data preperation'''
 import os
 from six.moves import configparser
 import gzip
-import matlab.engine
-import matlab
 import tensorflow as tf
 from nabu.processing.processors import processor_factory
 from nabu.processing.tfwriters import tfwriter_factory
