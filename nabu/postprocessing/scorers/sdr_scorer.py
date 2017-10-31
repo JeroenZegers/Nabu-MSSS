@@ -8,7 +8,10 @@ import bss_eval
 import pdb
 
 class SdrScorer(scorer.Scorer):
-    '''the SDR scorer class
+    '''the SDR scorer class. Uses the script from
+    C. Raffel, B. McFee, E. J. Humphrey, J. Salamon, O. Nieto, D. Liang, and D. P. W. Ellis,
+    'mir_eval: A Transparent Implementation of Common MIR Metrics', Proceedings of the 15th
+    International Conference on Music Information Retrieval, 2014
 
     a scorer using SDR'''
     	
