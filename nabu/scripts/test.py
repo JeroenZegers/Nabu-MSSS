@@ -6,8 +6,6 @@ import os
 sys.path.append(os.getcwd())
 import cPickle as pickle
 from six.moves import configparser
-import matlab.engine
-import matlab
 import tensorflow as tf
 from nabu.neuralnetworks.evaluators import evaluator_factory
 from nabu.neuralnetworks.components.hooks import LoadAtBegin, SummaryHook

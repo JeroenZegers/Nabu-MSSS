@@ -7,8 +7,6 @@ sys.path.append(os.getcwd())
 import shutil
 import subprocess
 from six.moves import configparser
-import matlab.engine
-import matlab
 import tensorflow as tf
 from test import test
 

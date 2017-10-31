@@ -4,8 +4,6 @@ this file will do the training'''
 import sys
 import os
 sys.path.append(os.getcwd())
-import matlab.engine
-import matlab
 import tensorflow as tf
 from six.moves import configparser
 from nabu.computing import create_server
