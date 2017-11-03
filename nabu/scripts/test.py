@@ -141,31 +141,32 @@ def test(expdir):
 	    #different machine? reconstructor.rec_dir has to be known though. can be put in evaluator_cfg
 	    
 	    task_scorer_cfg = dict(scorer_cfg.items(task))
-	    score_type = task_scorer_cfg['score_type']
+	    score_types = task_scorer_cfg['score_type'].split(' ')
 	    
-	    #create the scorer
-	    scorer = scorer_factory.factory(score_type)(
-		conf=task_scorer_cfg,
-		evalconf=evaluator_cfg,
-		dataconf=database_cfg,
-		rec_dir=reconstructor.rec_dir,
-		numbatches=numbatches)
+	    for score_type in score_types:
+		#create the scorer
+		scorer = scorer_factory.factory(score_type)(
+		    conf=task_scorer_cfg,
+		    evalconf=evaluator_cfg,
+		    dataconf=database_cfg,
+		    rec_dir=reconstructor.rec_dir,
+		    numbatches=numbatches)
 
-	    #run the scorer
-	    scorer()
+		#run the scorer
+		scorer()
 
-	    with open(os.path.join(expdir, 'results_%s_complete.json'%task), 'w') as fid:
-		json.dump(scorer.results,fid)
-	    
-	    result_summary = scorer.summarize()
-	    with open(os.path.join(expdir, 'results_%s_summary.json'%task), 'w') as fid:
-		json.dump(result_summary,fid)
+		with open(os.path.join(expdir, 'results_%s_%s_complete.json'%(task,score_type)), 'w') as fid:
+		    json.dump(scorer.results,fid)
+		
+		result_summary = scorer.summarize()
+		with open(os.path.join(expdir, 'results_%s_%s_summary.json'%(task,score_type)), 'w') as fid:
+		    json.dump(result_summary,fid)
 
 
 if __name__ == '__main__':
 
     tf.app.flags.DEFINE_string('expdir', 'expdir',
-                               'the exeriments directory that was used for'
+                               'the experiments directory that was used for'
                                ' training'
                               )
     FLAGS = tf.app.flags.FLAGS

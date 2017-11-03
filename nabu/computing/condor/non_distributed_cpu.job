@@ -9,6 +9,7 @@ requestCpus      = 8
 #requirement
 Requirements = (CUDACapability >= 3.0)\
   &&(machine =!= LastRemoteHost)
+#  && (machine != "opal.esat.kuleuven.be") 
 
 
 #Specfy nice user behavior

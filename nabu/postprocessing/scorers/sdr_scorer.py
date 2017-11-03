@@ -17,6 +17,7 @@ class SdrScorer(scorer.Scorer):
     	
     score_metrics = ('SDR','SIR','SAR')
     score_scenarios = ('SS','base')
+    score_expects = 'data'
 
     def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches):
         '''SdrScorer constructor
