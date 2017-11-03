@@ -14,7 +14,7 @@ Requirements = (CUDACapability >= 3.0)\
 
 
 #Specfy nice user behavior
-NiceUser = false
+NiceUser = true
 #Send an email in case of an error
 Notification = Error
 

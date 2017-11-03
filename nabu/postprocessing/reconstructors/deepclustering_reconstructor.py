@@ -12,19 +12,21 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 
     a reconstructor using deep clustering'''
 
-    def __init__(self, conf, dataconf, expdir):
+    def __init__(self, conf, evalconf, dataconf, expdir, task):
         '''DeepclusteringReconstructor constructor
 
         Args:
-            conf: the evaluator configuration as a ConfigParser
+            conf: the reconstructor configuration as a dictionary
+            evalconf: the evaluator configuration as a ConfigParser
             dataconf: the database configurationn
             expdir: the experiment directory
+            task: name of the task
         '''
         
-        super(DeepclusteringReconstructor, self).__init__(conf, dataconf, expdir)
+        super(DeepclusteringReconstructor, self).__init__(conf, evalconf, dataconf, expdir,task)
         
         #get the usedbins reader
-        usedbins_name = conf.get('reconstructor','usedbins')
+        usedbins_name = conf['usedbins']
         usedbins_dataconf = dict(dataconf.items(usedbins_name))
         self.usedbins_reader = data_reader.DataReader(usedbins_dataconf,self.segment_lengths)
         
@@ -56,10 +58,18 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 	#only keep the active bins (above threshold) for clustering
 	usedbins_resh = np.reshape(usedbins, T*F)
 	output_speech_resh = output_resh[usedbins_resh]
-	
+	    
 	#apply kmeans clustering and assign each bin to a clustering
 	kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=-1)
-	kmeans_model.fit(output_speech_resh)
+	
+	for _ in range(5):
+	# Sometime it fails due to some indexerror and I'm not sure why. Just retry then. max 5 times
+	    try:
+		kmeans_model.fit(output_speech_resh)
+	    except IndexError:
+	      continue
+	    break
+	
 	predicted_labels = kmeans_model.predict(output_resh)
 	predicted_labels_resh = np.reshape(predicted_labels,[T,F])
 	

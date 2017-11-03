@@ -191,6 +191,7 @@ def deepattractornet_loss(binary_targets, multi_targets, mixture, embeddings, us
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
     '''
     Compute the deep clustering loss
+    cost function based on Hershey et al. 2016
 
     Args:
         targets: a [batch_size x time x (feat_dim*nrS)] tensor containing the binary targets
@@ -210,7 +211,9 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
         target_dim = tf.shape(targets)[2]
         nrS = target_dim/feat_dim
                 
-        loss = 0
+        loss = 0.0
+        norm = 0
+        
         for utt_ind in range(batch_size):
             N = seq_length[utt_ind]
             Nspec = N*feat_dim
@@ -221,6 +224,7 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
             targets_utt = targets[utt_ind]
             targets_utt = targets_utt[:N,:]
 		               
+<<<<<<< HEAD
     	    #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
     	    #targets will give 0 contribution to loss.
             ubresh=tf.reshape(usedbins_utt,[Nspec,1],name='ubresh')
@@ -236,6 +240,23 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
             Y=tf.to_float(Y)
 
             prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
+=======
+	    #remove the non_silence (cfr bins below energy thresh) bins. Removing in logits and
+	    #targets will give 0 contribution to loss.
+	    ubresh=tf.reshape(usedbins_utt,[Nspec,1],name='ubresh')
+	    ubreshV=tf.tile(ubresh,[1,emb_dim])
+	    ubreshV=tf.to_float(ubreshV)
+	    ubreshY=tf.tile(ubresh,[1,nrS])
+	    
+	    V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V') 
+	    Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
+	    Vnorm=tf.multiply(Vnorm,ubreshV)
+	    Y=tf.reshape(targets_utt,[Nspec,nrS],name='Y')
+	    Y=tf.multiply(Y,ubreshY)
+	    Y=tf.to_float(Y)
+
+	    prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
+>>>>>>> eecb9d6e604697c0721a8c19b64515b07ab69947
 			    b_is_sparse=True, name='VTV')
             prod2=tf.matmul(Vnorm,Y,transpose_a=True, transpose_b=False, a_is_sparse=True, 
 			    b_is_sparse=True, name='VTY')
@@ -248,12 +269,23 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
             #loss += loss_utt/normalizer*(10**9)
             loss += loss_utt
 	    
+<<<<<<< HEAD
     #loss = loss/tf.to_float(batch_size)   
     return loss
+=======
+	    norm += tf.to_float(tf.square(tf.reduce_sum(usedbins_utt)))
+	    
+    #loss = loss/tf.to_float(batch_size)
+    
+    return loss , norm
+>>>>>>> eecb9d6e604697c0721a8c19b64515b07ab69947
   
 def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
     '''
-    Compute the deep clustering loss
+    Compute the permutation invariant loss.
+    Remark: There is actually a more efficient approach to calculate this loss. First calculate
+    the loss for every reconstruction to every target ==> nrS^2 combinations and then add 
+    together the losses to form every possible permutation.
 
     Args:
         targets: a [batch_size x time x feat_dim  x nrS)] tensor containing the multiple targets
@@ -266,7 +298,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
     Returns:
         a scalar value containing the loss
     '''
-
+    
     with tf.name_scope('deepclustering_loss'):
         feat_dim = tf.shape(targets)[2]
         output_dim = tf.shape(logits)[2]
@@ -274,7 +306,8 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
         nrS_tf = tf.shape(targets)[3]
         permutations = list(itertools.permutations(range(nrS),nrS))
                 
-        loss = 0
+        loss = 0.0
+        norm = tf.to_float(nrS_tf * feat_dim * tf.reduce_sum(seq_length))
         for utt_ind in range(batch_size):
 	    N = seq_length[utt_ind]
 	    logits_utt = logits[utt_ind]
@@ -290,12 +323,16 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 	    mix_to_mask_utt = tf.expand_dims(mix_to_mask_utt,-1)
 	    recs = tf.multiply(Masks, mix_to_mask_utt)
 	    
+<<<<<<< HEAD
 	    logits_resh = tf.transpose(logits_resh,perm=[2,0,1]) # https://www.tensorflow.org/api_docs/python/tf/transpose
+=======
+	    targets_resh = tf.transpose(targets_utt,perm=[2,0,1])
+>>>>>>> eecb9d6e604697c0721a8c19b64515b07ab69947
 	    recs = tf.transpose(recs,perm=[2,0,1])
 		               
 	    perm_cost = []
 	    for perm in permutations:
-		tmp = tf.norm(tf.gather(recs,perm)-logits_resh,ord='fro',axis=[1,2])
+		tmp = tf.square(tf.norm(tf.gather(recs,perm)-targets_resh,ord='fro',axis=[1,2]))
 		perm_cost.append(tf.reduce_sum(tmp))
 		
 	    loss_utt = tf.reduce_min(perm_cost)
@@ -304,7 +341,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 	    
     #loss = loss/tf.to_float(batch_size)
     
-    return loss
+    return loss, norm
 
 def cross_entropy_loss_eos(targets, logits, logit_seq_length,
                            target_seq_length):

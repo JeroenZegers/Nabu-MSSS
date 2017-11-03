@@ -4,13 +4,10 @@ this file will do the training'''
 import sys
 import os
 sys.path.append(os.getcwd())
-import matlab.engine
-import matlab
 import tensorflow as tf
 from six.moves import configparser
 from nabu.computing import create_server
-#from nabu.neuralnetworks.trainers import trainer_factory
-from nabu.neuralnetworks.trainers import trainer
+from nabu.neuralnetworks.trainers import trainer_factory
 import pdb
 
 def train(clusterfile,
@@ -52,7 +49,7 @@ def train(clusterfile,
     #segment length and its network is initliazed with the network of the previous 
     #training stage
     segment_lengths = trainer_cfg['segment_lengths'].split(' ')
-    
+    #os.environ['CUDA_VISIBLE_DEVICES'] = '1'  
     for i,segment_length in enumerate(segment_lengths):
     
 	segment_expdir = os.path.join(expdir,segment_length)
@@ -65,6 +62,13 @@ def train(clusterfile,
 	segment_parsed_trainer_cfg.read(
 	    os.path.join(segment_expdir, 'trainer.cfg'))
 	segment_trainer_cfg = dict(segment_parsed_trainer_cfg.items('trainer'))
+	
+	if segment_trainer_cfg['trainer'] == 'multi_task':
+	    segment_tasks_cfg = dict()
+	    for task in segment_trainer_cfg['tasks'].split(' '):
+		segment_tasks_cfg[task]= dict(segment_parsed_trainer_cfg.items(task))
+	else:
+	    segment_tasks_cfg = None
 	 
 	#If there was no previously validated training sessions, use the model of the 
 	#previous segment length as initialization for the current one
@@ -91,22 +95,24 @@ def train(clusterfile,
 	
 	    #parameter server
 	    if job_name == 'ps':
+		raise 'Parameter server is currently not implemented correctly'
+		##create the parameter server
+		#ps = multi_task_trainer.ParameterServer(
+		    #conf=segment_trainer_cfg,
+		    #tasksconf=segment_tasks_cfg,
+		    #modelconf=model_cfg,
+		    #dataconf=segment_parsed_database_cfg,
+		    #server=server,
+		    #task_index=task_index)
 
-		#create the parameter server
-		ps = trainer.ParameterServer(
-		    conf=segment_trainer_cfg,
-		    modelconf=model_cfg,
-		    dataconf=segment_parsed_database_cfg,
-		    server=server,
-		    task_index=task_index)
+		#if task_index ==0:
+		##let the ps wait untill all workers are finished
+		    #ps.join()
+		    #return
 
-		if task_index ==0:
-		#let the ps wait untill all workers are finished
-		    ps.join()
-		    return
-
-	    tr = trainer.Trainer(
+	    tr = trainer_factory.factory(segment_trainer_cfg['trainer'])(
 		conf=segment_trainer_cfg,
+		tasksconf=segment_tasks_cfg,
 		dataconf=segment_parsed_database_cfg,
 		modelconf=model_cfg,
 		evaluatorconf=evaluator_cfg,
@@ -116,7 +122,7 @@ def train(clusterfile,
 		task_index=task_index)
 
 	    print 'starting training for segment length: %s' %segment_length
-
+	    
 	    #train the model
 	    tr.train()
 	    

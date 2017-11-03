@@ -13,19 +13,21 @@ class MaskReconstructor(reconstructor.Reconstructor):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, conf, dataconf, expdir):
+    def __init__(self, conf, evalconf, dataconf, expdir, task):
         '''MaskReconstructor constructor
 
         Args:
-            conf: the evaluator configuration as a ConfigParser
+            conf: the reconstructor configuration as a dictionary
+            evalconf: the evaluator configuration as a ConfigParser
             dataconf: the database configurationn
             expdir: the experiment directory
+            task: name of the task
         '''
         
-        super(MaskReconstructor, self).__init__(conf, dataconf, expdir)
+        super(MaskReconstructor, self).__init__(conf, evalconf, dataconf, expdir, task)
         
         #get the original mixtures reader 
-        org_mix_name = conf.get('reconstructor','org_mix')
+        org_mix_name = conf['org_mix']
         org_mix_dataconf = dict(dataconf.items(org_mix_name))
         self.org_mix_reader = data_reader.DataReader(org_mix_dataconf, self.segment_lengths)
 

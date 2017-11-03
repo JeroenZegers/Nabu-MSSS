@@ -7,10 +7,9 @@ sys.path.append(os.getcwd())
 import subprocess
 import shutil
 from six.moves import configparser
-import matlab.engine
-import matlab
 import tensorflow as tf
 import data
+import pdb
 
 def main(expdir, recipe, computing):
     '''main method'''
