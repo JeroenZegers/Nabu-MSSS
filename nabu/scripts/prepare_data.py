@@ -25,7 +25,9 @@ def main(expdir, recipe, computing):
                         '--recipe=/path/to/recipe')
     if computing not in ['standard', 'condor']:
         raise Exception('unknown computing mode: %s' % computing)
-
+    if not os.path.isfile(os.path.join(recipe, 'database.conf')):
+        raise Exception('No database.conf found in %s' % recipe)
+        
     #read the data conf file
     parsed_cfg = configparser.ConfigParser()
     parsed_cfg.read(os.path.join(recipe, 'database.conf'))
