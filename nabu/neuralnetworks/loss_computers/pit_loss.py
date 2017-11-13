@@ -27,11 +27,11 @@ class PITLoss(loss_computer.LossComputer):
         '''
 
                        
-	    multi_targets=targets['multi_targets']            
-	    mix_to_mask = targets['mix_to_mask']
-	    seq_length = seq_length['features']
-		        
-	    loss, norm = ops.pit_loss(multi_targets, logits, mix_to_mask, 
-					    seq_length,self.batch_size)
+        multi_targets=targets['multi_targets']            
+        mix_to_mask = targets['mix_to_mask']
+        seq_length = seq_length['features']
+                
+        loss, norm = ops.pit_loss(multi_targets, logits, mix_to_mask, 
+		                seq_length,self.batch_size)
             
         return loss, norm
