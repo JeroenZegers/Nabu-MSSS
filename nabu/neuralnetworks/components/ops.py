@@ -225,34 +225,34 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
             targets_utt = targets_utt[:N,:]
 		               
 
-	        #remove the non_silence (cfr bins below energy thresh) bins. Removing in logits and
-	        #targets will give 0 contribution to loss.
-	        ubresh=tf.reshape(usedbins_utt,[Nspec,1],name='ubresh')
-	        ubreshV=tf.tile(ubresh,[1,emb_dim])
-	        ubreshV=tf.to_float(ubreshV)
-	        ubreshY=tf.tile(ubresh,[1,nrS])
-	        
-	        V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V') 
-	        Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
-	        Vnorm=tf.multiply(Vnorm,ubreshV)
-	        Y=tf.reshape(targets_utt,[Nspec,nrS],name='Y')
-	        Y=tf.multiply(Y,ubreshY)
-	        Y=tf.to_float(Y)
+            #remove the non_silence (cfr bins below energy thresh) bins. Removing in logits and
+            #targets will give 0 contribution to loss.
+            ubresh=tf.reshape(usedbins_utt,[Nspec,1],name='ubresh')
+            ubreshV=tf.tile(ubresh,[1,emb_dim])
+            ubreshV=tf.to_float(ubreshV)
+            ubreshY=tf.tile(ubresh,[1,nrS])
 
-	        prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
-			        b_is_sparse=True, name='VTV')
+            V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V') 
+            Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
+            Vnorm=tf.multiply(Vnorm,ubreshV)
+            Y=tf.reshape(targets_utt,[Nspec,nrS],name='Y')
+            Y=tf.multiply(Y,ubreshY)
+            Y=tf.to_float(Y)
+
+            prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
+                    b_is_sparse=True, name='VTV')
             prod2=tf.matmul(Vnorm,Y,transpose_a=True, transpose_b=False, a_is_sparse=True, 
-			        b_is_sparse=True, name='VTY')
-	        
+                    b_is_sparse=True, name='VTY')
+
             term1=tf.reduce_sum(tf.square(prod1),name='frob_1')
             term2=tf.reduce_sum(tf.square(prod2),name='frob_2')
-        
+
             loss_utt = tf.add(term1,-2*term2,name='term1and2')
             #normalizer= tf.to_float(tf.square(tf.reduce_sum(ubresh)))
             #loss += loss_utt/normalizer*(10**9)
             loss += loss_utt
 
-	        norm += tf.to_float(tf.square(tf.reduce_sum(usedbins_utt)))
+            norm += tf.to_float(tf.square(tf.reduce_sum(usedbins_utt)))
  
     return loss , norm
 
