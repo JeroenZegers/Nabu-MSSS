@@ -1,8 +1,8 @@
 # ignore compiled code
 *.pyc
-*.conf
+
 cluster
-nabu/computing/condor/create_environment.sh
+
 # .gitignore
 sweeps
 *debug*
