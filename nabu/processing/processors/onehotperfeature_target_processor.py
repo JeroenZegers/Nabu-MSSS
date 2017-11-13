@@ -27,9 +27,10 @@ class onehotperfeatureTargetProcessor(processor.Processor):
         
         #set the length of the segments. Possibly multiple segment lengths
         self.segment_lengths = segment_lengths
-        self.dim = self.comp.get_dim()* self.nrS
+        
         #initialize the metadata
         self.nrS = int(conf['nrs'])
+        self.dim = self.comp.get_dim()* self.nrS
         self.target_dim = self.comp.get_dim() * self.nrS
         self.nontime_dims=[self.target_dim]
         
