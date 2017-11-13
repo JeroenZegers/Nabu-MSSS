@@ -25,22 +25,13 @@ class PITLoss(loss_computer.LossComputer):
             loss: a scalar value containing the loss
             norm: a scalar value indicating how to normalize the loss
         '''
-<<<<<<< HEAD
-                   
-        outputs = logits['outputs']         
-        multi_targets=targets['multi_targets']            
-        mix_to_mask = targets['mix_to_mask']
-        seq_length = seq_length['features']
-		    
-        loss = ops.pit_loss(multi_targets, outputs, mix_to_mask, 
-=======
+
                        
-	multi_targets=targets['multi_targets']            
-	mix_to_mask = targets['mix_to_mask']
-	seq_length = seq_length['features']
-		    
-	loss, norm = ops.pit_loss(multi_targets, logits, mix_to_mask, 
->>>>>>> eecb9d6e604697c0721a8c19b64515b07ab69947
-					seq_length,self.batch_size)
+	    multi_targets=targets['multi_targets']            
+	    mix_to_mask = targets['mix_to_mask']
+	    seq_length = seq_length['features']
+		        
+	    loss, norm = ops.pit_loss(multi_targets, logits, mix_to_mask, 
+					    seq_length,self.batch_size)
             
         return loss, norm

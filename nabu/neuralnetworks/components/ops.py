@@ -224,61 +224,38 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
             targets_utt = targets[utt_ind]
             targets_utt = targets_utt[:N,:]
 		               
-<<<<<<< HEAD
-    	    #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
-    	    #targets will give 0 contribution to loss.
-            ubresh=tf.reshape(usedbins_utt,[Nspec,1],name='ubresh')
-            ubreshV=tf.tile(ubresh,[1,emb_dim])
-            ubreshV=tf.to_float(ubreshV)
-            ubreshY=tf.tile(ubresh,[1,nrS])
-	    
-            V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V')  # cost function based on Hershey et al. 2016
-            Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
-            Vnorm=tf.multiply(Vnorm,ubreshV)
-            Y=tf.reshape(targets_utt,[Nspec,nrS],name='Y')
-            Y=tf.multiply(Y,ubreshY)
-            Y=tf.to_float(Y)
 
-            prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
-=======
-	    #remove the non_silence (cfr bins below energy thresh) bins. Removing in logits and
-	    #targets will give 0 contribution to loss.
-	    ubresh=tf.reshape(usedbins_utt,[Nspec,1],name='ubresh')
-	    ubreshV=tf.tile(ubresh,[1,emb_dim])
-	    ubreshV=tf.to_float(ubreshV)
-	    ubreshY=tf.tile(ubresh,[1,nrS])
-	    
-	    V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V') 
-	    Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
-	    Vnorm=tf.multiply(Vnorm,ubreshV)
-	    Y=tf.reshape(targets_utt,[Nspec,nrS],name='Y')
-	    Y=tf.multiply(Y,ubreshY)
-	    Y=tf.to_float(Y)
+	        #remove the non_silence (cfr bins below energy thresh) bins. Removing in logits and
+	        #targets will give 0 contribution to loss.
+	        ubresh=tf.reshape(usedbins_utt,[Nspec,1],name='ubresh')
+	        ubreshV=tf.tile(ubresh,[1,emb_dim])
+	        ubreshV=tf.to_float(ubreshV)
+	        ubreshY=tf.tile(ubresh,[1,nrS])
+	        
+	        V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V') 
+	        Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
+	        Vnorm=tf.multiply(Vnorm,ubreshV)
+	        Y=tf.reshape(targets_utt,[Nspec,nrS],name='Y')
+	        Y=tf.multiply(Y,ubreshY)
+	        Y=tf.to_float(Y)
 
-	    prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
->>>>>>> eecb9d6e604697c0721a8c19b64515b07ab69947
-			    b_is_sparse=True, name='VTV')
+	        prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True, 
+			        b_is_sparse=True, name='VTV')
             prod2=tf.matmul(Vnorm,Y,transpose_a=True, transpose_b=False, a_is_sparse=True, 
-			    b_is_sparse=True, name='VTY')
-	    
+			        b_is_sparse=True, name='VTY')
+	        
             term1=tf.reduce_sum(tf.square(prod1),name='frob_1')
             term2=tf.reduce_sum(tf.square(prod2),name='frob_2')
-	    
+        
             loss_utt = tf.add(term1,-2*term2,name='term1and2')
             #normalizer= tf.to_float(tf.square(tf.reduce_sum(ubresh)))
             #loss += loss_utt/normalizer*(10**9)
             loss += loss_utt
-	    
-<<<<<<< HEAD
-    #loss = loss/tf.to_float(batch_size)   
-    return loss
-=======
-	    norm += tf.to_float(tf.square(tf.reduce_sum(usedbins_utt)))
-	    
-    #loss = loss/tf.to_float(batch_size)
-    
+
+	        norm += tf.to_float(tf.square(tf.reduce_sum(usedbins_utt)))
+ 
     return loss , norm
->>>>>>> eecb9d6e604697c0721a8c19b64515b07ab69947
+
   
 def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
     '''
@@ -323,17 +300,15 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 	    mix_to_mask_utt = tf.expand_dims(mix_to_mask_utt,-1)
 	    recs = tf.multiply(Masks, mix_to_mask_utt)
 	    
-<<<<<<< HEAD
-	    logits_resh = tf.transpose(logits_resh,perm=[2,0,1]) # https://www.tensorflow.org/api_docs/python/tf/transpose
-=======
+
 	    targets_resh = tf.transpose(targets_utt,perm=[2,0,1])
->>>>>>> eecb9d6e604697c0721a8c19b64515b07ab69947
+
 	    recs = tf.transpose(recs,perm=[2,0,1])
 		               
 	    perm_cost = []
 	    for perm in permutations:
-		tmp = tf.square(tf.norm(tf.gather(recs,perm)-targets_resh,ord='fro',axis=[1,2]))
-		perm_cost.append(tf.reduce_sum(tmp))
+		    tmp = tf.square(tf.norm(tf.gather(recs,perm)-targets_resh,ord='fro',axis=[1,2]))
+		    perm_cost.append(tf.reduce_sum(tmp))
 		
 	    loss_utt = tf.reduce_min(perm_cost)
 	    
