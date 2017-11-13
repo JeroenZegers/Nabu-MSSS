@@ -27,7 +27,7 @@ class MultiTargetProcessor(processor.Processor):
         
         #set the length of the segments. Possibly multiple segment lengths
         self.segment_lengths = segment_lengths
-
+        self.dim = self.comp.get_dim()
         #initialize the metadata
         self.nrS = int(conf['nrs'])
         self.target_dim = self.comp.get_dim()
