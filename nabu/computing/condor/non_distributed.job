@@ -10,7 +10,8 @@ request_GPUs      = 1
 #requirement
 Requirements = (CUDACapability >= 3.0)\
   &&(CUDAGlobalMemoryMb >= $(memory))\
-  &&(machine =!= LastRemoteHost)
+  &&(machine =!= LastRemoteHost)\
+  && (machine != "estragon.esat.kuleuven.be")
 
 
 #Specfy nice user behavior

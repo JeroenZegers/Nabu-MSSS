@@ -9,6 +9,8 @@ class StackedmasksReconstructor(mask_reconstructor.MaskReconstructor):
     '''the stacked masks reconstructor class
 
     a reconstructor using that uses stacked masks'''
+    
+    requested_output_names = ['bin_est']
 
     def __init__(self, conf, evalconf, dataconf, expdir, task):
         '''StackedmasksReconstructor constructor
@@ -24,7 +26,8 @@ class StackedmasksReconstructor(mask_reconstructor.MaskReconstructor):
         super(StackedmasksReconstructor, self).__init__(conf, evalconf, dataconf, expdir, task)       
 
     def _get_masks(self, output):
-	'''get the masks by simply destacking the stacked masks into separate masks
+	'''get the masks by simply destacking the stacked masks into separate masks and
+	normalizing them with softmax
 
 	Args:
 	    output: the output of a single utterance of the neural network
@@ -32,11 +35,11 @@ class StackedmasksReconstructor(mask_reconstructor.MaskReconstructor):
 	Returns:
 	    the estimated masks'''
 	    
-	[T,target_dim] = np.shape(output)
+	[T,target_dim] = np.shape(output['bin_est'])
 	F = target_dim/self.nrS
 	
 	
-	masks = output.reshape([T,F,self.nrS])
+	masks = output['bin_est'].reshape([T,F,self.nrS])
 	masks = np.transpose(masks,[2,0,1])
 	
 	#apply softmax

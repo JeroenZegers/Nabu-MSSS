@@ -70,13 +70,14 @@ You can find more information about models
 You can run the training with:
 
 ```
-run train --recipe=/path/to/recipe --expdir=/path/to/expdir --mode=<mode> --computing=<computing>
+run train --recipe=/path/to/recipe --expdir=/path/to/expdir --mode=<mode> --computing=<computing> --resume=<resume>
 ```
 
-The parameters are the same as the data preperation script (see above) with one
-extra parameter; mode (default: non_distributed). Mode is the distribution mode.
-This should be one of non_distributed, single_machine or multi_machine.
-You can find more information about this [here](nabu/computing/README.md)
+The parameters are the same as the data preperation script (see above) with two
+extra parameters; mode (default: non_distributed) and reuse(default: 'False'). Mode
+is the distribution mode. This should be one of non_distributed, single_machine or
+multi_machine. You can find more information about this [here](nabu/computing/README.md)
+if resume is set to 'True', the experiment in expdir, if available, is resumed.
 
 **Warning: Currently only 'nondistributed' is allowed for computing**
 

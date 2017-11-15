@@ -14,20 +14,9 @@ class Model(object):
         Args:
             conf: The model configuration as a configparser object
         '''
-
-        self.input_names = conf.get('io', 'inputs').split(' ')
-        if self.input_names == ['']:
-            self.input_names = []
-        self.output_names = conf.get('io', 'outputs').split(' ')
-        if self.output_names == ['']:
-            self.output_names = []
         
-        self.conf = dict(conf.items('model'))
+        self.conf = conf
         
-        self.output_dims = {}
-        for i, d in enumerate(self.conf['output_dims'].split(' ')):
-            self.output_dims[self.output_names[i]] = int(d)
-
         self.scope = tf.VariableScope(False, name or type(self).__name__)
 
 

@@ -48,14 +48,17 @@ class Reconstructor(object):
         ''' reconstruct the signals and write the audio files
         
         Args:
-	    - batch_outputs: An array containing the batch outputs of the network
-	    - batch_sequence_lengths: contains the sequence length for each utterance
+	    - batch_outputs: A dictionary containing the batch outputs of the network
+	    - batch_sequence_lengths: A dictionary containing the sequence length for each utterance
         '''
 
 	for utt_ind in range(self.batch_size):
 	  
-	    utt_output = batch_outputs[utt_ind][:batch_sequence_lengths[utt_ind],:]
-	  
+	    utt_output = dict()
+	    for output_name in self.requested_output_names:
+		utt_output[output_name] = batch_outputs[output_name][utt_ind] \
+		  [:batch_sequence_lengths[output_name][utt_ind],:]
+	  	  
 	    #reconstruct the singnals 
 	    reconstructed_signals, utt_info = self.reconstruct_signals(utt_output)
 	    

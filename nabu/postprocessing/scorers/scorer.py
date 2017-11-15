@@ -50,7 +50,7 @@ class Scorer(object):
         for line in open(spkinfo_file):
 	    splitline = line.strip().split(' ')
 	    utt_name = splitline[0]
-	    dataline = ' '.join(splitline[1:])
+	    dataline = ' '.join(splitline[2:])
 	    self.utt_spkinfo[utt_name] = dataline
 	#predefined mixture types
 	self.mix_types = ['all_m', 'all_f','same_gen', 'diff_gen']

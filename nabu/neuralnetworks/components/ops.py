@@ -112,6 +112,140 @@ def dense_sequence_to_sparse(sequences, sequence_lengths):
 
     return sparse
 
+def L41_loss(targets, bin_embeddings, spk_embeddings, usedbins, seq_length, batch_size):
+    '''
+    Monaural Audio Speaker Separation Using Source-Contrastive Estimation
+    Cory Stephenson, Patrick Callier, Abhinav Ganesh, and Karl Ni
+
+    Args:
+        targets: a [batch_size x time x (feat_dim*nrS)] tensor containing the binary targets
+        bin_embeddings: a [batch_size x time x (feat_dim*emb_dim)] tensor containing 
+        the timefrequency bin embeddings
+        spk_embeddings: a [batch_size x 1 x (emb_dim*nrS))] tensor containing the speaker embeddings
+        usedbins: a [batch_size x time x feat_dim] tensor indicating the bins to use in the loss function
+        seq_length: a [batch_size] vector containing the
+            sequence lengths
+        batch_size: the batch size
+
+    Returns:
+        a scalar value containing the loss
+    '''
+
+    with tf.name_scope('L41_loss'):
+	feat_dim = tf.shape(usedbins)[2]
+        output_dim = tf.shape(bin_embeddings)[2]
+        emb_dim = output_dim/feat_dim
+        target_dim = tf.shape(targets)[2]
+        nrS = target_dim/feat_dim
+                
+        loss = 0.0
+        norm = 0
+        
+        for utt_ind in range(batch_size):
+	    N = seq_length[utt_ind]
+	    usedbins_utt = usedbins[utt_ind]
+	    usedbins_utt = usedbins_utt[:N,:]
+	    bin_emb_utt = bin_embeddings[utt_ind]
+	    bin_emb_utt = bin_emb_utt[:N,:]
+	    targets_utt = targets[utt_ind]
+	    targets_utt = targets_utt[:N,:]
+	    spk_emb_utt = spk_embeddings[utt_ind]
+	    
+	    vi = tf.reshape(bin_emb_utt,[N,feat_dim,1,emb_dim],name='vi')
+	    vi_norm = tf.nn.l2_normalize(vi,3,name='vi_norm')
+	    vo = tf.reshape(spk_emb_utt,[1,1,nrS,emb_dim],name='vo')
+	    vo_norm = tf.nn.l2_normalize(vo,3,name='vo_norm')
+	    
+	    dot = tf.reduce_sum(vi_norm*vo_norm,3,name='D')
+	    
+	    Y = tf.to_float(tf.reshape(targets_utt,[N,feat_dim,nrS]))
+	    Y = (Y-1/2)*2
+	    
+	    # Compute the cost for every element
+	    loss_utt = -tf.log(tf.nn.sigmoid(Y * dot))
+
+	    loss_utt = tf.reduce_sum(tf.to_float(tf.expand_dims(usedbins_utt,-1))*loss_utt)
+                
+	    loss += loss_utt
+	    
+	    norm += tf.to_float(tf.reduce_sum(usedbins_utt)*nrS)
+	    
+    #loss = loss/tf.to_float(batch_size)
+    
+    return loss , norm
+  
+def pit_L41_loss(targets, bin_embeddings, spk_embeddings, mix_to_mask, seq_length, batch_size):
+    '''
+    Combination of L41 approach, where an attractor embedding per speaker is found and PIT 
+    where the audio signals are reconstructed via mast estimation, which are used to define
+    a loss in a permutation invariant way. Here the masks are estimated by evaluating the distance
+    of a bin embedding to all speaker embeddings.
+
+    Args:
+        targets: a [batch_size x time x feat_dim  x nrS)] tensor containing the multiple targets
+        bin_embeddings: a [batch_size x time x (feat_dim*emb_dim)] tensor containing 
+        the timefrequency bin embeddings
+        spk_embeddings: a [batch_size x 1 x (emb_dim*nrS)] tensor containing the speaker embeddings
+        mix_to_mask: a [batch_size x time x feat_dim] tensor containing the mixture that will be masked
+        seq_length: a [batch_size] vector containing the
+            sequence lengths
+        batch_size: the batch size
+
+    Returns:
+        a scalar value containing the loss
+    '''
+
+    with tf.name_scope('PIT_L41_loss'):
+	feat_dim = tf.shape(targets)[2]
+        output_dim = tf.shape(bin_embeddings)[2]
+        emb_dim = output_dim/feat_dim
+        target_dim = tf.shape(targets)[2]
+        nrS = targets.get_shape()[3]
+        nrS_tf = tf.shape(targets)[3]
+        permutations = list(itertools.permutations(range(nrS),nrS))
+                
+        loss = 0.0
+        norm = tf.to_float(nrS_tf * feat_dim * tf.reduce_sum(seq_length))
+        
+        for utt_ind in range(batch_size):
+	    N = seq_length[utt_ind]
+	    bin_emb_utt = bin_embeddings[utt_ind]
+	    bin_emb_utt = bin_emb_utt[:N,:]
+	    targets_utt = targets[utt_ind]
+	    targets_utt = targets_utt[:N,:,:]
+	    spk_emb_utt = spk_embeddings[utt_ind]
+	    mix_to_mask_utt = mix_to_mask[utt_ind]
+	    mix_to_mask_utt = mix_to_mask_utt[:N,:]
+	    
+	    vi = tf.reshape(bin_emb_utt,[N,feat_dim,1,emb_dim],name='vi')
+	    vi_norm = tf.nn.l2_normalize(vi,3,name='vi_norm')
+	    vo = tf.reshape(spk_emb_utt,[1,1,nrS_tf,emb_dim],name='vo')
+	    vo_norm = tf.nn.l2_normalize(vo,3,name='vo_norm')
+	    
+	    D = tf.divide(1,tf.norm(tf.subtract(vi_norm,vo_norm),ord=2,axis=3))
+            Masks = tf.nn.softmax(D, dim=2)
+	    
+	    #The masks are estimated, the remainder is the same as in pit_loss
+	    mix_to_mask_utt = tf.expand_dims(mix_to_mask_utt,-1)
+	    recs = tf.multiply(Masks, mix_to_mask_utt)
+	    
+	    targets_resh = tf.transpose(targets_utt,perm=[2,0,1])
+	    recs = tf.transpose(recs,perm=[2,0,1])
+		               
+	    perm_cost = []
+	    for perm in permutations:
+		tmp = tf.square(tf.norm(tf.gather(recs,perm)-targets_resh,ord='fro',axis=[1,2]))
+		perm_cost.append(tf.reduce_sum(tmp))
+		
+	    loss_utt = tf.reduce_min(perm_cost)
+	    
+	    loss += loss_utt
+	    
+	    
+    #loss = loss/tf.to_float(batch_size)
+    
+    return loss , norm
+
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
     '''
     Compute the deep clustering loss
@@ -180,8 +314,8 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
 	    
     #loss = loss/tf.to_float(batch_size)
     
-    return loss , norm
-  
+    return loss , norm  
+
 def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
     '''
     Compute the permutation invariant loss.
@@ -201,7 +335,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
         a scalar value containing the loss
     '''
     
-    with tf.name_scope('deepclustering_loss'):
+    with tf.name_scope('PIT_loss'):
 	feat_dim = tf.shape(targets)[2]
         output_dim = tf.shape(logits)[2]
         nrS = targets.get_shape()[3]

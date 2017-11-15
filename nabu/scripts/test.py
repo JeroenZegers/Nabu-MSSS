@@ -29,7 +29,7 @@ def test(expdir):
     evaluator_cfg = configparser.ConfigParser()
     evaluator_cfg.read(os.path.join(expdir, 'evaluator.cfg'))
     #quick fix
-    evaluator_cfg.set('evaluator','batch_size','5')
+    #evaluator_cfg.set('evaluator','batch_size','5')
 
     #read the reconstructor config file
     reconstructor_cfg = configparser.ConfigParser()
@@ -57,25 +57,14 @@ def test(expdir):
 	    
 	    #load the model
 	    with open(os.path.join(expdir, 'model', 'model.pkl'), 'rb') as fid:
-		model = pickle.load(fid)
-	  
-	    if evaluator_cfg.get('evaluator','multi_trainer')=='single_1to1':
-		#the model has the same output for every task
-		output_name = model_cfg.get('io', 'outputs')
-		
-	    elif evaluator_cfg.get('evaluator','multi_trainer')=='single_1tomany':
-		#the model has a separate output per task
-		output_name = evaluator_cfg.get(task,'output')
-	    else:
-		raise 'did not understand multi_trainer style: %s' %evaluator_cfg.get('evaluator','multi_trainer')
+		models = pickle.load(fid)
 	  
 	    #create the evaluator
 	    evaltype = evaluator_cfg.get(task, 'evaluator')
 	    evaluator = evaluator_factory.factory(evaltype)(
 		conf=evaluator_cfg,
 		dataconf=database_cfg,
-		model=model,
-		output_name=output_name,
+		models=models,
 		task=task)
 	    
 	    #create the reconstructor
@@ -104,7 +93,7 @@ def test(expdir):
 		    #create a hook that will load the model
 		    load_hook = LoadAtBegin(
 			os.path.join(expdir, 'model', 'network.ckpt'),
-			model)
+			models)
 
 		    #create a hook for summary writing
 		    summary_hook = SummaryHook(os.path.join(expdir, 'logdir'))
@@ -122,12 +111,12 @@ def test(expdir):
 			    [batch_loss_eval, batch_norm_eval, batch_outputs_eval, 
 				  batch_seq_length_eval] = sess.run(
 				  fetches=[batch_loss, batch_norm, batch_outputs, batch_seq_length])
-
+			    
 			    loss += batch_loss_eval
 			    loss_norm += batch_norm_eval
 
-			    reconstructor(batch_outputs_eval,
-					  batch_seq_length_eval['features'])              
+			    #chosing the first seq_length
+			    reconstructor(batch_outputs_eval, batch_seq_length_eval)              
 			    
 			loss = loss/loss_norm
 

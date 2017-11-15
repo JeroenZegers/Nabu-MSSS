@@ -1,12 +1,12 @@
-'''@file dblstm.py
-contains de DBLSTM class'''
+'''@file linear.py
+contains the linear class'''
 
 import tensorflow as tf
 import model
 from nabu.neuralnetworks.components import layer
 
-class DBLSTM(model.Model):
-    '''A deep bidirectional LSTM classifier'''
+class Linear(model.Model):
+    '''A linear classifier'''
 
     def  _get_outputs(self, inputs, input_seq_length, is_training):
         '''
@@ -22,16 +22,10 @@ class DBLSTM(model.Model):
         Returns:
             - output, which is a [batch_size x time x ...] tensors
         '''
-
-        #the blstm layer
-        blstm = layer.BLSTMLayer(
-            num_units=int(self.conf['num_units']),
-            layer_norm=self.conf['layer_norm'] == 'True',
-            recurrent_dropout=float(self.conf['recurrent_dropout']))
 	
 	#code not available for multiple inputs!!
 	if len(inputs) > 1:
-	    raise 'The implementation of DBLSTM expects 1 input and not %d' %len(inputs)
+	    raise 'The implementation of Linear expects 1 input and not %d' %len(inputs)
 	  
 	with tf.variable_scope(self.scope):
 	    for inp in inputs:
@@ -41,15 +35,17 @@ class DBLSTM(model.Model):
                         stddev=float(self.conf['input_noise']))
 		    
 	    logits = inputs.values()[0]
-	    
-	    for l in range(int(self.conf['num_layers'])):
-		logits = blstm(logits, input_seq_length.values()[0],
-			      'layer' + str(l))
 
+	    output = tf.contrib.layers.linear(
+		inputs=logits,
+		num_outputs=int(self.conf['output_dims']))
+
+	    #dropout is not recommended
 	    if is_training and float(self.conf['dropout']) < 1:
-		logits = tf.nn.dropout(logits, float(self.conf['dropout']))
+		output = tf.nn.dropout(output, float(self.conf['dropout']))
+	
+	    if 'last_only' in self.conf and self.conf['last_only']=='True':
+		output = output[:,-1,:]
+		output = tf.expand_dims(output,1)
 		
-	    output = logits
-
-
         return output

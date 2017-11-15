@@ -1,12 +1,12 @@
-'''@file dblstm.py
-contains de DBLSTM class'''
+'''@file dblstm_linear.py
+contains de DBLSTMLinear class'''
 
 import tensorflow as tf
 import model
 from nabu.neuralnetworks.components import layer
 
-class DBLSTM(model.Model):
-    '''A deep bidirectional LSTM classifier'''
+class DBLSTMLinear(model.Model):
+    '''A deep bidirectional LSTM classifier with output layer'''
 
     def  _get_outputs(self, inputs, input_seq_length, is_training):
         '''
@@ -48,8 +48,10 @@ class DBLSTM(model.Model):
 
 	    if is_training and float(self.conf['dropout']) < 1:
 		logits = tf.nn.dropout(logits, float(self.conf['dropout']))
-		
-	    output = logits
+	    
+	    output = tf.contrib.layers.linear(
+		inputs=logits,
+		num_outputs=int(self.conf['output_dims']))
 
 
         return output

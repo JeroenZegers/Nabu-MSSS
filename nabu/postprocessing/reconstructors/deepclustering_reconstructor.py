@@ -11,6 +11,8 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
     '''the deepclustering reconstructor class
 
     a reconstructor using deep clustering'''
+    
+    requested_output_names = ['bin_emb']
 
     def __init__(self, conf, evalconf, dataconf, expdir, task):
         '''DeepclusteringReconstructor constructor
@@ -40,24 +42,25 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 	Returns:
 	    the estimated masks'''
  
+	embeddings = output['bin_emb']
 	#only the non-silence bins will be used for the clustering    
 	usedbins, _ = self.usedbins_reader(self.pos)
 	
 	[T,F] = np.shape(usedbins)
-	emb_dim = np.shape(output)[1]/F
+	emb_dim = np.shape(embeddings)[1]/F
 	
-	if np.shape(output)[0] != T:
+	if np.shape(embeddings)[0] != T:
 	    raise 'Number of frames in usedbins does not match the sequence length'
 	
 	#reshape the outputs
-	output = output[:T,:]
-	output_resh = np.reshape(output,[T*F,emb_dim])
-	output_resh_norm = np.linalg.norm(output_resh,axis=1,keepdims=True)
-	output_resh = output_resh/output_resh_norm
+	embeddings = embeddings[:T,:]
+	embeddings_resh = np.reshape(embeddings,[T*F,emb_dim])
+	embeddings_resh_norm = np.linalg.norm(embeddings_resh,axis=1,keepdims=True)
+	embeddings_resh = embeddings_resh/embeddings_resh_norm
 	
 	#only keep the active bins (above threshold) for clustering
 	usedbins_resh = np.reshape(usedbins, T*F)
-	output_speech_resh = output_resh[usedbins_resh]
+	embeddings_speech_resh = embeddings_resh[usedbins_resh]
 	    
 	#apply kmeans clustering and assign each bin to a clustering
 	kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=-1)
@@ -65,12 +68,12 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 	for _ in range(5):
 	# Sometime it fails due to some indexerror and I'm not sure why. Just retry then. max 5 times
 	    try:
-		kmeans_model.fit(output_speech_resh)
+		kmeans_model.fit(embeddings_speech_resh)
 	    except IndexError:
 	      continue
 	    break
 	
-	predicted_labels = kmeans_model.predict(output_resh)
+	predicted_labels = kmeans_model.predict(embeddings_resh)
 	predicted_labels_resh = np.reshape(predicted_labels,[T,F])
 	
 	#reconstruct the masks from the cluster labels
