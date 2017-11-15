@@ -91,7 +91,7 @@ class TaskTrainer():
 	#check if running in distributed model
 	if 'local' in cluster.as_dict():
 	    data_queue_elements, _ = input_pipeline.get_filenames(
-		    self.input_dataconfs.values()+self.target_dataconfs)
+		    self.input_dataconfs +self.target_dataconfs)
 	  
 	    number_of_elements = len(data_queue_elements)
 	    if 'trainset_frac' in self.taskconf:
@@ -264,7 +264,7 @@ class TaskTrainer():
 		data_queue=self.data_queue,
 		batch_size=self.batch_size,
 		numbuckets=int(self.trainerconf['numbuckets']),
-		dataconfs=self.input_dataconfs.values() + self.target_dataconfs
+		dataconfs=self.input_dataconfs + self.target_dataconfs
 	    )
 
 	    #split data into inputs and targets

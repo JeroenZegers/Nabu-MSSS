@@ -70,7 +70,7 @@ class TaskEvaluator(object):
 
         with tf.name_scope('evaluate'):
 	    data_queue_elements, _ = input_pipeline.get_filenames(
-		self.input_dataconfs.values() + self.target_dataconfs)
+		self.input_dataconfs + self.target_dataconfs)
 	    
 	    max_number_of_elements = len(data_queue_elements)
 	    number_of_elements = min([max_number_of_elements,requested_utts])
@@ -140,7 +140,7 @@ class TaskEvaluator(object):
 		data_queue=data_queue,
 		batch_size=batch_size,
 		numbuckets=1,
-		dataconfs=self.input_dataconfs.values() + self.target_dataconfs
+		dataconfs=self.input_dataconfs + self.target_dataconfs
 	    )
 	
 	    #split data into inputs and targets
