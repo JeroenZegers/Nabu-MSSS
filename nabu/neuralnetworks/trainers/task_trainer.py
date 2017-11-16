@@ -44,32 +44,28 @@ class TaskTrainer():
 	self.evaluatorconf = evaluatorconf
 	self.batch_size = batch_size
 	    
-	#get the database configurations for all input-output pairs and the modelpaths. 
-	#Currently only accepting 1 input per output.
+	#get the database configurations for all inputs, outputs, intermediate model nodes and models. 
 	self.output_names = taskconf['outputs'].split(' ')
-	self.input_names=dict()
+	self.input_names = taskconf['inputs'].split(' ')
+	self.model_nodes = taskconf['nodes'].split(' ')
 	self.input_dataconfs=[]
-	self.model_paths=dict()
-	for output_name in self.output_names:
-	    #input config
-	    input_name = 'input_%s'%output_name
-	    if input_name == ['']:
-		input_name = []
-	    self.input_names[output_name] = input_name
-	    
+	for input_name in self.input_names:
+	    #input config	    
 	    self.input_dataconfs.append(dict(dataconf.items(taskconf[input_name])))
-	    
-	    #model paths
-	    self.model_paths[output_name] = taskconf['modelpath_%s'%output_name].split(' ')
-	
 	
 	self.target_names = taskconf['targets'].split(' ')
 	if self.target_names == ['']:
 	    self.target_names = []
-	target_sections = [taskconf[o] for o in self.target_names]
-	self.target_dataconfs = []
-	for section in target_sections:
-	    self.target_dataconfs.append(dict(dataconf.items(section)))
+	self.target_dataconfs=[]
+	for target_name in self.target_names:
+	    #target config	    
+	    self.target_dataconfs.append(dict(dataconf.items(taskconf[target_name])))
+	    
+	self.model_links = dict()
+	self.inputs_links = dict()
+	for node in self.model_nodes:
+	    self.model_links[node] = taskconf['%s_model'%node]
+	    self.inputs_links[node] = taskconf['%s_inputs'%node].split(' ')
 	    
 	#create the loss computer
 	self.loss_computer = loss_computer_factory.factory(
@@ -108,52 +104,7 @@ class TaskTrainer():
 		seed=None,
 		capacity=self.batch_size*2,
 		shared_name='data_queue_%s' %(self.task_name))
-	  	  
-	    #self.data_queue = dict()
-	    ##inputs
-	    #for output_name in self.output_names:
-		##get the filenames
-		#data_queue_elements, _ = input_pipeline.get_filenames(
-		    #self.input_dataconfs[output_name])
-		
-		#number_of_elements = len(data_queue_elements)
-		#if 'trainset_frac' in self.taskconf:
-		    #number_of_elements=int(float(number_of_elements)*
-				#float(self.taskconf['trainset_frac']))
-		#print '%d utterances will be used for training' %(number_of_elements)
-
-		#data_queue_elements = data_queue_elements[:number_of_elements]
-		    
-		
-		##create the data queue and queue runners (inputs are allowed to get shuffled. I already did this so set to False)
-		#self.data_queue[output_name] = tf.train.string_input_producer(
-		    #string_tensor=data_queue_elements,
-		    #shuffle=False,
-		    #seed=None,
-		    #capacity=self.batch_size*2,
-		    #shared_name='data_queue_%s_%s' %(self.task_name,self.input_names[output_name]))
-		
-	    ##targets
-	    ##get the filenames
-	    #data_queue_elements, _ = input_pipeline.get_filenames(
-		#self.target_dataconfs)
-	    
-	    #number_of_elements = len(data_queue_elements)
-	    #if 'trainset_frac' in self.taskconf:
-		#number_of_elements=int(float(number_of_elements)*
-			    #float(self.taskconf['trainset_frac']))
-	    #print '%d utterances will be used for training' %(number_of_elements)
-
-	    #data_queue_elements = data_queue_elements[:number_of_elements]
-		    
-	    ##create the data queue and queue runners (inputs are allowed to get shuffled. I already did this so set to False)
-	    #self.data_queue['targets'] = tf.train.string_input_producer(
-		#string_tensor=data_queue_elements,
-		#shuffle=False,
-		#seed=None,
-		#capacity=self.batch_size*2,
-		#shared_name='data_queue_%s_%s' %(self.task_name,'targets'))
-		
+	  		
 	    #compute the number of steps
 	    if int(self.trainerconf['numbatches_to_aggregate']) == 0:
 		num_steps = (int(self.trainerconf['num_epochs'])*
@@ -201,53 +152,6 @@ class TaskTrainer():
 
 		    done_ops.append(done_queue.enqueue(True))
 	  
-	  
-	  
-	  
-	    #self.data_queue = dict()
-	    #for output_name in self.output_names:
-		#with tf.device(chief_ps):
-
-		    ##get the data queue
-		    #self.data_queue[output_name] = tf.FIFOQueue(
-			#capacity=self.batch_size*(num_replicas+1),
-			#shared_name='data_queue_%s_%s' %(self.task_name,self.input_names[output_name]),
-			#name='data_queue_%s_%s' %(self.task_name,self.input_names[output_name]),
-			#dtypes=[tf.string],
-			#shapes=[[]])
-		
-		    ##get the number of steps from the parameter server
-		    #num_steps_queue = tf.FIFOQueue(
-			#capacity=num_replicas,
-			#dtypes=[tf.int32],
-			#shared_name='num_steps_queue',
-			#name='num_steps_queue',
-			#shapes=[[]]
-		    #)
-
-		    ##set the number of steps
-		    #num_steps = num_steps_queue.dequeue()
-
-		##get the done queues
-		#for i in range(num_servers):
-		    #with tf.device('job:ps/task:%d' % i):
-			#done_queue = tf.FIFOQueue(
-			    #capacity=num_replicas,
-			    #dtypes=[tf.bool],
-			    #shapes=[[]],
-			    #shared_name='done_queue%d' % i,
-			    #name='done_queue%d' % i
-			#)
-
-			#done_ops.append(done_queue.enqueue(True))
-
-	    #self.data_queue['targets'] = tf.FIFOQueue(
-			#capacity=self.batch_size*(num_replicas+1),
-			#shared_name='data_queue_%s_%s' %(self.task_name,'targets'),
-			#name='data_queue_%s_%s' %(self.task_name,'targets'),
-			#dtypes=[tf.string],
-			#shapes=[[]])
-
 	return num_steps, done_ops
     
     def train(self, learning_rate):
@@ -270,61 +174,24 @@ class TaskTrainer():
 	    #split data into inputs and targets
 	    inputs=dict()
 	    seq_lengths=dict()
-	    for ind,output_name in enumerate(self.output_names):
-		inputs[output_name] = data[ind]
-		seq_lengths[output_name]=seq_length[ind]
+	    for ind,input_name in enumerate(self.input_names):
+		inputs[input_name] = data[ind]
+		seq_lengths[input_name] = seq_length[ind]
+		    
 	    targets=dict()
 	    for ind,target_name in enumerate(self.target_names):
-		targets[target_name]=data[len(self.output_names)+ind]
+		targets[target_name]=data[len(self.input_names)+ind]
 
 	    #get the logits
-	    logits=dict()
-	    for output_name in self.output_names:
-		logits[output_name] = run_multi_model.run_multi_model(
-		    models=self.models,
-		    model_paths=self.model_paths[output_name],
-		    inputs={self.input_names[output_name]: inputs[output_name]},
-		    seq_length={self.input_names[output_name]: seq_lengths[output_name]},
-		    is_training=True)
-            
-            
-            
-            ##get the logits
-            #logits=dict()
-            #seq_lengths=dict()
-            #for output_name in self.output_names:      
-		##create the input pipeline
-		#data, seq_length = input_pipeline.input_pipeline(
-		    #data_queue=self.data_queue[output_name],
-		    #batch_size=self.batch_size,
-		    #numbuckets=int(self.trainerconf['numbuckets']),
-		    #dataconfs=self.input_dataconfs[output_name]
-		#)
-
-		#inputs = {self.input_names[output_name]: data[0]}
-		#seq_length = {self.input_names[output_name]: seq_length[0]}
-		#seq_lengths[output_name]=seq_length[self.input_names[output_name]]
-		
-		##compute the training outputs of the model
-		#logits[output_name] = run_multi_model.run_multi_model(
-		    #models=self.models,
-		    #model_paths=self.model_paths[output_name],
-		    #inputs=inputs,
-		    #seq_length=seq_length,
-		    #is_training=True)
-	    
-	    ##get the targets
-	    ##create the input pipeline
-	    #data, _ = input_pipeline.input_pipeline(
-		#data_queue=self.data_queue['targets'],
-		#batch_size=self.batch_size,
-		#numbuckets=int(self.trainerconf['numbuckets']),
-		#dataconfs=self.target_dataconfs
-	    #)
-
-	    #targets = {
-		#self.target_names[i]: d
-		#for i, d in enumerate(data)}
+	    logits = run_multi_model.run_multi_model(
+		models=self.models,
+		model_nodes=self.model_nodes, 
+		model_links=self.model_links, 
+		inputs=inputs, 
+		inputs_links=self.inputs_links,
+		output_names=self.output_names, 
+		seq_lengths=seq_lengths,
+		is_training=True)
 
 	    #TODO: The proper way to exploit data paralellism is via the 
 	    #SyncReplicasOptimizer defined below. However for some reason it hangs

@@ -14,7 +14,7 @@ class PlainVariables(model.Model):
         Create the variables and do the forward computation
 
         Args:
-            inputs: the indexes, this is a dictionary of
+            inputs: the indexes, this is a list of
                 [batch_size x nr_indeces] tensors
             input_seq_length: None
             is_training: None
@@ -28,7 +28,9 @@ class PlainVariables(model.Model):
 	#code not available for multiple inputs!!
 	if len(inputs) > 1:
 	    raise 'The implementation of PlainVariables expects 1 input and not %d' %len(inputs)
-	  
+	else:
+	    inputs=inputs[0]
+	    
 	with tf.variable_scope(self.scope):
 
 	    #the complete vector set
@@ -36,7 +38,7 @@ class PlainVariables(model.Model):
 				      int(self.conf['vec_dim'])], 
 				      stddev=tf.sqrt(2/float(self.conf['vec_dim']))))
 
-	    inputs = tf.expand_dims(inputs.values()[0], -1)
+	    inputs = tf.expand_dims(inputs, -1)
 	    
 	    output = tf.gather_nd(vector_set, inputs)
 	    output = tf.reshape(output,[tf.shape(output)[0],1,-1])

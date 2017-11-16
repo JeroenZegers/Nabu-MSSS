@@ -13,10 +13,10 @@ class Linear(model.Model):
         Create the variables and do the forward computation
 
         Args:
-            inputs: the inputs to the neural network, this is a dictionary of
+            inputs: the inputs to the neural network, this is a list of
                 [batch_size x time x ...] tensors
             input_seq_length: The sequence lengths of the input utterances, this
-                is a dictionary of [batch_size] vectors
+                is a [batch_size] vector
             is_training: whether or not the network is in training mode
 
         Returns:
@@ -26,15 +26,16 @@ class Linear(model.Model):
 	#code not available for multiple inputs!!
 	if len(inputs) > 1:
 	    raise 'The implementation of Linear expects 1 input and not %d' %len(inputs)
-	  
+	else:
+	    inputs=inputs[0]
+	    
 	with tf.variable_scope(self.scope):
-	    for inp in inputs:
-		if is_training and float(self.conf['input_noise']) > 0:
-                    inputs[inp] = inputs[inp] + tf.random_normal(
-                        tf.shape(inputs[inp]),
-                        stddev=float(self.conf['input_noise']))
+	    if is_training and float(self.conf['input_noise']) > 0:
+		inputs = inputs + tf.random_normal(
+		    tf.shape(inputs),
+		    stddev=float(self.conf['input_noise']))
 		    
-	    logits = inputs.values()[0]
+	    logits = inputs
 
 	    output = tf.contrib.layers.linear(
 		inputs=logits,

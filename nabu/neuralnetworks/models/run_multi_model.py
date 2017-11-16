@@ -1,33 +1,44 @@
 '''@file run_multi_model.py
-script for handling multiple models'''
+script for handling multiple models to form a hybrid model'''
 
 import pdb
 
-def run_multi_model(models, model_paths,inputs,seq_length,is_training):
-    '''get the output by running multiple models in turn
+def run_multi_model(models, model_nodes, model_links, inputs, inputs_links, 
+		    output_names, seq_lengths,is_training):
+    '''get the outputs by passing the inputs trought the requested models.
+    Model nodes are used to store intermediate results
     
     Args:
 	models: dict containing all the models available
-	model_paths: list of models that should be used and in which order
-	inputs: the inputs to the first model
-	seq_length: seq_length for the inputs
+	model_nodes: list of all the intermediate model nodes
+	model_links: dict containing a model fo each node
+	inputs: the inputs to the hybrid model
+	inputs_links: dict containing the inputs to the model of the node
+	seq_lengths: sequence lengths of the inputs. 
 	is_training: whether or not the network is in training mode
   
     Returns:
-	model_output: the output of the last model
+	outputs: the requested outputs of the hybrid model
     '''
-    
-    model_inputs=inputs
-    for model_path in model_paths:
-	model_output = models[model_path](
-		    inputs=model_inputs,
-		    input_seq_length=seq_length,
+
+    node_tensors = inputs
+    for node in model_nodes:
+	node_inputs = [node_tensors[x] for x in inputs_links[node]]
+	node_model = models[model_links[node]]
+	#if a model has multiple inputs, only the sequence lenght of the
+	#first input will be concidered
+	node_seq_length = seq_lengths[inputs_links[node][0]]
+	model_output = node_model(
+		    inputs=node_inputs,
+		    input_seq_length=node_seq_length,
 		    is_training=is_training)
-	#only works for 1 input
-	model_inputs[model_inputs.keys()[0]] = model_output
-	
-	
-    return model_output
+	node_tensors[node] = model_output
+	seq_lengths[node] = node_seq_length
+
+    outputs = {name: node_tensors[name] for name in output_names}
+    
+    return outputs
+
   
 def get_variables(models):
     '''get variables of all models

@@ -26,32 +26,34 @@ class TaskLossEvaluator(task_evaluator.TaskEvaluator):
 		int(conf.get('evaluator','batch_size')))
 
 
-    def _get_outputs(self, inputs, seq_length, output_name):
-        '''compute the validation logits for a batch of data
+    def _get_outputs(self, inputs, seq_lengths):
+        '''compute the evaluation logits for a batch of data
 
         Args:
-            inputs: the inputs to the neural network, this is a list of
+            inputs: the inputs to the neural network, this is a dictionary of
                 [batch_size x ...] tensors
             seq_length: The sequence lengths of the input utterances, this
                 is a list of [batch_size] vectors
-            output_name: The name of the output
 
         Returns:
-            the outputs'''
+            the logits'''
 
         with tf.name_scope('evaluate_logits'):
 	    logits = run_multi_model.run_multi_model(
-		    models=self.models,
-		    model_paths=self.model_paths[output_name],
-		    inputs=inputs,
-		    seq_length=seq_length,
-		    is_training=False)
+		models=self.models,
+		model_nodes=self.model_nodes, 
+		model_links=self.model_links, 
+		inputs=inputs, 
+		inputs_links=self.inputs_links,
+		output_names=self.output_names, 
+		seq_lengths=seq_lengths,
+		is_training=False)
 
         return logits
 
 
     def compute_loss(self, targets, logits, seq_length):
-        '''compute the validation loss for a batch of data
+        '''compute the evaluation loss for a batch of data
 
         Args:
             targets: a dictionary of [batch_size x time x ...] tensor containing

@@ -23,7 +23,10 @@ class Model(object):
     def __call__(self, inputs, input_seq_length, is_training):
 
         '''
-        Add the neural net variables and operations to the graph
+        Add the neural net variables and operations to the graph.
+        The model scope attribute reuse is initialized to False. After it has
+        been called for the first time, it is set to True, so that the weights
+        are shared when it is called the next time
 
         Args:
             inputs: the inputs to the neural network, this is a dictionary of
