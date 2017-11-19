@@ -2,7 +2,7 @@
 contains the Reconstructor factory'''
 
 from . import  deepclustering_reconstructor, stackedmasks_reconstructor, \
-deepXclustering_reconstructor
+deepXclustering_reconstructor, deepattractornet_reconstructor
 
 def factory(reconstructor):
     '''
@@ -17,7 +17,9 @@ def factory(reconstructor):
 
     if reconstructor == 'deepclustering':
         return deepclustering_reconstructor.DeepclusteringReconstructor
-    if reconstructor == 'deepXclustering':
+    elif reconstructor == 'deepattractornet':
+        return deepattractornet_reconstructor.DeepattractorReconstructor
+    elif reconstructor == 'deepXclustering':
         return deepXclustering_reconstructor.DeepXclusteringReconstructor  
     elif reconstructor == 'stackedmasks':
         return stackedmasks_reconstructor.StackedmasksReconstructor

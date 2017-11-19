@@ -29,15 +29,13 @@ class DeepattractornetLoss(loss_computer.LossComputer):
         '''
                    
         outputs = embeddings['outputs']
-        binary_target=targets['binary_targets']
+        binary_target=targets['partition_targets']
 
-        multi_targets=targets['multi_targets']
+        multi_targets=targets['spectogram_targets']
         # Spectogram of the mixture, used to mask
         mix_to_mask = targets['mix_to_mask']
         usedbins = targets['usedbins']
         seq_length = seq_length['features']
 		    
-        loss = ops.deepattractornet_loss(binary_target, multi_targets, mix_to_mask, outputs, usedbins, 
-					seq_length,self.batch_size)
-            
+        loss = ops.deepattractornet_loss(binary_target, multi_targets, mix_to_mask, usedbins, outputs,seq_length,self.batch_size)
         return loss
