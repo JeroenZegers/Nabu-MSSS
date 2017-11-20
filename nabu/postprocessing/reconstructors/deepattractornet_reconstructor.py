@@ -45,7 +45,7 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
         
         [T,F] = np.shape(usedbins)
         emb_dim = np.shape(output)[1]/F
-	    N = T*F
+        N = T*F
         if np.shape(output)[0] != T:
             raise 'Number of frames in usedbins does not match the sequence length'
 	
@@ -63,9 +63,9 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
         #apply kmeans clustering and assign each bin to a clustering
         kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=-1)
         for _ in range(5):
-	    # Sometime it fails due to some indexerror and I'm not sure why. Just retry then. max 5 times
-	        try:
-		        kmeans_model.fit(output_speech_resh)
+            # Sometime it fails due to some indexerror and I'm not sure why. Just retry then. max 5 times
+            try:
+                kmeans_model.fit(output_speech_resh)
             except IndexError:
               continue
             break
@@ -74,8 +74,8 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
         
         
         prod_1 = np.matmul(A,output_resh.T)
-		ones_M = np.ones([self.nrS,N])
-		M = np.divide(ones_M,ones_M+tf.exp(prod_1)) # dim: number_sources x N
+        ones_M = np.ones([self.nrS,N])
+        M = np.divide(ones_M,ones_M+tf.exp(prod_1)) # dim: number_sources x N
 	    
         #reconstruct the masks from the cluster labels
         masks = np.reshape(M,[self.nrS,T,F])

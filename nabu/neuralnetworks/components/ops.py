@@ -137,8 +137,10 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
         # embedding dimension d
         emb_dim = tf.shape(embeddings)[2]/F
         nr_S= tf.shape(spectogram_targets)[3]
+        nrS_tf = tf.shape(targets)[3]
         loss = 0.0
-        norm = 0.0
+        norm = tf.to_float(nrS_tf * F * tf.reduce_sum(seq_length))
+        
         for batch_ind in range(batch_size):
             # T : length of the current timeframe
             T = seq_length[batch_ind]
@@ -174,7 +176,7 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             
             numerator_A=tf.matmul(Y,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=True, name='YTV')
             nb_bins_class = tf.reduce_sum(Y,axis = 0) # dim: (rank 1) number_sources
-			nb_bins_class = tf.expand_dims(nb_bins_class,1) # dim: (rank 2) number_sources x 1
+            nb_bins_class = tf.expand_dims(nb_bins_class,1) # dim: (rank 2) number_sources x 1
             denominator_A = tf.tile(nb_bins_class,[1,emb_dim],name='denominator_A') #number_sources x emb_dim
             A = tf.divide(numerator_A,denominator_A,name='A')
 			
@@ -189,7 +191,8 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
 
             loss += tf.reduce_sum(tf.square(S-masked_sources),name='loss')
-            norm += tf.to_float(tf.square(tf.reduce_sum(usedbins_batch)),name='norm')
+        tf.Assert(!tf.is_nan(loss),loss)
+        tf.Assert(!tf.is_nan(norm),norm)
         return loss,norm
 
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
