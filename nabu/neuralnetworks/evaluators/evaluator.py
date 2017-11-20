@@ -111,6 +111,7 @@ class Evaluator(object):
 	    outputs = outputs[self.output_name]
 
             loss, norm = self.compute_loss(targets, outputs, seq_length)
+           
 
         return loss, norm, numbatches, outputs, seq_length
 

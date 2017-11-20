@@ -3,6 +3,7 @@ contains the Loss computer factory mehod'''
 
 from . import deepclustering_loss, pit_loss,deepattractornet_loss
 
+
 def factory(loss_type):
     '''gets a Loss computer class
 
@@ -17,6 +18,6 @@ def factory(loss_type):
     elif loss_type == 'pit':
         return pit_loss.PITLoss
     elif loss_type == 'deepattractornet':
-        return deepattactornet_loss.DeepattractornetLoss
+        return deepattractornet_loss.DeepattractornetLoss
     else:
         raise Exception('Undefined loss type: %s' % loss_type)

@@ -8,7 +8,7 @@ from nabu.neuralnetworks.components import ops
 class DeepattractornetLoss(loss_computer.LossComputer):
     '''A loss computer that calculates the loss'''
 
-    def __call__(self, targets, embeddings,mixture, seq_length):
+    def __call__(self, targets, embeddings, seq_length):
 
         '''
         Compute the loss 
@@ -28,7 +28,7 @@ class DeepattractornetLoss(loss_computer.LossComputer):
             a scalar value containing the loss
         '''
                    
-        outputs = embeddings['outputs']
+
         binary_target=targets['partition_targets']
 
         multi_targets=targets['spectogram_targets']
@@ -37,5 +37,5 @@ class DeepattractornetLoss(loss_computer.LossComputer):
         usedbins = targets['usedbins']
         seq_length = seq_length['features']
 		    
-        loss = ops.deepattractornet_loss(binary_target, multi_targets, mix_to_mask, usedbins, outputs,seq_length,self.batch_size)
-        return loss
+        loss,norm = ops.deepattractornet_loss(binary_target, multi_targets, mix_to_mask, usedbins, embeddings,seq_length,self.batch_size)
+        return loss,norm

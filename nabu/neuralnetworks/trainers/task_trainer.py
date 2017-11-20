@@ -252,8 +252,7 @@ class TaskTrainer():
 	    reset_grad = tf.variables_initializer(self.grads)
 	    
 	    #compute the loss
-	    task_minibatch_loss, task_minibatch_loss_norm = self.loss_computer(
-		targets, logits[self.output_name], seq_length)
+	    task_minibatch_loss, task_minibatch_loss_norm = self.loss_computer(targets, logits[self.output_name], seq_length)
 	    
 	    task_minibatch_grads_and_vars = optimizer.compute_gradients(task_minibatch_loss)
 	    
