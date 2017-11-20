@@ -379,7 +379,7 @@ class MultiTaskTrainer():
                             
 			    #start time
 			    start = time.time()
-                    
+			    pdb.set_trace()
                             #compute the validation loss
                             for _ in range(self.valbatches):
                                 self.process_val_batch.run(session=sess)

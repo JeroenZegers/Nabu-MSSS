@@ -137,7 +137,7 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
         # embedding dimension d
         emb_dim = tf.shape(embeddings)[2]/F
         nr_S= tf.shape(spectogram_targets)[3]
-        nrS_tf = tf.shape(targets)[3]
+        nrS_tf = tf.shape(spectogram_targets)[3]
         loss = 0.0
         norm = tf.to_float(nrS_tf * F * tf.reduce_sum(seq_length))
         
@@ -191,8 +191,7 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
 
             loss += tf.reduce_sum(tf.square(S-masked_sources),name='loss')
-        tf.Assert(!tf.is_nan(loss),loss)
-        tf.Assert(!tf.is_nan(norm),norm)
+        
         return loss,norm
 
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
