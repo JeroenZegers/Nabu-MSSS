@@ -3,4 +3,4 @@
 '''
 
 from . import model, model_factory, run_multi_model, dblstm, \
-  linear, plain_variables, dblstm_linear
+  linear, plain_variables, concat

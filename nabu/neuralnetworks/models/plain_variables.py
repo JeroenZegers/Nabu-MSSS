@@ -11,7 +11,7 @@ class PlainVariables(model.Model):
 
     def  _get_outputs(self, inputs, input_seq_length=None, is_training=None):
         '''
-        Create the variables and do the forward computation
+        Create the variables and index them
 
         Args:
             inputs: the indexes, this is a list of
@@ -20,8 +20,8 @@ class PlainVariables(model.Model):
             is_training: None
 
         Returns:
-            - outputs, which is a dictionary of [batch_size x 1 x (nr_indeces*vec_dim)]
-                tensors
+            - outputs, which is a [batch_size x 1 x (nr_indeces*vec_dim)]
+                tensor
         '''
         
 	
@@ -34,7 +34,8 @@ class PlainVariables(model.Model):
 	with tf.variable_scope(self.scope):
 
 	    #the complete vector set
-	    vector_set = tf.get_variable('vector_set',initializer=tf.truncated_normal([int(self.conf['tot_vecs']),
+	    vector_set = tf.get_variable('vector_set',
+				  initializer=tf.truncated_normal([int(self.conf['tot_vecs']),
 				      int(self.conf['vec_dim'])], 
 				      stddev=tf.sqrt(2/float(self.conf['vec_dim']))))
 

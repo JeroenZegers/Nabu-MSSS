@@ -1,7 +1,7 @@
 '''@file model_factory.py
 contains the model factory'''
 
-from . import dblstm, plain_variables, linear, dblstm_linear
+from . import dblstm, plain_variables, linear, concat
 
 def factory(architecture):
     '''get a model class
@@ -18,7 +18,7 @@ def factory(architecture):
         return linear.Linear
     elif architecture == 'plain_variables':
         return plain_variables.PlainVariables
-    elif architecture == 'dblstm_linear':
-        return dblstm_linear.DBLSTMLinear
+    elif architecture == 'concat':
+        return concat.Concat
     else:
         raise Exception('undefined architecture type: %s' % architecture)
