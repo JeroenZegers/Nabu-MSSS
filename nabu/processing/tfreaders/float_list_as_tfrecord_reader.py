@@ -20,7 +20,10 @@ class FloatListAsTfrecordReader(tfreader.TfReader):
                 the metadata as a dictionary
         '''
 
-        metadata = dict()
+	metadata = dict()
+
+        with open(os.path.join(datadirs, 'dim')) as fid:
+            metadata['dim'] = int(fid.read())
 
         return metadata
 
@@ -46,6 +49,8 @@ class FloatListAsTfrecordReader(tfreader.TfReader):
         '''
 
         data = tf.decode_raw(features['data'], tf.float32)
+        resh_dims = [self.metadata['dim']]
+        data = tf.reshape(data, resh_dims)
         sequence_length = tf.constant([1])
 
         return data, sequence_length

@@ -26,6 +26,11 @@ class Matrix2VectorProcessor(processor.Processor):
         #create the feature computer
         self.comp = feature_computer_factory.factory(conf['feature'])(conf)
 
+        #the number of rows in the matrix
+        self.nrCol = int(conf['nrcol'])
+        self.nrS = int(conf['nrs'])
+        self.dim = self.nrS*self.nrCol
+
         #set the length of the segments. Possibly multiple segment lengths
         self.segment_lengths = segment_lengths 
         
@@ -33,8 +38,8 @@ class Matrix2VectorProcessor(processor.Processor):
         self.mvn_type = conf['mvn_type']
         if conf['mvn_type'] == 'global':
 	    self.obs_cnt = 0
-	    self.glob_mean = []
-	    self.glob_std = []
+	    self.glob_mean = np.zeros([self.dim])
+	    self.glob_std = np.zeros([self.dim])
 	elif conf['mvn_type'] == 'None':
 	    pass
 	else:
@@ -58,11 +63,10 @@ class Matrix2VectorProcessor(processor.Processor):
         matrixfile = split_dataline[1]
         
         matrix = open(matrixfile).read()[:-1].split(',')
-        nrS = len(matrix)
-        utt_info['nrS']=nrS
-        vector=[]
-        for matrix_row in matrix:
-	  vector+=map(float, matrix_row.split(' '))
+        utt_info['nrS']=self.nrS
+        vector=np.zeros(self.dim)
+        for ind,matrix_row in enumerate(matrix):
+	  vector[ind*self.nrCol:(ind+1)*self.nrCol]=map(float, matrix_row.split(' '))
 	  
 	#mean and variance normalize the features
         if self.mvn_type == 'global':
@@ -107,21 +111,21 @@ class Matrix2VectorProcessor(processor.Processor):
 			    matrixfile = split_dataline[2][:-1]
 			    
 			    matrix = open(matrixfile).read()[:-1].split(',')
-			    vector=[]
-			    for matrix_row in matrix:
-			      vector+=map(float, matrix_row.split(' '))
+			    vector=np.zeros(self.dim)
+			    for ind,matrix_row in enumerate(matrix):
+			      vector[ind*self.nrCol:(ind+1)*self.nrCol]=map(float, matrix_row.split(' '))
 			      
 			    #process the dataline
 			    if loop_type == 'mean':
-				self.glob_mean += [vector]
+				self.glob_mean += vector
 				self.obs_cnt += 1
 			    elif loop_type == 'std':
-				self.glob_std += [np.square(np.array(vector)-self.glob_mean).tolist()]
+				self.glob_std += np.square(vector-self.glob_mean)
 			
 		    if loop_type == 'mean':
-			self.glob_mean = np.sum(self.glob_mean,0)/float(self.obs_cnt)
+			self.glob_mean = self.glob_mean/float(self.obs_cnt)
 		    elif loop_type == 'std':
-			self.glob_std = np.sqrt(np.sum(self.glob_std,0)/float(self.obs_cnt))
+			self.glob_std = np.sqrt(self.glob_std/float(self.obs_cnt))
 		else:
 		    #get mean and variance calculated on training set
 		    if loop_type == 'mean':
@@ -136,14 +140,17 @@ class Matrix2VectorProcessor(processor.Processor):
 
         Args:
             dir: the directory where the metadata should be written'''
-
+		
 	if self.mvn_type == 'global':
 	    with open(os.path.join(datadir, 'glob_mean.npy'), 'w') as fid:
 		np.save(fid, self.glob_mean)
 	    with open(os.path.join(datadir, 'glob_std.npy'), 'w') as fid:
 		np.save(fid, self.glob_std)
 		
-
+	for i,seg_length in enumerate(self.segment_lengths):
+	    seg_dir = os.path.join(datadir,seg_length)
+	    with open(os.path.join(seg_dir, 'dim'), 'w') as fid:
+		fid.write(str(self.dim))
 		
     def segment_data(self, data,N):
 	'''Usually data is segmented by splitting an utterance into different parts
