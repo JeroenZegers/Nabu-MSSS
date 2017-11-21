@@ -112,12 +112,7 @@ class TaskEvaluator(object):
 	    outputs = outputs[self.output_name]
 
             loss, norm = self.compute_loss(targets, outputs, seq_length)
-            self.loss = loss
-            self.norm = norm
-            self.outputs = outputs
-            self.seq_length = seq_length
-            self.inputs = inputs
-            self.targets = targets
+           
         return loss, norm, numbatches, outputs, seq_length
 
     @abstractmethod

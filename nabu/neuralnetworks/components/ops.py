@@ -139,7 +139,7 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
         nr_S= tf.shape(spectogram_targets)[3]
         nrS_tf = tf.shape(spectogram_targets)[3]
         loss = 0.0
-        norm = tf.to_float(nrS_tf * F * tf.reduce_sum(seq_length))
+        norm = 0.0
         
         for batch_ind in range(batch_size):
             # T : length of the current timeframe
@@ -183,7 +183,7 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             prod_1 = tf.matmul(A,Vnorm,transpose_a=False, transpose_b = True,name='AVT')
             ones_M = tf.ones([nr_S,N],name='ones_M')
             M = tf.divide(ones_M,ones_M+tf.exp(prod_1),name='M_with_nan') # dim: number_sources x N
-			M = tf.where(tf.is_nan(M), tf.zeros_like(M), M,name='M') # eliminate nan introduced by no dominant bins of speaker
+            M = tf.where(tf.is_nan(M), tf.zeros_like(M), M,name='M') # eliminate nan introduced by no dominant bins of speaker
             
             X = tf.transpose(tf.reshape(mix_to_mask_batch,[N,1],name='X'))
             masked_sources = tf.multiply(M,X) # dim: number_sources x N
@@ -191,7 +191,7 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
 
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
-            loss_utt = tf.Print(loss_utt,[loss_utt])
+            norm = tf.to_float(tf.square(tf.reduce_sum(usedbins_utt))) # ?? Wat is goede normalisatie
             loss += loss_utt
         return loss,norm
 
