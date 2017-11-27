@@ -5,6 +5,7 @@ import numpy as np
 import base
 import feature_computer
 from sigproc import snip
+import pdb
 
 class Mfcc(feature_computer.FeatureComputer):
     '''the feature computer class to compute MFCC features'''

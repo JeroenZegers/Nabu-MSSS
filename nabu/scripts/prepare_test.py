@@ -9,6 +9,7 @@ import subprocess
 from six.moves import configparser
 import tensorflow as tf
 from test import test
+import pdb
 
 
 tf.app.flags.DEFINE_string('expdir', None,
@@ -47,6 +48,7 @@ def main(_):
     database_cfg_file = os.path.join(FLAGS.recipe, 'database.conf')
     reconstructor_cfg_file = os.path.join(FLAGS.recipe, 'reconstructor.cfg')
     scorer_cfg_file = os.path.join(FLAGS.recipe, 'scorer.cfg')
+    postprocessor_cfg_file = os.path.join(FLAGS.recipe, 'postprocessor.cfg')
     model_cfg_file = os.path.join(FLAGS.recipe, 'model.cfg')
     
     #Assuming only one (the last one) training stage needs testing 
@@ -82,6 +84,12 @@ def main(_):
                     os.path.join(FLAGS.expdir, 'test', 'reconstructor.cfg'))
     shutil.copyfile(scorer_cfg_file,
                     os.path.join(FLAGS.expdir, 'test', 'scorer.cfg'))
+
+    try:
+	shutil.copyfile(postprocessor_cfg_file,
+                    os.path.join(FLAGS.expdir, 'test', 'postprocessor.cfg'))
+    except:
+	pass
     shutil.copyfile(model_cfg_file,
                     os.path.join(FLAGS.expdir, 'test', 'model.cfg'))
 
@@ -108,7 +116,7 @@ def main(_):
 
 
     elif FLAGS.computing == 'standard':
-	os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+	os.environ['CUDA_VISIBLE_DEVICES'] = '0'
         test(expdir=os.path.join(FLAGS.expdir, 'test'))
 
     else:

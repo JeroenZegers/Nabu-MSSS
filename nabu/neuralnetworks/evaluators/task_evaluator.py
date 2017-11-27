@@ -27,6 +27,15 @@ class TaskEvaluator(object):
         self.task = task
         task_eval_conf = dict(conf.items(task))
         
+        if 'requested_utts' in task_eval_conf:
+	    self.requested_utts = int(task_eval_conf['requested_utts'])
+	else:
+	    self.requested_utts = int(self.conf.get('evaluator','requested_utts'))
+	if 'batch_size' in task_eval_conf:
+	    self.batch_size = int(task_eval_conf['batch_size'])
+	else:
+	    self.batch_size = int(self.conf.get('evaluator','batch_size'))
+        
 	#get the database configurations for all inputs, outputs, intermediate model nodes and models. 
 	self.output_names = task_eval_conf['outputs'].split(' ')
 	self.input_names = task_eval_conf['inputs'].split(' ')
@@ -58,19 +67,17 @@ class TaskEvaluator(object):
             - the number of batches in the validation set as an integer
         '''
 
-        batch_size = int(self.conf.get('evaluator', 'batch_size'))
-        requested_utts = int(self.conf.get('evaluator','requested_utts'))
 
         with tf.name_scope('evaluate'):
 	    data_queue_elements, _ = input_pipeline.get_filenames(
 		self.input_dataconfs + self.target_dataconfs)
 	    
 	    max_number_of_elements = len(data_queue_elements)
-	    number_of_elements = min([max_number_of_elements,requested_utts])
+	    number_of_elements = min([max_number_of_elements,self.requested_utts])
 	    
 	    #compute the number of batches in the validation set
-	    numbatches = number_of_elements/batch_size
-	    number_of_elements = numbatches*batch_size
+	    numbatches = number_of_elements/self.batch_size
+	    number_of_elements = numbatches*self.batch_size
 	    print '%d utterances will be used for evaluation' %(number_of_elements)
 
 	    #cut the data so it has a whole number of batches
@@ -82,12 +89,12 @@ class TaskEvaluator(object):
 		string_tensor=data_queue_elements,
 		shuffle=False,
 		seed=None,
-		capacity=batch_size*2)
+		capacity=self.batch_size*2)
 		
 	    #create the input pipeline
 	    data, seq_length = input_pipeline.input_pipeline(
 		data_queue=data_queue,
-		batch_size=batch_size,
+		batch_size=self.batch_size,
 		numbuckets=1,
 		dataconfs=self.input_dataconfs + self.target_dataconfs
 	    )

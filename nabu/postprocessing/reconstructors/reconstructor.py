@@ -4,6 +4,8 @@ contains the Reconstructor class'''
 from abc import ABCMeta, abstractmethod
 import os
 import scipy.io.wavfile as wav
+import numpy as np
+import pdb
 
 class Reconstructor(object):
     '''the general reconstructor class
@@ -12,26 +14,28 @@ class Reconstructor(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, conf, evalconf, dataconf, expdir, task):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, task):
         '''Reconstructor constructor
 
         Args:
             conf: the reconstructor configuration as a dictionary
             evalconf: the evaluator configuration as a ConfigParser
             dataconf: the database configuration
-            expdir: the experiment directory
-            task: name of the task
+            rec_dir: the directory where the reconstructions will be stored
         '''
 
         self.conf = conf
         self.dataconf = dataconf
-        self.batch_size = int(evalconf.get('evaluator','batch_size'))
+        if evalconf.has_option(task,'batch_size'):
+	    self.batch_size = int(evalconf.get(task,'batch_size'))
+	else:
+	    self.batch_size = int(evalconf.get('evaluator','batch_size'))
         self.segment_lengths = evalconf.get('evaluator','segment_length').split(' ')
         
         self.nrS = int(conf['nrs'])
         
         #create the directory to write down the reconstructions
-        self.rec_dir = os.path.join(expdir,'reconstructions',task)
+        self.rec_dir=rec_dir
         if not os.path.isdir(self.rec_dir):
 	    os.makedirs(self.rec_dir)
 	for spk in range(self.nrS):
@@ -42,6 +46,8 @@ class Reconstructor(object):
         #the use of the position variable only works because in the evaluator the 
         #shuffle option in the data_queue is set to False!!
         self.pos = 0
+
+        self.scp_file = open(os.path.join(self.rec_dir,'pointers.scp'), 'w')
 
 
     def __call__(self, batch_outputs, batch_sequence_lengths):
@@ -86,9 +92,14 @@ class Reconstructor(object):
             utt_info: some info on the utterance
 	'''
 	
+	write_str=utt_info['utt_name']
 	for spk in range(self.nrS):
 	    rec_dir = os.path.join(self.rec_dir,'s' + str(spk+1))
 	    filename = os.path.join(rec_dir,utt_info['utt_name']+'.wav')
 	    signal = reconstructed_signals[spk]
 	    wav.write(filename, utt_info['rate'], signal)
+	    write_str += ' ' + filename
+	
+	write_str += ' \n'
+	self.scp_file.write(write_str)
 	  

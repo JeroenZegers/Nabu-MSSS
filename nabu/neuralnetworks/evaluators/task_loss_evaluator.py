@@ -22,8 +22,7 @@ class TaskLossEvaluator(task_evaluator.TaskEvaluator):
 
         super(TaskLossEvaluator, self).__init__(conf, dataconf, models, task)
         self.loss_computer = loss_computer_factory.factory(
-		conf.get(task,'loss_type'))(
-		int(conf.get('evaluator','batch_size')))
+		conf.get(task,'loss_type'))(self.batch_size)
 
 
     def _get_outputs(self, inputs, seq_lengths):

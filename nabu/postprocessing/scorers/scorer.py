@@ -15,7 +15,7 @@ class Scorer(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches, task):
         '''Reconstructor constructor
 
         Args:
@@ -26,8 +26,11 @@ class Scorer(object):
             numbatches: the number of batches to process
         '''
 
-
-        self.tot_utt = int(evalconf.get('evaluator','batch_size')) * numbatches
+	if evalconf.has_option(task,'batch_size'):
+	    batch_size = int(evalconf.get(task,'batch_size'))
+	else:
+	    batch_size = int(evalconf.get('evaluator','batch_size'))
+        self.tot_utt = batch_size * numbatches
         self.rec_dir = rec_dir
         self.segment_lengths = evalconf.get('evaluator','segment_length').split(' ')
 	    
@@ -60,7 +63,7 @@ class Scorer(object):
 
 
     def __call__(self):
-        ''' score the utterance in the reconstruction dir with the original source signals
+        ''' score the utterances in the reconstruction dir with the original source signals
         
         '''
 
@@ -226,6 +229,9 @@ class Scorer(object):
     
     #@abstractproperty
     #def score_scenarios():
+    
+    #@abstractproperty
+    #def score_expects():
 	    
 	
 	

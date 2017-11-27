@@ -14,18 +14,17 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
     
     requested_output_names = ['bin_emb']
 
-    def __init__(self, conf, evalconf, dataconf, expdir, task):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, task):
         '''DeepclusteringReconstructor constructor
 
         Args:
             conf: the reconstructor configuration as a dictionary
             evalconf: the evaluator configuration as a ConfigParser
-            dataconf: the database configurationn
-            expdir: the experiment directory
-            task: name of the task
+            dataconf: the database configuration
+            rec_dir: the directory where the reconstructions will be stored
         '''
         
-        super(DeepclusteringReconstructor, self).__init__(conf, evalconf, dataconf, expdir,task)
+        super(DeepclusteringReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
         
         #get the usedbins reader
         usedbins_name = conf['usedbins']

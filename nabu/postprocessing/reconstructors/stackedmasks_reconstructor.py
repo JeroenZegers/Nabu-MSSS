@@ -12,18 +12,17 @@ class StackedmasksReconstructor(mask_reconstructor.MaskReconstructor):
     
     requested_output_names = ['bin_est']
 
-    def __init__(self, conf, evalconf, dataconf, expdir, task):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, task):
         '''StackedmasksReconstructor constructor
 
         Args:
             conf: the reconstructor configuration as a dictionary
             evalconf: the evaluator configuration as a ConfigParser
-            dataconf: the database configurationn
-            expdir: the experiment directory
-            task: name of the task
+            dataconf: the database configuration
+            rec_dir: the directory where the reconstructions will be stored
         '''
         
-        super(StackedmasksReconstructor, self).__init__(conf, evalconf, dataconf, expdir, task)       
+        super(StackedmasksReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)       
 
     def _get_masks(self, output):
 	'''get the masks by simply destacking the stacked masks into separate masks and

@@ -343,7 +343,7 @@ class MultiTaskTrainer():
 
         #number of times validation performance was worse
         num_tries = 0
-
+	
         with self.graph.as_default():
             with tf.train.MonitoredTrainingSession(
                 master=master,
@@ -356,7 +356,7 @@ class MultiTaskTrainer():
 
                 #set the number of steps
                 self.set_num_steps.run(session=sess)
-
+		
                 #start the training loop
                 #pylint: disable=E1101
                 while not (sess.should_stop() or
@@ -483,6 +483,9 @@ class MultiTaskTrainer():
 				self.learning_rate,
 				self.global_step,
 				self.num_steps])
+			
+		    if global_step==2000:
+			pdb.set_trace()
 				
                     print(('WORKER %d: step %d/%d loss: %.6g, learning rate: %f, '
                            'time: %f sec')

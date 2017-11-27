@@ -18,7 +18,7 @@ class PESQScorer(scorer.Scorer):
     score_scenarios = ('SS','base')
     score_expects = 'files'
 
-    def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches, task):
         '''PESQScorer constructor
 
         Args:
@@ -29,7 +29,7 @@ class PESQScorer(scorer.Scorer):
             numbatches: the number of batches to process
         '''
         
-        super(PESQScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches)
+        super(PESQScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches, task)
 
 
     def _get_score(self,org_src_filenames, base_filenames, rec_src_filenames):
