@@ -34,9 +34,7 @@ class NumpyFloatArrayAsTfrecordReader(tfreader.TfReader):
         #read the non-time dimensions of the data
 
         with open(os.path.join(datadirs, 'nontime_dims')) as fid:
-            metadata['nontime_dims'] = fid.read().split(',')
-            if metadata['nontime_dims'][-1][-1] == '\n':
-		metadata['nontime_dims'][-1] = metadata['nontime_dims'][-1][:-1]
+            metadata['nontime_dims'] = fid.read().strip().split(',')
             metadata['nontime_dims'] = map(int,metadata['nontime_dims'])
 
         return metadata
