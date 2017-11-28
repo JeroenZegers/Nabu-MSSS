@@ -72,7 +72,7 @@ class Postprocessor(object):
 	    postproc_data = self.postproc(rec_src_filenames)
 	    
 	    #write the data to the store dir
-	    self.write_data(postproc_data, utt_name)
+	    self.write_data(postproc_data, utt_name, rec_src_filenames)
 
     @abstractmethod
     def postproc(self, singals):
@@ -85,12 +85,13 @@ class Postprocessor(object):
             the post processing data'''
 
     
-    def write_data(self, postproc_data, utt_name):
+    def write_data(self, postproc_data, utt_name,rec_src_filenames):
         '''write the postprocessed data of the reconstructions
 
         Args:
             postproc_data: a list of post proccesed data (1 signal per speaker)
             utt_name: the name of the utterance
+            rec_src_filenames: the filename of the reconstructed audio signals
 	'''
 	
 	filename = os.path.join(self.store_dir,utt_name)
@@ -105,6 +106,6 @@ class Postprocessor(object):
 		fid.write(data_str)	
 	
 	
-	write_str= '%s %s \n' %(utt_name,filename)
+	write_str= '%s %s %s \n' %(utt_name,rec_src_filenames[0],filename)
 	self.store_scp_file.write(write_str)
 	

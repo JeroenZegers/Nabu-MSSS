@@ -60,9 +60,9 @@ class Matrix2VectorProcessor(processor.Processor):
         
         split_dataline = dataline.split(' ')
         audiofile = split_dataline[0]
-        matrixfile = split_dataline[1]
+        matrixfile = split_dataline[-1]
         
-        matrix = open(matrixfile).read()[:-1].split(',')
+        matrix = open(matrixfile).read().strip().split(',')
         utt_info['nrS']=self.nrS
         vector=np.zeros(self.dim)
         for ind,matrix_row in enumerate(matrix):
@@ -107,10 +107,10 @@ class Matrix2VectorProcessor(processor.Processor):
 			#loop over the lines in the datafile
 			for line in open_fn(datafile):
 			    #split the name and the data line
-			    split_dataline = line.split(' ')
-			    matrixfile = split_dataline[2][:-1]
-			    
-			    matrix = open(matrixfile).read()[:-1].split(',')
+			    split_dataline = line.strip().split(' ')
+			    matrixfile = split_dataline[-1]
+
+			    matrix = open(matrixfile).read().strip().split(',')
 			    vector=np.zeros(self.dim)
 			    for ind,matrix_row in enumerate(matrix):
 			      vector[ind*self.nrCol:(ind+1)*self.nrCol]=map(float, matrix_row.split(' '))
