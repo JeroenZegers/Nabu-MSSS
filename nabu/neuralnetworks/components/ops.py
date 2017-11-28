@@ -159,7 +159,7 @@ def L41_loss(targets, bin_embeddings, spk_embeddings, usedbins, seq_length, batc
 	    dot = tf.reduce_sum(vi_norm*vo_norm,3,name='D')
 	    
 	    Y = tf.to_float(tf.reshape(targets_utt,[N,feat_dim,nrS]))
-	    Y = (Y-1/2)*2
+	    Y = (Y-0.5)*2.0
 	    
 	    # Compute the cost for every element
 	    loss_utt = -tf.log(tf.nn.sigmoid(Y * dot))
