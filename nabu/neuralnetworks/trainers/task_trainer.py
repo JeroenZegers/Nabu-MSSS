@@ -172,25 +172,25 @@ class TaskTrainer():
 	    )
 
 	    #split data into inputs and targets
-	    self.inputs=dict()
-	    self.seq_lengths=dict()
+	    inputs=dict()
+	    seq_lengths=dict()
 	    for ind,input_name in enumerate(self.input_names):
-		self.inputs[input_name] = data[ind]
-		self.seq_lengths[input_name] = seq_length[ind]
+		inputs[input_name] = data[ind]
+		seq_lengths[input_name] = seq_length[ind]
 		    
-	    self.targets=dict()
+	    targets=dict()
 	    for ind,target_name in enumerate(self.target_names):
-		self.targets[target_name]=data[len(self.input_names)+ind]
+		targets[target_name]=data[len(self.input_names)+ind]
 
 	    #get the logits
-	    self.logits = run_multi_model.run_multi_model(
+	    logits = run_multi_model.run_multi_model(
 		models=self.models,
 		model_nodes=self.model_nodes, 
 		model_links=self.model_links, 
-		inputs=self.inputs, 
+		inputs=inputs, 
 		inputs_links=self.inputs_links,
 		output_names=self.output_names, 
-		seq_lengths=self.seq_lengths,
+		seq_lengths=seq_lengths,
 		is_training=True)
 
 	    #TODO: The proper way to exploit data paralellism is via the 
@@ -240,10 +240,10 @@ class TaskTrainer():
 	    reset_grad = tf.variables_initializer(self.grads)
 	    
 	    #compute the loss
-	    self.task_minibatch_loss, self.task_minibatch_loss_norm = self.loss_computer(
-		self.targets, self.logits, self.seq_lengths)
+	    task_minibatch_loss, task_minibatch_loss_norm = self.loss_computer(
+		targets, logits, seq_lengths)
 	    
-	    task_minibatch_grads_and_vars = optimizer.compute_gradients(self.task_minibatch_loss)
+	    task_minibatch_grads_and_vars = optimizer.compute_gradients(task_minibatch_loss)
 	    
 	    (task_minibatch_grads, task_vars)=zip(*task_minibatch_grads_and_vars)
 	    
@@ -255,8 +255,8 @@ class TaskTrainer():
 			  for batchgrad, grad in zip(task_minibatch_grads,self.grads)
 			  if batchgrad is not None]
 	    	    
-	    acc_loss  = self.batch_loss.assign_add(self.task_minibatch_loss)
-	    acc_loss_norm  = self.batch_loss_norm.assign_add(self.task_minibatch_loss_norm)
+	    acc_loss  = self.batch_loss.assign_add(task_minibatch_loss)
+	    acc_loss_norm  = self.batch_loss_norm.assign_add(task_minibatch_loss_norm)
 	    
 	    #group all the operations together that need to be executed to process 
 	    #a minibatch

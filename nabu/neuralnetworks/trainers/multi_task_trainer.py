@@ -483,9 +483,6 @@ class MultiTaskTrainer():
 				self.learning_rate,
 				self.global_step,
 				self.num_steps])
-			
-		    if global_step==2000:
-			pdb.set_trace()
 				
                     print(('WORKER %d: step %d/%d loss: %.6g, learning rate: %f, '
                            'time: %f sec')

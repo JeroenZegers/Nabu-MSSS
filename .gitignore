@@ -15,3 +15,4 @@ nabu/neuralnetworks/trainers/task_trainer.py
 nabu/neuralnetworks/evaluators/evaluator.py
 nabu/neuralnetworks/evaluators/loss_evaluator.py
 nabu/neuralnetworks/models/dblstm_linear.py
+usefull_tf_stuff.txt
