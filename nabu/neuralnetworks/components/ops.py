@@ -191,7 +191,7 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
 
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
-            norm = tf.to_float(tf.square(tf.reduce_sum(usedbins_batch))) # ?? Wat is goede normalisatie
+            norm += tf.to_float(tf.square(tf.reduce_sum(usedbins_batch))) # ?? Wat is goede normalisatie
             loss += loss_utt
         return loss,norm
 
