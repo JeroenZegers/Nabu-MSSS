@@ -271,7 +271,7 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
         nrS = target_dim/feat_dim
                 
         loss = 0.0
-        norm = 0
+        norm = 0.0
         
         for utt_ind in range(batch_size):
 	    N = seq_length[utt_ind]
@@ -310,7 +310,7 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
 	    #loss += loss_utt/normalizer*(10**9)
 	    loss += loss_utt
 	    
-	    norm += tf.to_float(tf.square(tf.reduce_sum(usedbins_utt)))
+	    norm += tf.square(tf.to_float(tf.reduce_sum(usedbins_utt)))
 	    
     #loss = loss/tf.to_float(batch_size)
     
