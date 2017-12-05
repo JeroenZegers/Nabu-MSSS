@@ -24,12 +24,13 @@ class StackedmasksReconstructor(mask_reconstructor.MaskReconstructor):
         
         super(StackedmasksReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)       
 
-    def _get_masks(self, output):
+    def _get_masks(self, output,utt_info):
 	'''get the masks by simply destacking the stacked masks into separate masks and
 	normalizing them with softmax
 
 	Args:
 	    output: the output of a single utterance of the neural network
+            utt_info: some info on the utterance
 
 	Returns:
 	    the estimated masks'''

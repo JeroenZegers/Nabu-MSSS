@@ -27,11 +27,12 @@ class PITL41Reconstructor(mask_reconstructor.MaskReconstructor):
         super(PITL41Reconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
                 
 
-    def _get_masks(self, output):
+    def _get_masks(self, output, utt_info):
 	'''estimate the masks
 
 	Args:
 	    output: the output of a single utterance of the neural network
+            utt_info: some info on the utterance
 
 	Returns:
 	    the estimated masks'''

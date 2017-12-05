@@ -41,12 +41,12 @@ class MaskReconstructor(reconstructor.Reconstructor):
             the reconstructed signals
             some info on the utterance'''
             
-        # get the masks    
-        masks = self._get_masks(output)
-        
         # get the original mixture
         mixture, utt_info= self.org_mix_reader(self.pos)
-        
+            
+        # get the masks    
+        masks = self._get_masks(output, utt_info)
+                
         # apply the masks to obtain the reconstructed signals. Use the conf for feature
         #settings from the original mixture
         reconstructed_signals = list()
@@ -60,11 +60,12 @@ class MaskReconstructor(reconstructor.Reconstructor):
         
         
     @abstractmethod
-    def _get_masks(self, output):
+    def _get_masks(self, output, utt_info):
         '''estimate the masks
 
         Args:
             output: the output of a single utterance of the neural network
+            utt_info: some info on the utterance
 
         Returns:
             the estimated masks'''

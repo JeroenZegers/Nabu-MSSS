@@ -5,6 +5,7 @@ from sklearn.cluster import KMeans
 import mask_reconstructor
 from nabu.postprocessing import data_reader
 import numpy as np
+import os
 import pdb
 
 class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
@@ -31,12 +32,18 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
         usedbins_dataconf = dict(dataconf.items(usedbins_name))
         self.usedbins_reader = data_reader.DataReader(usedbins_dataconf,self.segment_lengths)
         
+        #directory where cluster centroids will be stored
+        self.center_store_dir = os.path.join(rec_dir,'cluster_centers')
+        if not os.path.isdir(self.center_store_dir):
+	      os.makedirs(self.center_store_dir)
+        
 
-    def _get_masks(self, output):
+    def _get_masks(self, output, utt_info):
 	'''estimate the masks
 
 	Args:
 	    output: the output of a single utterance of the neural network
+            utt_info: some info on the utterance
 
 	Returns:
 	    the estimated masks'''
@@ -79,5 +86,10 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 	masks = np.zeros([self.nrS,T,F])
 	for spk in range(self.nrS):
 	    masks[spk,:,:] = predicted_labels_resh==spk
+	    
+	#store the clusters
+	np.save(os.path.join(self.center_store_dir,utt_info['utt_name']),kmeans_model.cluster_centers_)
+	
+	
 	
 	return masks

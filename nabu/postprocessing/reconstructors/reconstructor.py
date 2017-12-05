@@ -48,6 +48,13 @@ class Reconstructor(object):
         self.pos = 0
 
         self.scp_file = open(os.path.join(self.rec_dir,'pointers.scp'), 'w')
+        
+        #Wheter the raw output should also be stored (besides the reconstructed audiosignal)
+        self.store_output = conf['store_output']=='True'
+        if self.store_output:
+	   self.output_dir = os.path.join(rec_dir,'raw_output')
+	   if not os.path.isdir(self.output_dir):
+	      os.makedirs(self.output_dir)
 
 
     def __call__(self, batch_outputs, batch_sequence_lengths):
@@ -70,6 +77,13 @@ class Reconstructor(object):
 	    
 	    #make the audiofiles for the reconstructed signals
 	    self.write_audiofile(reconstructed_signals, utt_info)
+	    
+	    #if requested store the raw output
+	    if self.store_output:
+		for output_name in self.requested_output_names:
+		    savename = output_name+'_'+utt_info['utt_name']
+		    np.save(os.path.join(self.output_dir,savename),utt_output[output_name])
+	    
 	    
 	    self.pos += 1
 

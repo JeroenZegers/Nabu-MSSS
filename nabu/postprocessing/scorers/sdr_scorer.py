@@ -15,7 +15,8 @@ class SdrScorer(scorer.Scorer):
 
     a scorer using SDR'''
     	
-    score_metrics = ('SDR','SIR','SAR')
+    score_metrics = ('SDR','SIR','SAR','perm')
+    score_metrics_to_summarize = ('SDR','SIR','SAR')
     score_scenarios = ('SS','base')
     score_expects = 'data'
 

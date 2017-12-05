@@ -60,6 +60,10 @@ class Scorer(object):
         
         #create the dictionary where all results will be stored
         self.results = dict()
+        
+        #metrics to be used in sumarize function, if not yet stated
+	if not self.score_metrics_to_summarize:
+	    self.score_metrics_to_summarize = self.score_metrics
 
 
     def __call__(self):
@@ -172,7 +176,7 @@ class Scorer(object):
 		    mix_type_indeces[mix_type].append(i)
 	
 	result_summary = dict()
-	for metric in self.score_metrics:
+	for metric in self.score_metrics_to_summarize:
 	    result_summary[metric] = dict()
 	    
 	    for scen in self.score_scenarios:
@@ -190,7 +194,7 @@ class Scorer(object):
 		    inds = mix_type_indeces[mix_type]
 		    result_summary[metric][scen][mix_type] = np.mean([tmp[i] for i in inds])
 	#
-	for metric in self.score_metrics:
+	for metric in self.score_metrics_to_summarize:
 	    print ''
 	    print 'Result for %s (using %s): ' % (metric,self.__class__.__name__)
 	    
