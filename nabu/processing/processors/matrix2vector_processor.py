@@ -66,7 +66,7 @@ class Matrix2VectorProcessor(processor.Processor):
         utt_info['nrS']=self.nrS
         vector=np.zeros(self.dim)
         for ind,matrix_row in enumerate(matrix):
-	  vector[ind*self.nrCol:(ind+1)*self.nrCol]=map(float, matrix_row.split(' '))
+	  vector[ind*self.nrCol:(ind+1)*self.nrCol]=map(float, matrix_row.strip().split(' '))
 	  
 	#mean and variance normalize the features
         if self.mvn_type == 'global':
@@ -113,7 +113,7 @@ class Matrix2VectorProcessor(processor.Processor):
 			    matrix = open(matrixfile).read().strip().split(',')
 			    vector=np.zeros(self.dim)
 			    for ind,matrix_row in enumerate(matrix):
-			      vector[ind*self.nrCol:(ind+1)*self.nrCol]=map(float, matrix_row.split(' '))
+			      vector[ind*self.nrCol:(ind+1)*self.nrCol]=map(float, matrix_row.strip().split(' '))
 			      
 			    #process the dataline
 			    if loop_type == 'mean':
