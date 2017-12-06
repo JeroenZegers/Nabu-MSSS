@@ -177,7 +177,9 @@ def _get_winfunc(str_winfunc):
 	winfunc=lambda x: scipy.signal.cosine(x)
     elif str_winfunc=='hanning':
 	winfunc=lambda x: scipy.hanning(x)
-    elif str_winfunc=='None': 
+    elif str_winfunc=='hamming':
+	winfunc=lambda x: scipy.signal.hamming(x)
+    elif str_winfunc=='none': 
 	winfunc=lambda x: numpy.ones((x, ))
     else:
 	raise Exception('unknown window function: %s' % conf['winfunc'])

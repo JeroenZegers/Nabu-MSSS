@@ -55,18 +55,17 @@ class MultiTaskTrainer():
         #create the graph
         self.graph = tf.Graph()
         
-        #3 model types for multi task: single one to one; single one to many; multiple one to one
-        #single one to one: the whole model is shared for all tasks, only loss function can be different
-        #single one to many: each task has a separate output so only part of the network is shared, eg evrything but the output layer
-        #multiple one to one: each task has its own network. Possibly the outputs are combined in a loss function
-
-        #create the model
+         #create the model
         modelfile = os.path.join(expdir, 'model', 'model.pkl')
+        model_names = modelconf.get('hyper','model_names').split(' ')
+        self.models = dict()
         with open(modelfile, 'wb') as fid:
-            self.model = model_factory.factory(
-		modelconf.get('model','architecture'))(
-                conf=modelconf)
-            pickle.dump(self.model, fid)    
+	    for model_name in model_names:		
+		self.models[model_name]=model_factory.factory(
+		    modelconf.get(model_name,'architecture'))(
+		    conf=dict(modelconf.items(model_name)),
+		    name=model_name)
+            pickle.dump(self.models, fid)    
             
         evaltype = evaluatorconf.get('evaluator', 'evaluator')   
 
@@ -75,7 +74,7 @@ class MultiTaskTrainer():
         for task in self.conf['tasks'].split(' '):
 	    taskconf = self.tasksconf[task]
 	    
-	    task_trainer=task_trainer_script.TaskTrainer(task,conf,taskconf,self.model,modelconf,
+	    task_trainer=task_trainer_script.TaskTrainer(task,conf,taskconf,self.models,modelconf,
 					   dataconf,evaluatorconf,self.batch_size)
 	    
 	    self.task_trainers.append(task_trainer)
@@ -327,24 +326,24 @@ class MultiTaskTrainer():
 	
 	if self.init_filename != None:
 	    init_hook = hooks.LoadAtBegin(self.init_filename,
-				   self.model)
+				   self.models)
 	    chief_only_hooks.append(init_hook)
 	    
         #create a hook for saving the final model
         save_hook = hooks.SaveAtEnd(
             os.path.join(self.expdir, 'model', 'network.ckpt'),
-            self.model)
+            self.models)
 	chief_only_hooks.append(save_hook)
 
         #create a hook for saving and restoring the validated model
         validation_hook = hooks.ValidationSaveHook(
             os.path.join(self.expdir, 'logdir', 'validated.ckpt'),
-            self.model)
+            self.models)
 	chief_only_hooks.append(validation_hook)
 
         #number of times validation performance was worse
         num_tries = 0
-
+	
         with self.graph.as_default():
             with tf.train.MonitoredTrainingSession(
                 master=master,
@@ -357,7 +356,7 @@ class MultiTaskTrainer():
 
                 #set the number of steps
                 self.set_num_steps.run(session=sess)
-
+		
                 #start the training loop
                 #pylint: disable=E1101
                 while not (sess.should_stop() or

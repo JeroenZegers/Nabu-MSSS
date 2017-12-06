@@ -24,14 +24,13 @@ def get_filenames(dataconfs):
 
     #read all the names and files
     files = []
-    for dataconfset in dataconfs:
+    for dataconf in dataconfs:
 	#use an orderdict so the order in os.path.join(dataconf['dir'], 'pointers.scp') is kept
         setfiles = collections.OrderedDict()
-        for i, dataconf in enumerate(dataconfset):
-            with open(os.path.join(dataconf['store_dir'], 'pointers.scp')) as fid:
-                for line in fid:
-                    (n, f) = line.strip().split('\t')
-                    setfiles['%s-%d' % (n, i)] = f
+	with open(os.path.join(dataconf['store_dir'], 'pointers.scp')) as fid:
+	    for line in fid:
+		(n, f) = line.strip().split('\t')
+		setfiles['%s' %n] = f
         files.append(setfiles)
 
     #loop over the first names and look for them in the other names. If not
@@ -88,7 +87,7 @@ def input_pipeline(data_queue, batch_size, numbuckets, dataconfs,
 
         with tf.variable_scope('read_data'):
             #create a seperate queue for each data element
-            for i, dataconfset in enumerate(dataconfs):
+            for i, dataconf in enumerate(dataconfs):
                 with tf.variable_scope('reader'):
 
                     queue = tf.FIFOQueue(
@@ -99,14 +98,10 @@ def input_pipeline(data_queue, batch_size, numbuckets, dataconfs,
                     )
 
                     enqueue_op = queue.enqueue(filenames[i])
-
+		    
                     #create a reader to read from the queue
-                    types = [dataconf['writer_style'] for dataconf in dataconfset]
-                    if len(set(types)) > 1:
-                        raise Exception(
-                            'all data types in a set must be the same')
-                    dirs = [dataconf['store_dir'] for dataconf in dataconfset]
-                    reader = tfreader_factory.factory(types[0])(dirs)
+                    reader = tfreader_factory.factory(dataconf['writer_style'])\
+						     (dataconf['store_dir'])
 
                     #if i == 0:
                         #sequence_length_histogram = \
@@ -121,7 +116,8 @@ def input_pipeline(data_queue, batch_size, numbuckets, dataconfs,
             data = tf.tuple(data)
 
         #create batches of the data
-        if numbuckets > 1:
+        if False and numbuckets > 1:
+	    #bucketing is not allowed due to possibility of multi input
             boundaries = bucket_boundaries(sequence_length_histogram,
                                            numbuckets)
             _, batches = tf.contrib.training.bucket_by_sequence_length(
@@ -141,7 +137,7 @@ def input_pipeline(data_queue, batch_size, numbuckets, dataconfs,
                 dynamic_pad=True)
 
         #seperate the data and the sequence lengths
-        data = batches[::2]
+        data = batches[0::2]
         seq_length = batches[1::2]
 
         return data, seq_length

@@ -2,7 +2,8 @@
 contains the Reconstructor factory'''
 
 from . import  deepclustering_reconstructor, stackedmasks_reconstructor, \
-deepXclustering_reconstructor, deepattractornet_reconstructor
+deepXclustering_reconstructor, deepattractornet_reconstructor, pit_l41_reconstructor
+
 
 def factory(reconstructor):
     '''
@@ -22,6 +23,8 @@ def factory(reconstructor):
     elif reconstructor == 'deepXclustering':
         return deepXclustering_reconstructor.DeepXclusteringReconstructor  
     elif reconstructor == 'stackedmasks':
-        return stackedmasks_reconstructor.StackedmasksReconstructor
+        return stackedmasks_reconstructor.StackedmasksReconstructor 
+    elif reconstructor == 'pit_l41':
+        return pit_l41_reconstructor.PITL41Reconstructor
     else:
         raise Exception('Undefined reconstructor type: %s' % reconstructor)

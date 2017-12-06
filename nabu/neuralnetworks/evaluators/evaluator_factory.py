@@ -1,7 +1,7 @@
 '''@file evaluator_factory.py
 contains the Evaluator factory'''
 
-from . import   loss_evaluator, task_loss_evaluator
+from . import   task_loss_evaluator
 
 def factory(evaluator):
     '''
@@ -14,9 +14,7 @@ def factory(evaluator):
         an evaluator class
     '''
 
-    if evaluator == 'loss_evaluator':
-        return loss_evaluator.LossEvaluator
-    elif evaluator == 'task_loss_evaluator':
+    if evaluator == 'task_loss_evaluator':
         return task_loss_evaluator.TaskLossEvaluator
     else:
         raise Exception('Undefined evaluator type: %s' % evaluator)

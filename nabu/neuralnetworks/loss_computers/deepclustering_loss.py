@@ -17,7 +17,7 @@ class DeepclusteringLoss(loss_computer.LossComputer):
         Args:
             targets: a dictionary of [batch_size x time x ...] tensor containing
                 the targets
-            logits: a [batch_size x time x ...] tensor containing the logits
+            logits: a dictionary of [batch_size x time x ...] tensors containing the logits
             seq_length: a dictionary of [batch_size] vectors containing
                 the sequence lengths
 
@@ -28,7 +28,8 @@ class DeepclusteringLoss(loss_computer.LossComputer):
                        
 	binary_target=targets['binary_targets']            
 	usedbins = targets['usedbins']
-	seq_length = seq_length['features']
+	seq_length = seq_length['bin_emb']
+	logits = logits['bin_emb']
 		    
 	loss, norm = ops.deepclustering_loss(binary_target, logits, usedbins, 
 					seq_length,self.batch_size)

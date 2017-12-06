@@ -15,10 +15,12 @@ class SdrScorer(scorer.Scorer):
 
     a scorer using SDR'''
     	
-    score_metrics = ('SDR','SIR','SAR')
+    score_metrics = ('SDR','SIR','SAR','perm')
+    score_metrics_to_summarize = ('SDR','SIR','SAR')
     score_scenarios = ('SS','base')
+    score_expects = 'data'
 
-    def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches, task):
         '''SdrScorer constructor
 
         Args:
@@ -29,7 +31,7 @@ class SdrScorer(scorer.Scorer):
             numbatches: the number of batches to process
         '''
         
-        super(SdrScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches)
+        super(SdrScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches, task)
 
 
     def _get_score(self,org_src_signals, base_signals, rec_src_signals):

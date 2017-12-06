@@ -13,18 +13,17 @@ class MaskReconstructor(reconstructor.Reconstructor):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, conf, evalconf, dataconf, expdir, task):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, task):
         '''MaskReconstructor constructor
 
         Args:
             conf: the reconstructor configuration as a dictionary
             evalconf: the evaluator configuration as a ConfigParser
-            dataconf: the database configurationn
-            expdir: the experiment directory
-            task: name of the task
+            dataconf: the database configuration
+            rec_dir: the directory where the reconstructions will be stored
         '''
         
-        super(MaskReconstructor, self).__init__(conf, evalconf, dataconf, expdir, task)
+        super(MaskReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
         
         #get the original mixtures reader 
         org_mix_name = conf['org_mix']
@@ -42,12 +41,12 @@ class MaskReconstructor(reconstructor.Reconstructor):
             the reconstructed signals
             some info on the utterance'''
             
-        # get the masks    
-        masks = self._get_masks(output)
-        
         # get the original mixture
         mixture, utt_info= self.org_mix_reader(self.pos)
-        
+            
+        # get the masks    
+        masks = self._get_masks(output, utt_info)
+                
         # apply the masks to obtain the reconstructed signals. Use the conf for feature
         #settings from the original mixture
         reconstructed_signals = list()
@@ -61,11 +60,12 @@ class MaskReconstructor(reconstructor.Reconstructor):
         
         
     @abstractmethod
-    def _get_masks(self, output):
+    def _get_masks(self, output, utt_info):
         '''estimate the masks
 
         Args:
             output: the output of a single utterance of the neural network
+            utt_info: some info on the utterance
 
         Returns:
             the estimated masks'''

@@ -34,13 +34,13 @@ class AudioFeatProcessor(processor.Processor):
         self.nontime_dims=[self.dim]
         
         #set the type of mean and variance normalisation
+        self.mvn_type = conf['mvn_type']
         if conf['mvn_type'] == 'global':
-	    self.glob_norm = True
 	    self.obs_cnt = 0
 	    self.glob_mean = np.zeros([1,self.dim])
 	    self.glob_std = np.zeros([1,self.dim])
-	elif conf['mvn_type'] == 'local':
-	    self.glob_norm = False    
+	elif conf['mvn_type'] in ['local','None']:
+	    pass
 	else:
 	    raise Exception('Unknown way to apply mvn: %s' % conf['mvn_type'])
 
@@ -65,9 +65,9 @@ class AudioFeatProcessor(processor.Processor):
         features = self.comp(utt, rate)
 
         #mean and variance normalize the features
-        if self.glob_norm:
+        if self.mvn_type == 'global':
 	    features = (features-self.glob_mean)/self.glob_std
-	else:
+	elif self.mvn_type == 'local':
 	    features = (features-np.mean(features, 0))/np.std(features, 0)
 	    
 	# split the data for all desired segment lengths
@@ -93,7 +93,7 @@ class AudioFeatProcessor(processor.Processor):
 	
 	Args:
 	    dataconf: config file on the part of the database being processed'''
-	if self.glob_norm:
+	if self.mvn_type == 'global':
 	    loop_types=['mean','std']
 	    
 	    #calculate the mean and variance
@@ -183,7 +183,7 @@ class AudioFeatProcessor(processor.Processor):
         Args:
             dir: the directory where the metadata should be written'''
             
-        if self.glob_norm:
+        if self.mvn_type == 'global':
 	    with open(os.path.join(datadir, 'glob_mean.npy'), 'w') as fid:
 		np.save(fid, self.glob_mean)
 	    with open(os.path.join(datadir, 'glob_std.npy'), 'w') as fid:

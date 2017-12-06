@@ -5,6 +5,7 @@ import tensorflow as tf
 from nabu.neuralnetworks.loss_computers import loss_computer_factory
 from nabu.neuralnetworks.evaluators import evaluator_factory, loss_evaluator
 from nabu.processing import input_pipeline
+from nabu.neuralnetworks.models import run_multi_model
 import pdb
 
 class TaskTrainer():
@@ -14,7 +15,7 @@ class TaskTrainer():
 		  task_name,
 		  trainerconf,
 		  taskconf,
-		  model,
+		  models,
 		  modelconf,
 		  dataconf,
 		  evaluatorconf,
@@ -27,8 +28,8 @@ class TaskTrainer():
 	    task_name: a name for the training task
             trainerconf: the trainer config
             taskconf: the config file for each task
-            model: the neural net model
-            modelconf: the neural net model configuration
+            models: the neural net models
+            modelconf: the neural net models configuration
             dataconf: the data configuration as a ConfigParser
             evaluatorconf: the evaluator configuration for evaluating
                 if None no evaluation will be done
@@ -38,44 +39,34 @@ class TaskTrainer():
         self.task_name = task_name
 	self.trainerconf=trainerconf
 	self.taskconf = taskconf
-	self.model = model
+	self.models = models
 	self.modelconf = modelconf
 	self.evaluatorconf = evaluatorconf
 	self.batch_size = batch_size
 	    
-	#get the database configurations
-	self.input_names = modelconf.get('io', 'inputs').split(' ')
-	if self.input_names == ['']:
-	    self.input_names = []
-	input_sections = [taskconf[i].split(' ') for i in self.input_names]
-	self.nr_input_sections = len(input_sections)
-	
-	self.input_dataconfs = []
-	for sectionset in input_sections:
-	    self.input_dataconfs.append([])
-	    for section in sectionset:
-		self.input_dataconfs[-1].append(dict(dataconf.items(section)))
+	#get the database configurations for all inputs, outputs, intermediate model nodes and models. 
+	self.output_names = taskconf['outputs'].split(' ')
+	self.input_names = taskconf['inputs'].split(' ')
+	self.model_nodes = taskconf['nodes'].split(' ')
+	self.input_dataconfs=[]
+	for input_name in self.input_names:
+	    #input config	    
+	    self.input_dataconfs.append(dict(dataconf.items(taskconf[input_name])))
 	
 	self.target_names = taskconf['targets'].split(' ')
 	if self.target_names == ['']:
 	    self.target_names = []
-	target_sections = [taskconf[o].split(' ') for o in self.target_names]
-	self.target_dataconfs = []
-	for sectionset in target_sections:
-	    self.target_dataconfs.append([])
-	    for section in sectionset:
-		self.target_dataconfs[-1].append(dict(dataconf.items(section)))
-		
-	if trainerconf['multi_trainer']=='single_1to1':
-	    #the model has the same output for every task
-	    self.output_name = modelconf.get('io', 'outputs')
+	self.target_dataconfs=[]
+	for target_name in self.target_names:
+	    #target config	    
+	    self.target_dataconfs.append(dict(dataconf.items(taskconf[target_name])))
 	    
-	elif trainerconf['multi_trainer']=='single_1tomany':
-	    #the model has a separate output per task
-	    self.output_name = taskconf['output']
-	else:
-	    raise 'did not understand multi_trainer style: %s' %trainerconf['multi_trainer']
-		
+	self.model_links = dict()
+	self.inputs_links = dict()
+	for node in self.model_nodes:
+	    self.model_links[node] = taskconf['%s_model'%node]
+	    self.inputs_links[node] = taskconf['%s_inputs'%node].split(' ')
+	    
 	#create the loss computer
 	self.loss_computer = loss_computer_factory.factory(
 		taskconf['loss_type'])(self.batch_size)
@@ -86,38 +77,34 @@ class TaskTrainer():
 	    self.evaluator = evaluator_factory.factory(evaltype)(
 		conf=evaluatorconf,
 		dataconf=dataconf,
-		model=self.model,
-		output_name=self.output_name,
+		models=self.models,
 		task=task_name)
 	    	
     
     def set_dataqueues(self, cluster):
 	'''sets the data queues'''
-      
+
 	#check if running in distributed model
 	if 'local' in cluster.as_dict():
-
-	    #get the filenames
 	    data_queue_elements, _ = input_pipeline.get_filenames(
-		self.input_dataconfs + self.target_dataconfs)
-	    
+		    self.input_dataconfs +self.target_dataconfs)
+	  
 	    number_of_elements = len(data_queue_elements)
 	    if 'trainset_frac' in self.taskconf:
 		number_of_elements=int(float(number_of_elements)*
-			     float(self.taskconf['trainset_frac']))
-            print '%d utterances will be used for training' %(number_of_elements)
+			    float(self.taskconf['trainset_frac']))
+	    print '%d utterances will be used for training' %(number_of_elements)
 
-            data_queue_elements = data_queue_elements[:number_of_elements]
-		
-	    
-	    #create the data queue and queue runners (inputs are allowed to get shuffled. I already did this so set to False)
+	    data_queue_elements = data_queue_elements[:number_of_elements]
+	  
+	    #create the data queue and queue runners 
 	    self.data_queue = tf.train.string_input_producer(
 		string_tensor=data_queue_elements,
 		shuffle=False,
 		seed=None,
 		capacity=self.batch_size*2,
-		shared_name='data_queue_' + self.task_name)
-	    
+		shared_name='data_queue_%s' %(self.task_name))
+	  		
 	    #compute the number of steps
 	    if int(self.trainerconf['numbatches_to_aggregate']) == 0:
 		num_steps = (int(self.trainerconf['num_epochs'])*
@@ -132,28 +119,26 @@ class TaskTrainer():
 	    done_ops = [tf.no_op()]
 
 	else:
-	    with tf.device(chief_ps):
+	    #get the data queue
+	    self.data_queue = tf.FIFOQueue(
+		capacity=self.batch_size*(num_replicas+1),
+		shared_name='data_queue_%s' %(self.task_name),
+		name='data_queue_%s' %(self.task_name),
+		dtypes=[tf.string],
+		shapes=[[]])
+	
+	    #get the number of steps from the parameter server
+	    num_steps_queue = tf.FIFOQueue(
+		capacity=num_replicas,
+		dtypes=[tf.int32],
+		shared_name='num_steps_queue',
+		name='num_steps_queue',
+		shapes=[[]]
+	    )
 
-		#get the data queue
-		self.data_queue = tf.FIFOQueue(
-		    capacity=self.batch_size*(num_replicas+1),
-		    shared_name='data_queue_' + self.task_name,
-		    name='data_queue_' + self.task_name,
-		    dtypes=[tf.string],
-		    shapes=[[]])
-	    
-		#get the number of steps from the parameter server
-		num_steps_queue = tf.FIFOQueue(
-		    capacity=num_replicas,
-		    dtypes=[tf.int32],
-		    shared_name='num_steps_queue',
-		    name='num_steps_queue',
-		    shapes=[[]]
-		)
-
-		#set the number of steps
-		num_steps = num_steps_queue.dequeue()
-
+	    #set the number of steps
+	    num_steps = num_steps_queue.dequeue()
+	  
 	    #get the done queues
 	    for i in range(num_servers):
 		with tf.device('job:ps/task:%d' % i):
@@ -166,7 +151,7 @@ class TaskTrainer():
 		    )
 
 		    done_ops.append(done_queue.enqueue(True))
-
+	  
 	return num_steps, done_ops
     
     def train(self, learning_rate):
@@ -176,8 +161,9 @@ class TaskTrainer():
       
 	    #create the optimizer
             optimizer = tf.train.AdamOptimizer(learning_rate)
-                    
-	    #create the input pipeline
+            
+            
+            #create the input pipeline
 	    data, seq_length = input_pipeline.input_pipeline(
 		data_queue=self.data_queue,
 		batch_size=self.batch_size,
@@ -185,25 +171,27 @@ class TaskTrainer():
 		dataconfs=self.input_dataconfs + self.target_dataconfs
 	    )
 
-	    inputs = {
-		self.input_names[i]: d
-		for i, d in enumerate(data[:self.nr_input_sections])}
-	    seq_length = {
-		self.input_names[i]: d
-		for i, d in enumerate(seq_length[:self.nr_input_sections])}
-	    targets = {
-		self.target_names[i]: d
-		for i, d in enumerate(data[self.nr_input_sections:])}
-	    #target_seq_length = {
-		#self.target_names[i]: d
-		#for i, d in enumerate(seq_length[self.nr_input_sections:])}
+	    #split data into inputs and targets
+	    inputs=dict()
+	    seq_lengths=dict()
+	    for ind,input_name in enumerate(self.input_names):
+		inputs[input_name] = data[ind]
+		seq_lengths[input_name] = seq_length[ind]
+		    
+	    targets=dict()
+	    for ind,target_name in enumerate(self.target_names):
+		targets[target_name]=data[len(self.input_names)+ind]
 
-	    #compute the training outputs of the model
-	    logits = self.model(
-		inputs=inputs,
-		input_seq_length=seq_length,
+	    #get the logits
+	    logits = run_multi_model.run_multi_model(
+		models=self.models,
+		model_nodes=self.model_nodes, 
+		model_links=self.model_links, 
+		inputs=inputs, 
+		inputs_links=self.inputs_links,
+		output_names=self.output_names, 
+		seq_lengths=seq_lengths,
 		is_training=True)
-
 
 	    #TODO: The proper way to exploit data paralellism is via the 
 	    #SyncReplicasOptimizer defined below. However for some reason it hangs
@@ -248,11 +236,16 @@ class TaskTrainer():
 		param.op.name, param.get_shape().as_list(),
 		initializer=tf.constant_initializer(0),
 		trainable=False) for param in params]
-	    
+
 	    reset_grad = tf.variables_initializer(self.grads)
 	    
 	    #compute the loss
+<<<<<<< HEAD
 	    task_minibatch_loss, task_minibatch_loss_norm = self.loss_computer(targets, logits[self.output_name], seq_length)
+=======
+	    task_minibatch_loss, task_minibatch_loss_norm = self.loss_computer(
+		targets, logits, seq_lengths)
+>>>>>>> a85c454f6d52886bb800ddf8f62179face762f02
 	    
 	    task_minibatch_grads_and_vars = optimizer.compute_gradients(task_minibatch_loss)
 	    

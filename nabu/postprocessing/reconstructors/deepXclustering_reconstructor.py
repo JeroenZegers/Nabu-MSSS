@@ -12,18 +12,17 @@ class DeepXclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 
     a reconstructor using deep clustering, using Xmeans'''
 
-    def __init__(self, conf, evalconf, dataconf, expdir, task):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, task):
         '''DeepclusteringXReconstructor constructor
 
         Args:
             conf: the reconstructor configuration as a dictionary
             evalconf: the evaluator configuration as a ConfigParser
-            dataconf: the database configurationn
-            expdir: the experiment directory
-            task: name of the task
+            dataconf: the database configuration
+            rec_dir: the directory where the reconstructions will be stored
         '''
         
-        super(DeepXclusteringReconstructor, self).__init__(conf, evalconf, dataconf, expdir,task)
+        super(DeepXclusteringReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
         
         #get the usedbins reader
         usedbins_name = conf['usedbins']
@@ -31,11 +30,12 @@ class DeepXclusteringReconstructor(mask_reconstructor.MaskReconstructor):
         self.usedbins_reader = data_reader.DataReader(usedbins_dataconf,self.segment_lengths)
         
 
-    def _get_masks(self, output):
+    def _get_masks(self, output, utt_info):
 	'''estimate the masks
 
 	Args:
 	    output: the output of a single utterance of the neural network
+            utt_info: some info on the utterance
 
 	Returns:
 	    the estimated masks'''
