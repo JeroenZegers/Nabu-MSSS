@@ -2,7 +2,7 @@
 Universe         = vanilla
 # need enough RAM to store the parameters
 RequestMemory    = 15G
-requestCpus      = 8
+requestCpus      = 4
 #request a week of wall time
 +RequestWalltime = 604800
 #specify that the cuda capability should be at least 3.0 and set the memory
