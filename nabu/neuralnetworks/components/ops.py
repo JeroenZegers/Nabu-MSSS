@@ -183,7 +183,7 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
 			
             prod_1 = tf.matmul(A,Vnorm,transpose_a=False, transpose_b = True,name='AVT')
             ones_M = tf.ones([nr_S,N],name='ones_M')
-            M = tf.divide(ones_M,ones_M+tf.exp(prod_1),name='M_with_nan') # dim: number_sources x N
+            M = tf.divide(ones_M,ones_M+tf.exp(-prod_1),name='M_with_nan') # dim: number_sources x N
             M = tf.where(tf.is_nan(M), tf.zeros_like(M), M,name='M') # eliminate nan introduced by no dominant bins of speaker
             
             X = tf.transpose(tf.reshape(mix_to_mask_batch,[N,1],name='X'))

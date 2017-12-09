@@ -399,6 +399,7 @@ class MultiTaskTrainer():
 
                                 #check how many times validation performance was
                                 #worse
+                                num_tries += 1
                                 if self.conf['num_tries'] != 'None':
                                     if num_tries == int(self.conf['num_tries']):
                                         validation_hook.restore()
@@ -407,7 +408,7 @@ class MultiTaskTrainer():
                                         self.terminate.run(session=sess)
                                         break
 
-                                num_tries += 1
+                                
 
                                 if self.conf['go_back'] == 'True':
 
