@@ -49,7 +49,7 @@ class Reconstructor(object):
 
         self.scp_file = open(os.path.join(self.rec_dir,'pointers.scp'), 'w')
         
-        #Wheter the raw output should also be stored (besides the reconstructed audiosignal)
+        #Whether the raw output should also be stored (besides the reconstructed audiosignal)
         self.store_output = conf['store_output']=='True'
         if self.store_output:
 	   self.output_dir = os.path.join(rec_dir,'raw_output')
