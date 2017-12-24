@@ -9,7 +9,8 @@ requestCpus      = 4
 #requirement
 Requirements = (CUDACapability >= 3.0)\
   &&(machine =!= LastRemoteHost) \
-  && (machine != "andromeda.esat.kuleuven.be")
+  && (machine != "andromeda.esat.kuleuven.be") \
+  && (CUDARuntimeVersion == 8.0)
 #  && (machine != "opal.esat.kuleuven.be") 
 
 

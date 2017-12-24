@@ -12,7 +12,8 @@ Requirements = (CUDACapability >= 3.0)\
   &&(CUDAGlobalMemoryMb >= $(memory))\
   &&(machine =!= LastRemoteHost)\
   && (machine != "larimar.esat.kuleuven.be")\
-  && (machine != "andromeda.esat.kuleuven.be")
+  && (machine != "andromeda.esat.kuleuven.be")\
+  && (CUDARuntimeVersion == 8.0)
 
 
 #Specfy nice user behavior
