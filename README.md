@@ -167,3 +167,14 @@ to use.
 - Add your file to the package in \_\_init\_\_.py
 - create a configuration file for your class and put it in whichever recipe you
 want to use it for.
+
+## Acknowledgments
+This work is part of a research project funded by the SB PhD grant of the Research Foundation Flanders 
+(FWO) with project number 1S66217N.
+Special thanks to the Facebook AI Research Partnership Program 
+([link](https://research.fb.com/facebook-to-accelerate-global-ai-research-with-new-gpu-program-recipients/)) 
+and the Nvidia GPU Grant Program 
+([link](https://developer.nvidia.com/academic_gpu_seeding))
+for providing additional computational hardware (GPU's) to accelerate testing, debugging and benchmarking 
+of the code.
+
