@@ -10,13 +10,17 @@ request_GPUs      = 1
 #requirement
 Requirements = (CUDACapability >= 3.0)\
   &&(CUDAGlobalMemoryMb >= $(memory))\
-  &&(machine =!= LastRemoteHost)
+  &&(machine =!= LastRemoteHost)\
+  && (machine != "larimar.esat.kuleuven.be")\
+  && (machine != "andromeda.esat.kuleuven.be")\
+  && (CUDARuntimeVersion == 8.0)
 
 
 #Specfy nice user behavior
-NiceUser = false
+NiceUser = true
 #Send an email in case of an error
-Notification = Error
+notify_user = pieter.appeltans@student.kuleuven.be
+Notification = Complete
 
 initialdir = .
 

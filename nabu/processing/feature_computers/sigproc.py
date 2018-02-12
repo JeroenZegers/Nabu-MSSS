@@ -44,7 +44,7 @@ def framesig(sig, frame_len, frame_step, winfunc=lambda x: numpy.ones((x, ))):
         frame_step: number of samples after the start of the previous frame that
             the next frame should begin.
         winfunc: the analysis window to apply to each frame. By default no
-            window is applied.
+            window function is applied.
 
     Returns:
         an array of frames. Size is NUMFRAMES by frame_len.

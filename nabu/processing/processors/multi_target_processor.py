@@ -27,7 +27,7 @@ class MultiTargetProcessor(processor.Processor):
         
         #set the length of the segments. Possibly multiple segment lengths
         self.segment_lengths = segment_lengths
-
+        self.dim = self.comp.get_dim()
         #initialize the metadata
         self.nrS = int(conf['nrs'])
         self.target_dim = self.comp.get_dim()
@@ -82,7 +82,7 @@ class MultiTargetProcessor(processor.Processor):
 	    with open(os.path.join(seg_dir, 'dim'), 'w') as fid:
 		fid.write(str(self.target_dim))
 	    with open(os.path.join(seg_dir, 'nontime_dims'), 'w') as fid:
-		fid.write(str(self.nontime_dims))
+		fid.write(str(self.nontime_dims)[1:-1])
             
 def _read_wav(wavfile):
     '''

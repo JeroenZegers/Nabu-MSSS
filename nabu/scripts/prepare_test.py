@@ -7,10 +7,9 @@ sys.path.append(os.getcwd())
 import shutil
 import subprocess
 from six.moves import configparser
-import matlab.engine
-import matlab
 import tensorflow as tf
 from test import test
+import pdb
 
 
 tf.app.flags.DEFINE_string('expdir', None,
@@ -47,6 +46,10 @@ def main(_):
           
     evaluator_cfg_file = os.path.join(FLAGS.recipe, 'test_evaluator.cfg')
     database_cfg_file = os.path.join(FLAGS.recipe, 'database.conf')
+    reconstructor_cfg_file = os.path.join(FLAGS.recipe, 'reconstructor.cfg')
+    scorer_cfg_file = os.path.join(FLAGS.recipe, 'scorer.cfg')
+    postprocessor_cfg_file = os.path.join(FLAGS.recipe, 'postprocessor.cfg')
+    model_cfg_file = os.path.join(FLAGS.recipe, 'model.cfg')
     
     #Assuming only one (the last one) training stage needs testing 
     parsed_evaluator_cfg = configparser.ConfigParser()
@@ -77,6 +80,18 @@ def main(_):
                     #os.path.join(FLAGS.expdir, 'test', 'database.cfg'))
     shutil.copyfile(evaluator_cfg_file,
                     os.path.join(FLAGS.expdir, 'test', 'evaluator.cfg'))
+    shutil.copyfile(reconstructor_cfg_file,
+                    os.path.join(FLAGS.expdir, 'test', 'reconstructor.cfg'))
+    shutil.copyfile(scorer_cfg_file,
+                    os.path.join(FLAGS.expdir, 'test', 'scorer.cfg'))
+
+    try:
+	shutil.copyfile(postprocessor_cfg_file,
+                    os.path.join(FLAGS.expdir, 'test', 'postprocessor.cfg'))
+    except:
+	pass
+    shutil.copyfile(model_cfg_file,
+                    os.path.join(FLAGS.expdir, 'test', 'model.cfg'))
 
     #create a link to the model that will be used for testing. Assuming
     #it is stored in the 'full' directory of expdir
@@ -97,8 +112,7 @@ def main(_):
         subprocess.call(['condor_submit',
                          'expdir=%s' % os.path.join(FLAGS.expdir, 'test'),
                          'script=nabu/scripts/test.py',
-                         'memory=%s' % computing_cfg['minmemory'],
-                         'nabu/computing/condor/non_distributed.job'])
+                         'nabu/computing/condor/non_distributed_cpu.job'])
 
 
     elif FLAGS.computing == 'standard':

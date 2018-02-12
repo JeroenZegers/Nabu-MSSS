@@ -1,0 +1,11 @@
+# ignore compiled code
+*.pyc
+
+cluster
+
+# .gitignore
+sweeps
+*debug*
+*Old*
+*kate-swp*
+

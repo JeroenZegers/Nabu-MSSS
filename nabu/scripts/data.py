@@ -4,8 +4,6 @@ does the data preperation'''
 import os
 from six.moves import configparser
 import gzip
-import matlab.engine
-import matlab
 import tensorflow as tf
 from nabu.processing.processors import processor_factory
 from nabu.processing.tfwriters import tfwriter_factory
@@ -35,7 +33,7 @@ def main(expdir):
     else:
 	print '%s already exists, skipping this section' % conf['store_dir']
 	return
-
+    
     #read the processor config
     parsed_proc_cfg = configparser.ConfigParser()
     parsed_proc_cfg.read(os.path.join(expdir, 'processor.cfg'))

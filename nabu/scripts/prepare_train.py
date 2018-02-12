@@ -10,8 +10,6 @@ import atexit
 import subprocess
 from time import sleep
 import copy
-import matlab.engine
-import matlab
 import tensorflow as tf
 from six.moves import configparser
 from nabu.computing import cluster, local_cluster
@@ -20,7 +18,7 @@ from nabu.computing.static import kill_processes
 from train import train
 import pdb
 
-def main(expdir, recipe, mode, computing):
+def main(expdir, recipe, mode, computing, resume):
     '''main function'''
 
     if expdir is None:
@@ -54,9 +52,9 @@ def main(expdir, recipe, mode, computing):
         shutil.rmtree(os.path.join(expdir, 'processes'))
     os.makedirs(os.path.join(expdir, 'processes'))
 
-    if trainer_cfg['resume_training'] == 'True':
+    if resume == 'True':
         if not os.path.isdir(expdir):
-            raise Exception('cannot find %s, please set resume_training to '
+            raise Exception('cannot find %s, please set resume to '
                             'False if you want to start a new training process'
                             % expdir)
     else:
@@ -136,7 +134,7 @@ def main(expdir, recipe, mode, computing):
 
         if mode == 'non_distributed':
 	    #manualy set for machine
-	    os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+	    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
             train(clusterfile=None,
                   job_name='local',
@@ -413,10 +411,14 @@ if __name__ == '__main__':
                                'the distributed computing system one of'
                                ' condor'
                               )
+    tf.app.flags.DEFINE_string('resume', 'False',
+                               'wether the experiment in expdir, if available, '
+                               'has to be resumed'
+                               )
 
     FLAGS = tf.app.flags.FLAGS
 
-    main(FLAGS.expdir, FLAGS.recipe, FLAGS.mode, FLAGS.computing)
+    main(FLAGS.expdir, FLAGS.recipe, FLAGS.mode, FLAGS.computing, FLAGS.resume)
 
 def cond_term(process):
     '''terminate pid if it exists'''

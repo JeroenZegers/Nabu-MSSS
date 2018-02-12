@@ -27,11 +27,13 @@ class onehotperfeatureTargetProcessor(processor.Processor):
         
         #set the length of the segments. Possibly multiple segment lengths
         self.segment_lengths = segment_lengths
-
+        
         #initialize the metadata
         self.nrS = int(conf['nrs'])
+        self.dim = self.comp.get_dim()* self.nrS
         self.target_dim = self.comp.get_dim() * self.nrS
         self.nontime_dims=[self.target_dim]
+
         
         super(onehotperfeatureTargetProcessor, self).__init__(conf)
 
@@ -64,7 +66,7 @@ class onehotperfeatureTargetProcessor(processor.Processor):
 		clean_features = np.append(clean_features,features,2)
 	    
 	winner=np.argmax(clean_features,axis=2)
-	targets=np.empty([features.shape[0],self.target_dim],dtype=bool)
+	targets=np.empty([features.shape[0],self.dim],dtype=bool)
 	for s_ind in range(self.nrS):
 	    targets[:,s_ind::self.nrS]=winner==s_ind
         
@@ -85,9 +87,9 @@ class onehotperfeatureTargetProcessor(processor.Processor):
 	    with open(os.path.join(seg_dir, 'nrS'), 'w') as fid:
 		fid.write(str(self.nrS))
 	    with open(os.path.join(seg_dir, 'dim'), 'w') as fid:
-		fid.write(str(self.target_dim))
+		fid.write(str(self.dim))
 	    with open(os.path.join(seg_dir, 'nontime_dims'), 'w') as fid:
-		fid.write(str(self.nontime_dims))
+		fid.write(str(self.nontime_dims)[1:-1])
             
 def _read_wav(wavfile):
     '''
