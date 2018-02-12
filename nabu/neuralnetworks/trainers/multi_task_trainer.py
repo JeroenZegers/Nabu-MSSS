@@ -407,9 +407,6 @@ class MultiTaskTrainer():
                                                % self.task_index)
                                         self.terminate.run(session=sess)
                                         break
-
-                                
-
                                 if self.conf['go_back'] == 'True':
 
                                     #wait untill all workers are at validation

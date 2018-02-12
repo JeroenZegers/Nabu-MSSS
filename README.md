@@ -5,22 +5,22 @@
 Nabu-MSSS (Multi Speaker Source Separation) is an adaptation of Nabu 
 (branch 2.0 of Aug 31, 2017, which can be found
 [here](https://github.com/vrenkens/nabu)). Nabu is an ASR framework for
-end-to-end networks built on top of TensorFlow. Nabu's design focusses on
-adaptibility, making it easy for the designer to adjust everything from the
+end-to-end networks built on top of TensorFlow. Nabu's design focuses on
+adaptability, making it easy for the designer to adjust everything from the
 model structure to the way it is trained. 
 
-Because of this adaptibility, many parts of the code of Nabu-MSSS were 
-originaly inheritted from Nabu. As a consequence, however, one may still find 
+Because of this adaptability, many parts of the code of Nabu-MSSS were 
+originally inherited from Nabu. As a consequence, however, one may still find 
 'leftovers' of the original code that do not make much sense for the MSSS
 task, eg variable names, code structure, etc. Over time these problems will
 be fixed.
 
 ## Using Nabu
 
-Nabu works in several stages: data prepation, training and finally testing. 
+Nabu works in several stages: data preparation, training and finally testing. 
 Each of these stages uses a recipe for a specific model and database. The 
 recipe contains configuration files for the all components and defines all
-the necesary parameters for the database and the model. You can find more
+the necessary parameters for the database and the model. You can find more
 information on the components in a recipe [here](config/recipes/README.md).
 
 ### Data preperation
@@ -29,13 +29,13 @@ In the data preperation stage the data is prepared (feature computation,
 target normalization etc.) for training and testing. Before running the 
 data preperation you should create a database.conf file in the recipe 
 directory based on the database.cfg that should already be there, and fill 
-in all the paths. In database.conf it is also set wether data shoulbe be 
+in all the paths. In database.conf it is also set whether data should be 
 preprocessed or if it will just be processed on demand.  Should you want 
 to modify parameters in the processors, you can modify the config files 
 that are pointed to in the database config. You can find more information 
 about processors [here](nabu/processing/processors/README.md).
 
-You can run the data prepation with:
+You can run the data preparation with:
 
 ```
 run data --recipe=/path/to/recipe --expdir=/path/to/expdir --computing=<computing>
@@ -149,7 +149,7 @@ where command can be any of the commands discussed above.
 
 ## Designing in Nabu
 
-As mentioned in the beginning Nabu focusses on adaptibility. You can easily
+As mentioned in the beginning Nabu focuses on adaptability. You can easily
 design new models, trainers etc. Most classes used in Nabu have a general class
 that defines an interface and common functionality for all children and
 a factory that is used to create the necessary class. Look into the respective
@@ -167,3 +167,14 @@ to use.
 - Add your file to the package in \_\_init\_\_.py
 - create a configuration file for your class and put it in whichever recipe you
 want to use it for.
+
+## Acknowledgments
+This work is part of a research project funded by the SB PhD grant of the Research Foundation Flanders 
+(FWO) with project number 1S66217N.
+Special thanks to the Facebook AI Research Partnership Program 
+([link](https://research.fb.com/facebook-to-accelerate-global-ai-research-with-new-gpu-program-recipients/)) 
+and the Nvidia GPU Grant Program 
+([link](https://developer.nvidia.com/academic_gpu_seeding))
+for providing additional computational hardware (GPU's) to accelerate testing, debugging and benchmarking 
+of the code.
+
