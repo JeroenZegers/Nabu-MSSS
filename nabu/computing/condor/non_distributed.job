@@ -13,6 +13,11 @@ Requirements = (CUDACapability >= 3.0)\
   &&(machine =!= LastRemoteHost)\
   && (machine != "larimar.esat.kuleuven.be")\
   && (machine != "andromeda.esat.kuleuven.be")\
+  && (machine != "hematite.esat.kuleuven.be")\
+  && (machine != "leo.esat.kuleuven.be")\
+  && (machine != "nickeline.esat.kuleuven.be")\
+  && (machine != "ricotta.esat.kuleuven.be") \
+  && (machine != "jabbah.esat.kuleuven.be") \
   && (CUDARuntimeVersion == 8.0)
 
 
