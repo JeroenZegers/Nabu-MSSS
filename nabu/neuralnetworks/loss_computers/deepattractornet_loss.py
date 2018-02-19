@@ -8,34 +8,35 @@ from nabu.neuralnetworks.components import ops
 class DeepattractornetLoss(loss_computer.LossComputer):
     '''A loss computer that calculates the loss'''
 
-    def __call__(self, targets, embeddings, seq_length):
-
+    def __call__(self, targets, logits, seq_length):
         '''
-        Compute the loss 
+        Compute the loss
 
         Creates the operation to compute the deep clustering loss
 
         Args:
-            targets: a dictionary of [batch_size x time x ... ] tensor containing
+            targets: a dictionary of [batch_size x time x ...] tensor containing
                 the targets
-            embeddings: a dictionary of [batch_size x time x (feature_dim*embedding_dim)] tensor containing
-                the embeddings
-            mixture: a [batch_size x (time * feature_dim)] tensor containing the spectograms of the mixtures
+            logits: a dictionary of [batch_size x time x ...] tensors containing the logits
             seq_length: a dictionary of [batch_size] vectors containing
                 the sequence lengths
 
         Returns:
-            a scalar value containing the loss
+            loss: a scalar value containing the loss
+            norm: a scalar value indicating how to normalize the loss
         '''
-                   
 
-        binary_target=targets['partition_targets']
+        # Which class belongs bin
+        partion_target = targets['partition_targets']
 
-        multi_targets=targets['spectogram_targets']
-        # Spectogram of the mixture, used to mask
+        # Clean spectograms of sources
+        spectrogram_targets=targets['spectogram_targets']
+        # Spectogram of the original mixture, used to mask for scoring
         mix_to_mask = targets['mix_to_mask']
+        # Which bins contain enough energy
         usedbins = targets['usedbins']
         seq_length = seq_length['features']
-		    
-        loss,norm = ops.deepattractornet_loss(binary_target, multi_targets, mix_to_mask, usedbins, embeddings,seq_length,self.batch_size)
+
+        loss,norm = ops.deepattractornet_loss(partion_target, spectrogram_targets, mix_to_mask, usedbins, logits,
+                            seq_length,self.batch_size)
         return loss,norm
