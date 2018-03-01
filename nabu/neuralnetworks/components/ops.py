@@ -163,15 +163,15 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
     	    #targets will give 0 contribution to loss.
             ubresh = tf.reshape(usedbins_batch,[N,1],name='ubresh')
-            ubreshV= tf.tile(ubresh,[1,emb_dim])
-            ubreshV=tf.to_float(ubreshV)
+            #ubreshV= tf.tile(ubresh,[1,emb_dim])
+            #ubreshV=tf.to_float(ubreshV)
             ubreshY=tf.tile(ubresh,[1,nr_S])
 
             # V : matrix containing the embeddingsvectors for this batch,
             # has shape [nb_bins ( =T*F = N ) x emb_dim]
             V = tf.reshape(embedding_batch,[N,emb_dim],name='V')
             # No need to normalize: Vnorm = tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
-            V = tf.multiply(V,ubreshV) # elementwise multiplication
+            # V = tf.multiply(V,ubreshV) # elementwise multiplication
             Y = tf.reshape(partition_batch,[N,nr_S],name='Y')
             Y = tf.multiply(Y,ubreshY)
             Y = tf.to_float(Y)
@@ -194,7 +194,7 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
 
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
-            norm += tf.square(tf.to_float(tf.reduce_sum(ubresh)))
+            norm += tf.to_float(tf.reduce_sum(ubresh))
             loss += loss_utt
         return loss,norm
 
@@ -332,7 +332,96 @@ def pit_L41_loss(targets, bin_embeddings, spk_embeddings, mix_to_mask, seq_lengt
 
     return loss , norm
 
+def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_output, usedbins,
+			        seq_length,self.batch_size):
+    '''
+    Compute the deep clustering loss
+    cost function based on Hershey et al. 2016
 
+    Args:
+        speech_target: a [batch_size x time x (feat_dim*nrS)] tensor containing the binary targets
+        noise_target: a [batch_size x time x feat_dim] tensor containing the whether the bin is dominated by noise
+        emb_vec: a [batch_size x time x (feat_dim*emb_dim)] tensor containing the embedding vectors
+        noise_detect_output: a [batch_size x time x feat_dim] containing outputs for noise detection
+        usedbins: a [batch_size x time x feat_dim] tensor indicating the bins to use in the loss function
+        seq_length: a [batch_size] vector containing the sequence lengths
+        batch_size: the batch size
+
+    Returns:
+        a scalar value containing the loss
+    '''
+
+    with tf.name_scope('deepclustering_noise_loss'):
+        F = tf.shape(usedbins)[2]
+        emb_dim = tf.shape(emb_vec)[2]/F
+        
+        target_dim = tf.shape(speech_target)[2]
+        nrS = target_dim/feat_dim
+
+        loss = 0.0
+        norm = 0.0
+
+        for utt_ind in range(batch_size):
+            T = seq_length[utt_ind]
+            Nspec = T*F
+            usedbins_utt = usedbins[utt_ind]
+            usedbins_utt = usedbins_utt[:T,:]
+            
+            logits_utt = emb_vec[utt_ind]
+            logits_utt = emb_vec[:T,:]
+            targets_utt = speech_target[utt_ind]
+            targets_utt = speech_target_utt[:T,:]
+            noise_target_utt = noise_target[utt_ind]
+            noise_target_utt = noise_target_utt[:T,:]
+            noise_detect_output_utt = noise_detect_output[utt_ind]
+            noise_detect_output_utt = noise_detect_output_utt[:T,:]
+            
+
+            #remove the non_silence (cfr bins below energy thresh) bins. Removing in logits and
+            #targets will give 0 contribution to loss.
+            ubresh=tf.reshape(usedbins_utt,[Nspec,1],name='ubresh')
+            ubreshV=tf.tile(ubresh,[1,emb_dim])
+            ubreshV=tf.to_float(ubreshV)
+            ubreshY=tf.tile(ubresh,[1,nrS])
+            
+            # TODO nakijken wat type ndresh is
+            ndresh = tf.reshape(1-noise_target_utt,[Nspec,1],name='ndresh')
+            
+            ndreshV = tf.tile(ndresh,[1,emb_dim])
+            ndreshV = tf.to_float(ndreshV)
+            ndreshY = tf.file(ndresh,[1,nrS])
+            
+            V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V')
+            Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
+            Vnorm=tf.multiply(tf.multiply(Vnorm,ubreshV),ndreshV)
+            Y=tf.reshape(targets_utt,[Nspec,nrS],name='Y')
+            Y=tf.multiply(tf.multiply(Y,ubreshY),ndreshY)
+            Y=tf.to_float(Y)
+
+            prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True,
+	                b_is_sparse=True, name='VTV')
+            prod2=tf.matmul(Vnorm,Y,transpose_a=True, transpose_b=False, a_is_sparse=True,
+	                b_is_sparse=True, name='VTY')
+
+            term1=tf.reduce_sum(tf.square(prod1),name='frob_1')
+            term2=tf.reduce_sum(tf.square(prod2),name='frob_2')
+
+            loss_utt_1 = tf.add(term1,-2*term2,name='term1and2')
+            norm_1= tf.square(tf.to_float(tf.reduce_sum(tf.multiply(1-noise_target_utt,usedbins_utt))))
+            
+            noise_desired = tf.reshape(noise_target_utt,[Nspec,1],name='ndesired')
+            noise_actual = tf.reshape(noise_detect_output_utt,[Nspec,1],name='nactual')
+            loss_utt_2 = tf.reduce_sum(tf.square(noise_desired-noise_actual))
+            norm_2 = Nspec
+            #normalizer= tf.to_float(tf.square(tf.reduce_sum(ubresh)))
+            #loss += loss_utt/normalizer*(10**9)
+            loss += loss_utt_1/norm_1 + loss_utt_2/norm_2
+
+
+    #loss = loss/tf.to_float(batch_size)
+
+    return loss , 1
+    
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
     '''
     Compute the deep clustering loss
