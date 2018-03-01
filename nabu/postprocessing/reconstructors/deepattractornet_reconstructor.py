@@ -5,6 +5,7 @@ from sklearn.cluster import KMeans
 import mask_reconstructor
 from nabu.postprocessing import data_reader
 import numpy as np
+import os
 import pdb
 
 class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
@@ -14,15 +15,15 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
     requested_output_names = ['bin_emb']
     
     def __init__(self, conf, evalconf, dataconf, rec_dir, task):
-    '''DeepclusteringReconstructor constructor
+        '''DeepclusteringReconstructor constructor
 
-    Args:
-    conf: the reconstructor configuration as a dictionary
-    evalconf: the evaluator configuration as a ConfigParser
-    dataconf: the database configuration
-    rec_dir: the directory where the reconstructions will be stored
-    '''
-        super(DeepclusteringReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
+        Args:
+        conf: the reconstructor configuration as a dictionary
+        evalconf: the evaluator configuration as a ConfigParser
+        dataconf: the database configuration
+        rec_dir: the directory where the reconstructions will be stored'''
+
+        super(DeepattractorReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
 
         #get the usedbins reader
         usedbins_name = conf['usedbins']
@@ -52,7 +53,7 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
         [T,F] = np.shape(usedbins)
         emb_dim = np.shape(embeddings)[1]/F
         N = T*F
-        if np.shape(output)[0] != T:
+        if np.shape(embeddings)[0] != T:
             raise 'Number of frames in usedbins does not match the sequence length'
 	
         #reshape the outputs
@@ -79,7 +80,7 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
         
         prod_1 = np.matmul(A,output_resh.T)
         ones_M = np.ones([self.nrS,N])
-        M = np.divide(ones_M,ones_M+tf.exp(-prod_1)) # dim: nrS x N
+        M = np.divide(ones_M,ones_M+np.exp(-prod_1)) # dim: nrS x N
 	    
         #reconstruct the masks from the cluster labels
         masks = np.reshape(M,[self.nrS,T,F])

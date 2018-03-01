@@ -35,8 +35,10 @@ class DeepattractornetLoss(loss_computer.LossComputer):
         mix_to_mask = targets['mix_to_mask']
         # Which bins contain enough energy
         usedbins = targets['usedbins']
-        seq_length = seq_length['features']
+        seq_length = seq_length['bin_emb']
+	logits = logits['bin_emb']
 
         loss,norm = ops.deepattractornet_loss(partion_target, spectrogram_targets, mix_to_mask, usedbins, logits,
                             seq_length,self.batch_size)
+		
         return loss,norm

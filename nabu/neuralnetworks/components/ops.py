@@ -173,12 +173,13 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             # No need to normalize: Vnorm = tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
             V = tf.multiply(V,ubreshV) # elementwise multiplication
             Y = tf.reshape(partition_batch,[N,nr_S],name='Y')
+	   
             Y = tf.multiply(Y,ubreshY)
             Y = tf.to_float(Y)
 
             numerator_A=tf.matmul(Y,V,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=True, name='YTV')
-            nb_bins_class = tf.reduce_sum(Y,axis = 0) # dim: (rank 1) number_sources
-            nb_bins_class = tf.where(tf.equal(nb_bins_class,tf.zeros(nb_bins_class.shape)), tf.ones_like(M), M,name='M')
+            nb_bins_class = tf.reduce_sum(Y,axis = 0) # dim: (rank 1) number_sources 
+            nb_bins_class = tf.where(tf.equal(nb_bins_class,tf.zeros_like(nb_bins_class)), tf.ones_like(nb_bins_class), nb_bins_class)
             nb_bins_class = tf.expand_dims(nb_bins_class,1) # dim: (rank 2) number_sources x 1
             denominator_A = tf.tile(nb_bins_class,[1,emb_dim],name='denominator_A') #number_sources x emb_dim
             A = tf.divide(numerator_A,denominator_A,name='A')
@@ -190,12 +191,11 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
 
             X = tf.transpose(tf.reshape(mix_to_mask_batch,[N,1],name='X'))
             masked_sources = tf.multiply(M,X) # dim: number_sources x N
-
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
-
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
             norm += tf.square(tf.to_float(tf.reduce_sum(ubresh)))
             loss += loss_utt
+	
         return loss,norm
 
 def L41_loss(targets, bin_embeddings, spk_embeddings, usedbins, seq_length, batch_size):
