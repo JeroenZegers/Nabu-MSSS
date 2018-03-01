@@ -19,6 +19,7 @@ Requirements = (CUDACapability >= 3.0)\
   && (machine != "ricotta.esat.kuleuven.be") \
   && (machine != "jabbah.esat.kuleuven.be") \
   && (machine != "spchcl24.esat.kuleuven.be") \
+  && (machine != "spchcl23.esat.kuleuven.be") \
   && (CUDARuntimeVersion == 8.0)
 
 
