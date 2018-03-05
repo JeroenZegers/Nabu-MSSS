@@ -114,7 +114,7 @@ def dense_sequence_to_sparse(sequences, sequence_lengths):
 
 
 
-def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, usedbins, embeddings, seq_length, batch_size):
+def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, usedbins, embeddings, noise_filter, seq_length, batch_size):
     '''
     Compute the deep attractor net loss (as described in Deep attractor network for single-microphone speaker separation,
         Zhuo Chen, et al. [1])
@@ -178,7 +178,8 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
 
             numerator_A=tf.matmul(Y,V,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=True, name='YTV')
             nb_bins_class = tf.reduce_sum(Y,axis = 0) # dim: (rank 1) number_sources
-            nb_bins_class = tf.where(tf.equal(nb_bins_class,tf.zeros(nb_bins_class.shape)), tf.ones_like(M), M,name='M')
+            # !!!!!!!!!!!!!!!!!!!!! NAKIJKEN !!!!!!!!!!!!!!
+            nb_bins_class = tf.where(tf.equal(nb_bins_class,tf.zeros(nb_bins_class.shape)), tf.ones_like(nb_bins_class), nb_bins_class,name='M')
             nb_bins_class = tf.expand_dims(nb_bins_class,1) # dim: (rank 2) number_sources x 1
             denominator_A = tf.tile(nb_bins_class,[1,emb_dim],name='denominator_A') #number_sources x emb_dim
             A = tf.divide(numerator_A,denominator_A,name='A')
@@ -194,7 +195,7 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
 
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
-            norm += tf.to_float(tf.reduce_sum(ubresh))
+            norm += tf.to_float(tf.constant(N))
             loss += loss_utt
         return loss,norm
 
@@ -392,7 +393,7 @@ def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_o
             ndreshY = tf.file(ndresh,[1,nrS])
             
             V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V')
-            Vnorm=tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
+            Vnorm=tf.nn.l2_normalize(V, axis=1, epsilon=1e-12, name='Vnorm')
             Vnorm=tf.multiply(tf.multiply(Vnorm,ubreshV),ndreshV)
             Y=tf.reshape(targets_utt,[Nspec,nrS],name='Y')
             Y=tf.multiply(tf.multiply(Y,ubreshY),ndreshY)
