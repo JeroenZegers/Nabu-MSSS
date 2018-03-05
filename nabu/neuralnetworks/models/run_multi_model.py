@@ -20,9 +20,10 @@ def run_multi_model(models, model_nodes, model_links, inputs, inputs_links,
     Returns:
 	outputs: the requested outputs of the hybrid model
     '''
-
+    
     node_tensors = inputs
     for node in model_nodes:
+	
 	node_inputs = [node_tensors[x] for x in inputs_links[node]]
 	node_model = models[model_links[node]]
 	#if a model has multiple inputs, only the sequence lenght of the

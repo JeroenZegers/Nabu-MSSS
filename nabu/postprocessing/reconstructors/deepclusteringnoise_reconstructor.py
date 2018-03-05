@@ -14,7 +14,7 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
     a reconstructor using deep clustering'''
     
     requested_output_names = ['bin_emb','noise_labels']
-    self.noise_threshold = 0.5
+    noise_threshold = 0.5
 
     def __init__(self, conf, evalconf, dataconf, rec_dir, task):
         '''DeepclusteringReconstructor constructor
@@ -26,7 +26,7 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
             rec_dir: the directory where the reconstructions will be stored
         '''
         
-        super(DeepclusteringReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
+        super(DeepclusteringnoiseReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
         
         #get the usedbins reader
         usedbins_name = conf['usedbins']
@@ -71,9 +71,9 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
         embeddings_resh_norm = np.linalg.norm(embeddings_resh,axis=1,keepdims=True)
         embeddings_resh = embeddings_resh/embeddings_resh_norm
 	    
-	    noise_detect = noise_detect[:T,:]
-	    noise_detect_resh = np.reshape(noise_detect,T*F)
-	    no_noise = noise_detect_resh < self.noise_threshold
+	noise_detect = noise_detect[:T,:]
+	noise_detect_resh = np.reshape(noise_detect,T*F)
+	no_noise = noise_detect_resh < self.noise_threshold
         #only keep the active bins (above threshold) for clustering
         usedbins_resh = np.reshape(usedbins, T*F)
         filt = np.logical_and(usedbins_resh,no_noise)
@@ -85,7 +85,7 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
         for _ in range(5):
         # Sometime it fails due to some indexerror and I'm not sure why. Just retry then. max 5 times
             try:
-            kmeans_model.fit(embeddings_speech_resh)
+                 kmeans_model.fit(embeddings_speech_resh)
             except IndexError:
                 continue
             break

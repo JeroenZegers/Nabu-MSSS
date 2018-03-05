@@ -20,7 +20,7 @@ def factory(architecture):
         return plain_variables.PlainVariables
     elif architecture == 'concat':
         return concat.Concat
-    elif model == 'sigmoid':
+    elif architecture == 'sigmoid':
         return sigmoid.Sigmoid
     else:
         raise Exception('undefined architecture type: %s' % architecture)

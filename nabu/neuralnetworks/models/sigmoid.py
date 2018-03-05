@@ -48,6 +48,6 @@ class Sigmoid(model.Model):
 	
             if 'last_only' in self.conf and self.conf['last_only']=='True':
                 output = output[:,-1,:]
-	            output = tf.expand_dims(output,1)
+                output = tf.expand_dims(output,1)
 		
         return output

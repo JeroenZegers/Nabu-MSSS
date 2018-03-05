@@ -27,7 +27,7 @@ def factory(reconstructor):
         return stackedmasks_reconstructor.StackedmasksReconstructor 
     elif reconstructor == 'pit_l41':
         return pit_l41_reconstructor.PITL41Reconstructor
-    elif recontructor == 'deepclusteringnoise':
+    elif reconstructor == 'deepclusteringnoise':
         return deepclusteringnoise_reconstructor.DeepclusteringnoiseReconstructor
     else:
         raise Exception('Undefined reconstructor type: %s' % reconstructor)
