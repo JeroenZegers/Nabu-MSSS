@@ -49,10 +49,12 @@ class Processor(object):
 		Nseg = int(np.floor(float(N)/float(seg_len)))
 		
 		if(Nseg) == 0:
-		  if len(data.shape) == 3:
-      		  seg_data = [np.concatenate((data,np.zeros((seg_len-N,self.dim,data.shape[2]))),axis=0)]
-		  else:
-    		  seg_data = [np.concatenate((data,np.zeros((seg_len-N,self.dim))),axis=0)]
+			if len(data.shape) == 3:
+				seg_data = [np.concatenate((data,np.zeros((seg_len-N,self.dim,data.shape[2]))),axis=0)]
+			else:
+				seg_data = [np.concatenate((data,np.zeros((seg_len-N,self.dim))),axis=0)] 
+  
+  
   
 		else:
 		  

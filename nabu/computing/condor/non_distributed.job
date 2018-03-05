@@ -11,20 +11,22 @@ request_GPUs      = 1
 Requirements = (CUDACapability >= 3.0)\
   &&(CUDAGlobalMemoryMb >= $(memory))\
   &&(machine =!= LastRemoteHost)\
-  && (machine != "larimar.esat.kuleuven.be")\
-  && (machine != "andromeda.esat.kuleuven.be")\
-  && (machine != "hematite.esat.kuleuven.be")\
-  && (machine != "leo.esat.kuleuven.be")\
-  && (machine != "nickeline.esat.kuleuven.be")\
-  && (machine != "ricotta.esat.kuleuven.be") \
-  && (machine != "jabbah.esat.kuleuven.be") \
+#  && (machine != "larimar.esat.kuleuven.be")\
+#  && (machine != "andromeda.esat.kuleuven.be")\
+#  && (machine != "hematite.esat.kuleuven.be")\
+#  && (machine != "leo.esat.kuleuven.be")\
+#  && (machine != "nickeline.esat.kuleuven.be")\
+#  && (machine != "ricotta.esat.kuleuven.be") \
+#  && (machine != "jabbah.esat.kuleuven.be") \ 
+  && (machine != "spchcl17.esat.kuleuven.be") \
+  && (machine != "spchcl18.esat.kuleuven.be") \
   && (machine != "spchcl24.esat.kuleuven.be") \
-  && (machine != "spchcl23.esat.kuleuven.be") \
-  && (CUDARuntimeVersion == 8.0)
+  && (machine != "spchcl23.esat.kuleuven.be") 
+#  && (CUDARuntimeVersion == 8.0)
 
 
 #Specfy nice user behavior
-NiceUser = true
+NiceUser = false
 #Send an email in case of an error
 notify_user = pieter.appeltans@student.kuleuven.be
 Notification = Complete

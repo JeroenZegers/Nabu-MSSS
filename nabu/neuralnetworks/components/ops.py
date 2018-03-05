@@ -173,13 +173,13 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
             # No need to normalize: Vnorm = tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
             # V = tf.multiply(V,ubreshV) # elementwise multiplication
             Y = tf.reshape(partition_batch,[N,nr_S],name='Y')
+	   
             Y = tf.multiply(Y,ubreshY)
             Y = tf.to_float(Y)
 
-            numerator_A=tf.matmul(Y,V,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=True, name='YTV')
-            nb_bins_class = tf.reduce_sum(Y,axis = 0) # dim: (rank 1) number_sources
-            # !!!!!!!!!!!!!!!!!!!!! NAKIJKEN !!!!!!!!!!!!!!
-            nb_bins_class = tf.where(tf.equal(nb_bins_class,tf.zeros(nb_bins_class.shape)), tf.ones_like(nb_bins_class), nb_bins_class,name='M')
+            numerator_A=tf.matmul(Y,V,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=False, name='YTV')
+            nb_bins_class = tf.reduce_sum(Y,axis = 0) # dim: (rank 1) number_sources 
+            nb_bins_class = tf.where(tf.equal(nb_bins_class,tf.zeros_like(nb_bins_class)), tf.ones_like(nb_bins_class), nb_bins_class)
             nb_bins_class = tf.expand_dims(nb_bins_class,1) # dim: (rank 2) number_sources x 1
             denominator_A = tf.tile(nb_bins_class,[1,emb_dim],name='denominator_A') #number_sources x emb_dim
             A = tf.divide(numerator_A,denominator_A,name='A')
@@ -191,12 +191,11 @@ def deepattractornet_loss(partition_targets, spectogram_targets, mix_to_mask, us
 
             X = tf.transpose(tf.reshape(mix_to_mask_batch,[N,1],name='X'))
             masked_sources = tf.multiply(M,X) # dim: number_sources x N
-
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
-
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
             norm += tf.to_float(tf.constant(N))
             loss += loss_utt
+	
         return loss,norm
 
 def L41_loss(targets, bin_embeddings, spk_embeddings, usedbins, seq_length, batch_size):
@@ -333,8 +332,8 @@ def pit_L41_loss(targets, bin_embeddings, spk_embeddings, mix_to_mask, seq_lengt
 
     return loss , norm
 
-def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_output, usedbins,
-			        seq_length,self.batch_size):
+def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_output, usedbins,\
+			        seq_length,batch_size):
     '''
     Compute the deep clustering loss
     cost function based on Hershey et al. 2016
@@ -355,10 +354,8 @@ def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_o
     with tf.name_scope('deepclustering_noise_loss'):
         F = tf.shape(usedbins)[2]
         emb_dim = tf.shape(emb_vec)[2]/F
-        
         target_dim = tf.shape(speech_target)[2]
-        nrS = target_dim/feat_dim
-
+        nrS = target_dim/F
         loss = 0.0
         norm = 0.0
 
@@ -369,9 +366,9 @@ def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_o
             usedbins_utt = usedbins_utt[:T,:]
             
             logits_utt = emb_vec[utt_ind]
-            logits_utt = emb_vec[:T,:]
+            logits_utt = logits_utt[:T,:]
             targets_utt = speech_target[utt_ind]
-            targets_utt = speech_target_utt[:T,:]
+            targets_utt = targets_utt[:T,:]
             noise_target_utt = noise_target[utt_ind]
             noise_target_utt = noise_target_utt[:T,:]
             noise_detect_output_utt = noise_detect_output[utt_ind]
@@ -390,8 +387,9 @@ def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_o
             
             ndreshV = tf.tile(ndresh,[1,emb_dim])
             ndreshV = tf.to_float(ndreshV)
-            ndreshY = tf.file(ndresh,[1,nrS])
+            ndreshY = tf.tile(ndresh,[1,nrS])
             
+	    
             V=tf.reshape(logits_utt,[Nspec,emb_dim],name='V')
             Vnorm=tf.nn.l2_normalize(V, axis=1, epsilon=1e-12, name='Vnorm')
             Vnorm=tf.multiply(tf.multiply(Vnorm,ubreshV),ndreshV)
@@ -409,11 +407,13 @@ def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_o
 
             loss_utt_1 = tf.add(term1,-2*term2,name='term1and2')
             norm_1= tf.square(tf.to_float(tf.reduce_sum(tf.multiply(1-noise_target_utt,usedbins_utt))))
-            
-            noise_desired = tf.reshape(noise_target_utt,[Nspec,1],name='ndesired')
+            norm_1 = tf.maximum(norm_1,1)
+ 
+            noise_desired = tf.to_float(tf.reshape(noise_target_utt,[Nspec,1],name='ndesired'))
             noise_actual = tf.reshape(noise_detect_output_utt,[Nspec,1],name='nactual')
             loss_utt_2 = tf.reduce_sum(tf.square(noise_desired-noise_actual))
-            norm_2 = Nspec
+            
+            norm_2 = tf.to_float(Nspec)
             #normalizer= tf.to_float(tf.square(tf.reduce_sum(ubresh)))
             #loss += loss_utt/normalizer*(10**9)
             loss += loss_utt_1/norm_1 + loss_utt_2/norm_2
@@ -421,7 +421,7 @@ def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_o
 
     #loss = loss/tf.to_float(batch_size)
 
-    return loss , 1
+    return loss , tf.constant(1.)
     
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
     '''

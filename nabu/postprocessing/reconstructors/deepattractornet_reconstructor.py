@@ -15,14 +15,14 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
     requested_output_names = ['bin_emb']
     
     def __init__(self, conf, evalconf, dataconf, rec_dir, task):
-    '''DeepclusteringReconstructor constructor
+        '''DeepclusteringReconstructor constructor
 
-    Args:
-    conf: the reconstructor configuration as a dictionary
-    evalconf: the evaluator configuration as a ConfigParser
-    dataconf: the database configuration
-    rec_dir: the directory where the reconstructions will be stored
-    '''
+        Args:
+        conf: the reconstructor configuration as a dictionary
+        evalconf: the evaluator configuration as a ConfigParser
+        dataconf: the database configuration
+        rec_dir: the directory where the reconstructions will be stored'''
+
         super(DeepattractorReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
 
         #get the usedbins reader
