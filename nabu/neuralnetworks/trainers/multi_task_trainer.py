@@ -60,8 +60,13 @@ class MultiTaskTrainer():
         model_names = modelconf.get('hyper','model_names').split(' ')
         self.models = dict()
         with open(modelfile, 'wb') as fid:
+<<<<<<< HEAD
+	    for model_name in model_names:
+	    print modelconf.get(model_name,'architecture')		
+=======
 	    for model_name in model_names:	
 			
+>>>>>>> 3225b513b309de83be82af4e55be19a9ae4aa5e6
 		self.models[model_name]=model_factory.factory(
 		    modelconf.get(model_name,'architecture'))(
 		    conf=dict(modelconf.items(model_name)),
