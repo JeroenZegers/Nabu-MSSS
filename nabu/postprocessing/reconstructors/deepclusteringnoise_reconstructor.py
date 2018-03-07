@@ -78,7 +78,8 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
         usedbins_resh = np.reshape(usedbins, T*F)
         filt = np.logical_and(usedbins_resh,no_noise)
         embeddings_speech_resh = embeddings_resh[filt]
-	    
+        if np.shape(embeddings_speech_resh)[0] < 2:
+            return np.zeros([self.nrS,T,F])
         #apply kmeans clustering and assign each bin to a clustering
         kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=-1)
 	
