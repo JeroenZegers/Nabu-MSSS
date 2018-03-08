@@ -3,7 +3,7 @@ contains the Loss computer factory mehod'''
 
 
 from . import deepclustering_loss, pit_loss, l41_loss, pit_l41_loss,deepattractornet_loss, \
-deepclusteringnoise_loss
+deepclusteringnoise_loss,deepattractornetnoise_hard_loss,deepattractornetnoise_soft_loss
 
 
 def factory(loss_type):
@@ -27,5 +27,9 @@ def factory(loss_type):
         return pit_l41_loss.PITL41Loss
     elif loss_type == 'deepclusteringnoise':
         return deepclusteringnoise_loss.DeepclusteringnoiseLoss
+    elif loss_type == 'deepattractornetnoisehard':
+        return deepattractornetnoise_hard_loss.DeepattractornetnoisehardLoss
+    elif loss_type == 'deepattractornetnoisesoft':
+        return deepattractornetnoise_soft_loss.DeepattractornetnoisesoftLoss
     else:
         raise Exception('Undefined loss type: %s' % loss_type)

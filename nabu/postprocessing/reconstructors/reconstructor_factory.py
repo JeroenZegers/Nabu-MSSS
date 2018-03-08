@@ -3,7 +3,8 @@ contains the Reconstructor factory'''
 
 from . import  deepclustering_reconstructor, stackedmasks_reconstructor, \
 deepXclustering_reconstructor, deepattractornet_reconstructor, pit_l41_reconstructor, \
-deepclusteringnoise_reconstructor
+deepclusteringnoise_reconstructor, deepattractornetnoise_hard_reconstructor, \
+deepattractornetnoise_soft_reconstructor
 
 
 def factory(reconstructor):
@@ -29,5 +30,9 @@ def factory(reconstructor):
         return pit_l41_reconstructor.PITL41Reconstructor
     elif reconstructor == 'deepclusteringnoise':
         return deepclusteringnoise_reconstructor.DeepclusteringnoiseReconstructor
+    elif reconstructor == 'deepattractornetnoisehard':
+        return deepattractornetnoise_hard_reconstructor.DeepattractornoisehardReconstructor
+    elif reconstructor == 'deepattractornetnoisesoft':
+        return deepattractornetnoise_soft_reconstructor.DeepattractornoisesoftReconstructor
     else:
         raise Exception('Undefined reconstructor type: %s' % reconstructor)
