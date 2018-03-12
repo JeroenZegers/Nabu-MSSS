@@ -15,6 +15,8 @@ def cluster_centroids(data,weights, clusters, k):
   return np.array(results)
 
 def kmeans(data,weights, k, steps=20):
+  if(np.shape(data)[0] != np.shape(weights)[0]):
+      print "Dimension data and weights don't match"
   # Forgy initialization method: choose k data points randomly.
   centroids = data[np.random.choice(np.arange(len(data)), k, False)]
 
@@ -30,7 +32,5 @@ def kmeans(data,weights, k, steps=20):
       break
 
     centroids = new_centroids
-  
+
   return clusters, centroids
-
-
