@@ -39,7 +39,7 @@ class DeepattractornetnoisehardLoss(loss_computer.LossComputer):
         emb_vec = logits['bin_emb']
         noise_filter = logits['noise_filter']
         
-        loss,norm = ops.deepattractornetnoise_hard_loss_loss(partion_target, spectrogram_targets, mix_to_mask, usedbins, emb_vec,
+        loss,norm = ops.deepattractornetnoise_hard_loss(partion_target, spectrogram_targets, mix_to_mask, usedbins, emb_vec,
                             noise_filter, seq_length,self.batch_size)
 		
         return loss,norm

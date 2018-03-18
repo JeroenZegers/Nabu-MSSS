@@ -57,7 +57,7 @@ class DeepattractornoisehardReconstructor(mask_reconstructor.MaskReconstructor):
         N = T*F
         if np.shape(embeddings)[0] != T:
             raise 'Number of frames in usedbins does not match the sequence length'
-	    if np.shape(noise_filter)[0] != T:
+        if np.shape(noise_filter)[0] != T:
             raise 'Number of frames in usedbins does not match the sequence length'
         if np.shape(noise_filter)[1] != F:
             raise 'Number of noise filter outputs does not match number of frequency bins'
@@ -72,8 +72,8 @@ class DeepattractornoisehardReconstructor(mask_reconstructor.MaskReconstructor):
         filt = np.logical_and(usedbins_resh,noise_filt_bin)
         #Only keep the active bins (above threshold) for clustering
         output_speech_resh = output_resh[filt] # dim:N' x embdim (N' is number of bins that are used N'<N)
-	    if np.shape(output_speech_resh)[0] < 2:
-	        return np.zeros([self.nrS,T,F])
+        if np.shape(output_speech_resh)[0] < 2:
+	     return np.zeros([self.nrS,T,F])
         #apply kmeans clustering and assign each bin to a clustering
         kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=-1)
         for _ in range(5):

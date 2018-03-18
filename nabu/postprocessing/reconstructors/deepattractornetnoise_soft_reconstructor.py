@@ -78,7 +78,7 @@ class DeepattractornoisesoftReconstructor(mask_reconstructor.MaskReconstructor):
         prod_1 = np.matmul(A,emb_vec.T)
         numerator = np.exp(prod_1-np.max(prod_1,axis=0))
         denominator = np.sum(numerator,axis=0)
-	    M = numerator/denominator
+        M = numerator/denominator
         M_final = np.multiply(M,np.transpose(noise_filter_reshape))
 
         #reconstruct the masks from the cluster labels
