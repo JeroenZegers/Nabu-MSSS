@@ -5,7 +5,7 @@ import tensorflow as tf
 import model
 
 class RELU(model.Model):
-    '''A linear classifier'''
+    '''A RELU layer'''
 
     def  _get_outputs(self, inputs, input_seq_length, is_training):
         '''
@@ -35,11 +35,13 @@ class RELU(model.Model):
                     stddev=float(self.conf['input_noise']))
 
             logits = inputs
-
-            output = tf.contrib.layers.fully_connected(
-            activation_fn=tf.nn.relu,
-            inputs=logits,
-            num_outputs=int(self.conf['output_dims']))
+            for l in range(int(self.conf['num_layers'])):
+                logits = tf.contrib.layers.fully_connected(
+                activation_fn=tf.nn.relu,
+                inputs=logits,
+                num_outputs=int(self.conf['output_dims']))
+                
+            output = logits
 
             #dropout is not recommended
             if is_training and float(self.conf['dropout']) < 1:
