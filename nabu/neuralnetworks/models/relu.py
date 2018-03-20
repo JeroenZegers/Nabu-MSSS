@@ -3,7 +3,6 @@ contains the linear class'''
 
 import tensorflow as tf
 import model
-from nabu.neuralnetworks.components import layer
 
 class RELU(model.Model):
     '''A linear classifier'''

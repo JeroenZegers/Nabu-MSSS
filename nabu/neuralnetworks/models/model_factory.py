@@ -1,7 +1,7 @@
 '''@file model_factory.py
 contains the model factory'''
 
-from . import dblstm, plain_variables, linear, concat, sigmoid,relu
+from . import dblstm, plain_variables, linear, concat, sigmoid,relu, reconstruction_layer
 
 def factory(architecture):
     '''get a model class
@@ -24,5 +24,7 @@ def factory(architecture):
         return sigmoid.Sigmoid
     elif architecture == 'RELU':
         return relu.RELU
+    elif architecture == 'reconstruction_layer':
+        return reconstruction_layer.Reconstruction_Layer
     else:
         raise Exception('undefined architecture type: %s' % architecture)

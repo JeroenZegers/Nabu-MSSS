@@ -25,7 +25,7 @@ class Evaluator(object):
 
         self.conf = conf
         self.model = model
-        
+
         self.output_name = output_name
 
         #get the database configurations
@@ -66,7 +66,7 @@ class Evaluator(object):
 
 	    max_number_of_elements = len(data_queue_elements)
 	    number_of_elements = min([max_number_of_elements,requested_utts])
-	    
+
             #compute the number of batches in the validation set
             numbatches = number_of_elements/batch_size
             number_of_elements = numbatches*batch_size
@@ -106,12 +106,12 @@ class Evaluator(object):
             #target_seq_length = {
                 #target_names[i]: d
                 #for i, d in enumerate(seq_length[len(self.input_dataconfs):])}
-	    
+
 	    outputs = self._get_outputs(inputs, seq_length)
 	    outputs = outputs[self.output_name]
 
             loss, norm = self.compute_loss(targets, outputs, seq_length)
-            
+
         return loss, norm, numbatches, outputs, seq_length
 
     @abstractmethod
@@ -127,7 +127,7 @@ class Evaluator(object):
         Returns:
             the outputs'''
 
-    
+
     @abstractmethod
     def compute_loss(self, targets, logits, seq_length):
         '''compute the validation loss for a batch of data
