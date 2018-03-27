@@ -31,9 +31,9 @@ class Reconstructor(object):
 	else:
 	    self.batch_size = int(evalconf.get('evaluator','batch_size'))
         self.segment_lengths = evalconf.get('evaluator','segment_length').split(' ')
-        
+
         self.nrS = int(conf['nrs'])
-        
+
         #create the directory to write down the reconstructions
         self.rec_dir=rec_dir
         if not os.path.isdir(self.rec_dir):
@@ -41,14 +41,14 @@ class Reconstructor(object):
 	for spk in range(self.nrS):
 	    if not os.path.isdir(os.path.join(self.rec_dir,'s' + str(spk+1))):
 		os.makedirs(os.path.join(self.rec_dir,'s' + str(spk+1)))
-	    
-        
-        #the use of the position variable only works because in the evaluator the 
+
+
+        #the use of the position variable only works because in the evaluator the
         #shuffle option in the data_queue is set to False!!
         self.pos = 0
 
         self.scp_file = open(os.path.join(self.rec_dir,'pointers.scp'), 'w')
-        
+
         #Whether the raw output should also be stored (besides the reconstructed audiosignal)
         self.store_output = conf['store_output']=='True'
         if self.store_output:
@@ -59,32 +59,32 @@ class Reconstructor(object):
 
     def __call__(self, batch_outputs, batch_sequence_lengths):
         ''' reconstruct the signals and write the audio files
-        
+
         Args:
 	    - batch_outputs: A dictionary containing the batch outputs of the network
 	    - batch_sequence_lengths: A dictionary containing the sequence length for each utterance
         '''
 
 	for utt_ind in range(self.batch_size):
-	  
+
 	    utt_output = dict()
 	    for output_name in self.requested_output_names:
 		utt_output[output_name] = batch_outputs[output_name][utt_ind] \
 		  [:batch_sequence_lengths[output_name][utt_ind],:]
-	  	  
-	    #reconstruct the singnals 
+
+	    #reconstruct the singnals
 	    reconstructed_signals, utt_info = self.reconstruct_signals(utt_output)
-	    
+
 	    #make the audiofiles for the reconstructed signals
 	    self.write_audiofile(reconstructed_signals, utt_info)
-	    
+
 	    #if requested store the raw output
 	    if self.store_output:
 		for output_name in self.requested_output_names:
 		    savename = output_name+'_'+utt_info['utt_name']
 		    np.save(os.path.join(self.output_dir,savename),utt_output[output_name])
-	    
-	    
+
+
 	    self.pos += 1
 
     @abstractmethod
@@ -97,7 +97,7 @@ class Reconstructor(object):
         Returns:
             the reconstructed signals'''
 
-    
+
     def write_audiofile(self, reconstructed_signals, utt_info):
         '''write the audiofiles for the reconstructions
 
@@ -105,7 +105,7 @@ class Reconstructor(object):
             reconstructed_signals: the reconstructed signals for a single mixture
             utt_info: some info on the utterance
 	'''
-	
+
 	write_str=utt_info['utt_name']
 	for spk in range(self.nrS):
 	    rec_dir = os.path.join(self.rec_dir,'s' + str(spk+1))
@@ -113,7 +113,6 @@ class Reconstructor(object):
 	    signal = reconstructed_signals[spk]
 	    wav.write(filename, utt_info['rate'], signal)
 	    write_str += ' ' + filename
-	
+
 	write_str += ' \n'
 	self.scp_file.write(write_str)
-	  

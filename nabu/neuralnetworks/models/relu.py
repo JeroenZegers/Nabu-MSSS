@@ -36,11 +36,12 @@ class RELU(model.Model):
 
             logits = inputs
             for l in range(int(self.conf['num_layers'])):
+                print "Layer: ",l
                 logits = tf.contrib.layers.fully_connected(
                 activation_fn=tf.nn.relu,
                 inputs=logits,
                 num_outputs=int(self.conf['output_dims']))
-                
+
             output = logits
 
             #dropout is not recommended
