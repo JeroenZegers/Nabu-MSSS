@@ -47,40 +47,40 @@ class MultiTaskTrainer():
         self.tasksconf = tasksconf
         self.task_index = task_index
         self.init_filename = init_filename
-        
+
         self.batch_size = int(conf['batch_size'])
 
         cluster = tf.train.ClusterSpec(server.server_def.cluster)
 
         #create the graph
         self.graph = tf.Graph()
-        
+
          #create the model
         modelfile = os.path.join(expdir, 'model', 'model.pkl')
         model_names = modelconf.get('hyper','model_names').split(' ')
         self.models = dict()
         with open(modelfile, 'wb') as fid:
-	    for model_name in model_names:	
+	    for model_name in model_names:
 	   	    self.models[model_name]=model_factory.factory(
 		    modelconf.get(model_name,'architecture'))(
 		    conf=dict(modelconf.items(model_name)),
 		    name=model_name)
-            pickle.dump(self.models, fid)    
-            
-        evaltype = evaluatorconf.get('evaluator', 'evaluator')   
+            pickle.dump(self.models, fid)
+
+        evaltype = evaluatorconf.get('evaluator', 'evaluator')
 
         #define a trainer per traintask
         self.task_trainers=[]
         for task in self.conf['tasks'].split(' '):
 	    taskconf = self.tasksconf[task]
-	    
+
 	    task_trainer=task_trainer_script.TaskTrainer(task,conf,taskconf,self.models,modelconf,
 					   dataconf,evaluatorconf,self.batch_size)
-	    
+
 	    self.task_trainers.append(task_trainer)
 
 
-		
+
         if 'local' in cluster.as_dict():
             num_replicas = 1
             device = tf.DeviceSpec(job='local')
@@ -100,7 +100,7 @@ class MultiTaskTrainer():
                 task=0)
 
         self.is_chief = task_index == 0
-        
+
         #define the placeholders in the graph
         with self.graph.as_default():
 
@@ -133,27 +133,27 @@ class MultiTaskTrainer():
             #create a check if training should continue
             self.should_stop = tf.logical_or(
                 tf.greater_equal(self.global_step, self.num_steps),
-                should_terminate)	
-	    
-	    with tf.device(device):		
+                should_terminate)
+
+	    with tf.device(device):
 		num_steps = []
 		done_ops = []
 
 		#set the dataqueues for each trainer
 		for task_trainer in self.task_trainers:
-		  
+
 		    task_num_steps, task_done_ops = task_trainer.set_dataqueues(cluster)
-		    
+
 		    num_steps.append(task_num_steps)
 		    done_ops += task_done_ops
 
 		self.set_num_steps = self.num_steps.assign(min(num_steps)).op
 		self.done = tf.group(*done_ops)
-	    	    
+
 		#training part
                 with tf.variable_scope('train'):
 
-		    
+
                     #a variable to scale the learning rate (used to reduce the
                     #learning rate in case validation performance drops)
                     learning_rate_fact = tf.get_variable(
@@ -170,39 +170,39 @@ class MultiTaskTrainer():
                         decay_steps=self.num_steps,
                         decay_rate=float(conf['learning_rate_decay']))
                                           * learning_rate_fact)
-		    
+
 		    #For each task, set the task specific training ops
 		    for task_trainer in self.task_trainers:
-		      
+
 			task_trainer.train(self.learning_rate)
-		    
+
 		    #Group ops over tasks
 		    self.process_minibatch = tf.group(*([task_trainer.process_minibatch
 					for task_trainer in self.task_trainers]),
 					name='process_minibatch_all_tasks')
-		    
+
 		    self.reset_grad_loss_norm = tf.group(*([task_trainer.reset_grad_loss_norm
 					    for task_trainer in self.task_trainers]),
 					    name='reset_grad_loss_norm_all_tasks')
-		    
+
 		    tmp=[]
 		    for task in self.task_trainers:
 			tmp += task_trainer.normalize_gradients
-		    self.normalize_gradients = tf.group(*(tmp), 
+		    self.normalize_gradients = tf.group(*(tmp),
 				     name='normalize_gradients_all_tasks')
-		    
+
 		    #accumulate losses from tasks
-		    with tf.variable_scope('accumulate_losses_from_tasks'):		
-			tmp = [task_trainer.normalized_loss for task_trainer in self.task_trainers]			
+		    with tf.variable_scope('accumulate_losses_from_tasks'):
+			tmp = [task_trainer.normalized_loss for task_trainer in self.task_trainers]
 			self.total_loss = tf.reduce_mean(tmp, name='acc_loss')
-		    
+
 		    tmp=[]
 		    for task_trainer in self.task_trainers:
 			tmp.append(task_trainer.apply_gradients)
-		    
+
                     #all remaining operations with the UPDATE_OPS GraphKeys
                     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-                    
+
                     #an op to increment the global step
                     global_step_inc = self.global_step.assign_add(1)
 
@@ -211,8 +211,8 @@ class MultiTaskTrainer():
                     self.update_op = tf.group(
                         *(tmp + update_ops + [global_step_inc]),
                         name='update')
-	    
-		
+
+
 		if evaltype != 'None':
 
 		    #validation part
@@ -232,19 +232,19 @@ class MultiTaskTrainer():
 			self.should_validate = tf.greater_equal(
 			    self.global_step - validated_step,
 			    int(conf['valid_frequency']))
-	    
+
 			#For each task, set the task specific validation ops
-			#The number of validation batches is the minimum number of validation 
+			#The number of validation batches is the minimum number of validation
 			#batches over all tasks.
 			valbatches = []
-			for task_trainer in self.task_trainers:			  
+			for task_trainer in self.task_trainers:
 			    valbatches.append(task_trainer.evaluate_evaluator())
 			self.valbatches = min(valbatches)
-			
+
 			#Group ops over tasks
 			self.process_val_batch = tf.group(*([task_trainer.process_val_batch
 					for task_trainer in self.task_trainers]))
-			
+
 			self.reset_val_loss_norm = tf.group(*([task_trainer.reset_val_loss_norm
 					for task_trainer in self.task_trainers]))
 
@@ -252,7 +252,7 @@ class MultiTaskTrainer():
 			for task_trainer in self.task_trainers:
 			    tmp.append(task_trainer.val_loss_normalized)
 			self.validation_loss = tf.reduce_mean(tmp)
-			
+
                         #update the learning rate factor
                         self.half_lr = learning_rate_fact.assign(
                             learning_rate_fact/2).op
@@ -294,8 +294,8 @@ class MultiTaskTrainer():
 
                         tf.summary.scalar('validation loss',
                                           self.validation_loss)
-	    
-	    
+
+
 		else:
                     self.process_val_batch = None
 
@@ -307,8 +307,8 @@ class MultiTaskTrainer():
 
 		#create the scaffold
 		self.scaffold = tf.train.Scaffold()
-	    
-	    	
+
+
 
     def train(self):
         '''train the model'''
@@ -323,12 +323,12 @@ class MultiTaskTrainer():
         #config.log_device_placement = True
 
 	chief_only_hooks = []
-	
+
 	if self.init_filename != None:
 	    init_hook = hooks.LoadAtBegin(self.init_filename,
 				   self.models)
 	    chief_only_hooks.append(init_hook)
-	    
+
         #create a hook for saving the final model
         save_hook = hooks.SaveAtEnd(
             os.path.join(self.expdir, 'model', 'network.ckpt'),
@@ -343,7 +343,7 @@ class MultiTaskTrainer():
 
         #number of times validation performance was worse
         num_tries = 0
-	
+
         with self.graph.as_default():
             with tf.train.MonitoredTrainingSession(
                 master=master,
@@ -356,12 +356,12 @@ class MultiTaskTrainer():
 
                 #set the number of steps
                 self.set_num_steps.run(session=sess)
-		
+
                 #start the training loop
                 #pylint: disable=E1101
                 while not (sess.should_stop() or
                            self.should_stop.eval(session=sess)):
-		  
+
                     #check if validation is due
                     if (self.process_val_batch is not None
                             and self.should_validate.eval(session=sess)):
@@ -375,7 +375,7 @@ class MultiTaskTrainer():
 
                             #reset the validation loss
                             self.reset_val_loss_norm.run(session=sess)
-                            
+
 			    #start time
 			    start = time.time()
 
@@ -388,7 +388,7 @@ class MultiTaskTrainer():
 
                             print ('WORKER %d: validation loss:%.6g,'
 				    'time: %f sec' %
-                                   (self.task_index, validation_loss, 
+                                   (self.task_index, validation_loss,
 				    time.time()-start))
 
                             #check if the validation loss is better
@@ -454,13 +454,13 @@ class MultiTaskTrainer():
 
                                 if self.should_stop.eval(session=sess):
                                     break
-		    
+
                     #start time
                     start = time.time()
 
 		    #reset the gradients for the next step
 		    sess.run(fetches=[self.reset_grad_loss_norm])
-		    
+
 		    #First, accumulate the gradients
 		    for _ in range(int(self.conf['numbatches_to_aggregate'])):
 		      	_= sess.run([self.process_minibatch])
@@ -470,10 +470,10 @@ class MultiTaskTrainer():
 					  #self.task_trainers[0].batch_loss_norm])
 			#print (('batchloss: %.6g, batch_loss_norm: %.6g, batch_normalized_loss: %.6g')
 			      #%(batch_loss,batch_loss_norm,batch_loss/(batch_loss_norm+1e-20)))
-			    
+
 		    #Then, normalize the gradients
 		    _ = sess.run([self.normalize_gradients])
-		    
+
 		    #Finally, apply the gradients
 		    _, loss, lr, global_step, num_steps = sess.run(
 			fetches=[self.update_op,
@@ -481,7 +481,7 @@ class MultiTaskTrainer():
 				self.learning_rate,
 				self.global_step,
 				self.num_steps])
-				
+
                     print(('WORKER %d: step %d/%d loss: %.6g, learning rate: %f, '
                            'time: %f sec')
                           %(self.task_index,
@@ -508,9 +508,9 @@ class ParameterServer(object):
             server: optional server to be used for distributed training
             task_index: optional index of the worker task in the cluster
         '''
-	
+
 	raise 'class parameterserver has not yet been adapted to the multi taks trainer'
-	
+
         self.graph = tf.Graph()
         self.server = server
         self.task_index = task_index

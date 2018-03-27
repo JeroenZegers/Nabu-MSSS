@@ -4,7 +4,7 @@ contains the Reconstructor factory'''
 from . import  deepclustering_reconstructor, stackedmasks_reconstructor, \
 deepXclustering_reconstructor, deepattractornet_reconstructor, pit_l41_reconstructor, \
 deepclusteringnoise_reconstructor, deepattractornetnoise_hard_reconstructor, \
-deepattractornetnoise_soft_reconstructor
+deepattractornetnoise_soft_reconstructor, oracle_reconstructor
 
 
 def factory(reconstructor):
@@ -23,9 +23,9 @@ def factory(reconstructor):
     elif reconstructor == 'deepattractornet':
         return deepattractornet_reconstructor.DeepattractorReconstructor
     elif reconstructor == 'deepXclustering':
-        return deepXclustering_reconstructor.DeepXclusteringReconstructor  
+        return deepXclustering_reconstructor.DeepXclusteringReconstructor
     elif reconstructor == 'stackedmasks':
-        return stackedmasks_reconstructor.StackedmasksReconstructor 
+        return stackedmasks_reconstructor.StackedmasksReconstructor
     elif reconstructor == 'pit_l41':
         return pit_l41_reconstructor.PITL41Reconstructor
     elif reconstructor == 'deepclusteringnoise':
@@ -34,5 +34,7 @@ def factory(reconstructor):
         return deepattractornetnoise_hard_reconstructor.DeepattractornoisehardReconstructor
     elif reconstructor == 'deepattractornetnoisesoft':
         return deepattractornetnoise_soft_reconstructor.DeepattractornoisesoftReconstructor
+    elif reconstuctor == 'oraclenoise':
+        return oracle_reconstructor.OracleReconstructor
     else:
         raise Exception('Undefined reconstructor type: %s' % reconstructor)

@@ -683,7 +683,7 @@ def deepclustering_noise_crossentropy_loss(speech_target,noise_target, emb_vec,n
 			        seq_length,batch_size):
     '''
     Compute the deep clustering loss
-    cost function based on Hershey et al. 2016
+    cost function based on Hershey et al. 2016 + Cross entropy cost for misclassifying noise bins
 
     Args:
         speech_target: a [batch_size x time x (feat_dim*nrS)] tensor containing the binary targets
