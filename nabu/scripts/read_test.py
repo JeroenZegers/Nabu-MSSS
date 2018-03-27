@@ -6,8 +6,8 @@ from six.moves import configparser
 from nabu.postprocessing import data_reader
 from sklearn.metrics import roc_curve,auc
 
-outputdir = '/esat/spchtemp/scratch/r0450064/expDir/wsj/DC_WSJ_NOISE/test/reconstructions/task0/raw_output'
-expdir = '/esat/spchtemp/scratch/r0450064/expDir/wsj/DC_WSJ_NOISE/test'
+outputdir = '/esat/spchtemp/scratch/r0450064/expDir/wsj/DC_WSJ_NOISE2/test/reconstructions/task0/raw_output'
+expdir = '/esat/spchtemp/scratch/r0450064/expDir/wsj/DC_WSJ_NOISE2/test'
 task = 'task0'
 nrS = 2
 
@@ -34,7 +34,7 @@ usedbin_targets_dataconf = dict(database_cfg.items(usedbin_targets_name))
 noise_targets_reader = data_reader.DataReader(noise_targets_dataconf)
 usedbin_targets_reader = data_reader.DataReader(usedbin_targets_dataconf)
 
-for i in range(0,100):
+for i in range(0,3000):
     noise_targets_complete, utt_info= noise_targets_reader(i)
     noise_targets = noise_targets_complete[:,nrS::nrS+1]
     noise_targets_shape = np.shape(noise_targets)
