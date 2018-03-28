@@ -56,7 +56,7 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 	emb_dim = np.shape(embeddings)[1]/F
 
 	if np.shape(embeddings)[0] != T:
-        raise Exception('Number of frames in usedbins does not match the sequence length')
+            raise Exception('Number of frames in usedbins does not match the sequence length')
 
 	#reshape the outputs
 	embeddings = embeddings[:T,:]

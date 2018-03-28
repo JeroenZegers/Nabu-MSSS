@@ -29,6 +29,7 @@ class Scorer(object):
 	else:
 	    batch_size = int(evalconf.get('evaluator','batch_size'))
         self.tot_utt = batch_size * numbatches
+        print batch_size,self.tot_utt
         self.rec_dir = rec_dir
         self.segment_lengths = evalconf.get('evaluator','segment_length').split(' ')
 
