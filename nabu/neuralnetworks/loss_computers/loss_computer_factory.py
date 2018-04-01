@@ -3,7 +3,8 @@ contains the Loss computer factory mehod'''
 
 
 from . import deepclustering_loss, pit_loss, l41_loss, pit_l41_loss,deepattractornet_loss, \
-deepclusteringnoise_loss,deepattractornetnoise_hard_loss,deepattractornetnoise_soft_loss
+deepclusteringnoise_loss,deepattractornetnoise_hard_loss,deepattractornetnoise_soft_loss, \
+deepattractornet_softmax_loss
 
 
 def factory(loss_type):
@@ -21,6 +22,8 @@ def factory(loss_type):
         return pit_loss.PITLoss
     elif loss_type == 'deepattractornet':
         return deepattractornet_loss.DeepattractornetLoss
+    elif loss_type == 'deepattractornet_softmax':
+        return deepattractornet_softmax_loss.DeepattractornetSoftmaxLoss
     elif loss_type == 'l41':
         return l41_loss.L41Loss
     elif loss_type == 'pit_l41':

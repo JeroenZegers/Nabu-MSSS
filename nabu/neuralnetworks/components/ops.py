@@ -120,22 +120,23 @@ def deepattractornet_softmax_loss(partition_targets, spectogram_targets, mix_to_
 
     Args:
         partition_targets: a [batch_size x time (T) x (feature_dim(F)*nr_S)] tensor containing the partition targets (to which class
-            belongs a bin)
+            belongs a bin) - Y
         spectogram_targets: a [batch_size x time (T) x feature_dim (F)  x nrS] tensor containing
             the clean spectogram of the sources
-        mix_to_mask = a [batch_size x time (T) x feature_dim (F)] tensor containing the spectograms of the mixture
+        mix_to_mask = a [batch_size x time (T) x feature_dim (F)] tensor containing the spectograms of the mixture (X)
         usedbins: a [batch_size x time(T) x feature_dim (F)] tensor indication the bins to use in the loss function calculation
             As suggested in [1] bins with a to low energy are discarted
-        embeddings: a [batch_size x time (T) x (feature_dim(F) * emb_dim (K)] tensor containing the embeddingsvectors
+        embeddings: a [batch_size x time (T) x (feature_dim(F) * emb_dim (D)] tensor containing the embeddingsvectors
         seq_length: a [batch_size] vector containing the sequence lengths
-        batch_size: batch_size (# of batches)
+        batch_size: batch_size (# of elements in batch)
     Returns:
         a scalar value containing the loss
+        a scalar value containing the normalisation constant
     '''
     with tf.name_scope('deepattractornet_softmax_loss'):
         # feat_dim : F
         F = tf.shape(usedbins)[2]
-        # embedding dimension d
+        # embedding dimension D
         emb_dim = tf.shape(embeddings)[2]/F
         nr_S= tf.shape(spectogram_targets)[3]
 
@@ -150,33 +151,34 @@ def deepattractornet_softmax_loss(partition_targets, spectogram_targets, mix_to_
             # Which time/frequency-bins are used in this batch
             usedbins_batch = usedbins[batch_ind]
             usedbins_batch = usedbins_batch[:T,:]
+
             embedding_batch = embeddings[batch_ind]
             embedding_batch = embedding_batch[:T,:]
+
             partition_batch = partition_targets[batch_ind]
             partition_batch = partition_batch[:T,:]
+
             mix_to_mask_batch = mix_to_mask[batch_ind]
             mix_to_mask_batch = mix_to_mask_batch[:T,:]
+
             spectogram_batch = spectogram_targets[batch_ind]
             spectogram_batch = spectogram_batch[:T,:,:]
 
             #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
     	    #targets will give 0 contribution to loss.
             ubresh = tf.reshape(usedbins_batch,[N,1],name='ubresh')
-            #ubreshV= tf.tile(ubresh,[1,emb_dim])
-            #ubreshV=tf.to_float(ubreshV)
             ubreshY=tf.tile(ubresh,[1,nr_S])
 
             # V : matrix containing the embeddingsvectors for this batch,
             # has shape [nb_bins ( =T*F = N ) x emb_dim]
             V = tf.reshape(embedding_batch,[N,emb_dim],name='V')
-            # No need to normalize: Vnorm = tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
-            # V = tf.multiply(V,ubreshV) # elementwise multiplication
+
             Y = tf.reshape(partition_batch,[N,nr_S],name='Y')
 
             Y = tf.multiply(Y,ubreshY)
             Y = tf.to_float(Y)
 
-            numerator_A=tf.matmul(Y,V,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=False, name='YTV')
+            numerator_A = tf.matmul(Y,V,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=False, name='YTV')
             nb_bins_class = tf.reduce_sum(Y,axis = 0) # dim: (rank 1) number_sources
             nb_bins_class = tf.where(tf.equal(nb_bins_class,tf.zeros_like(nb_bins_class)), tf.ones_like(nb_bins_class), nb_bins_class)
             nb_bins_class = tf.expand_dims(nb_bins_class,1) # dim: (rank 2) number_sources x 1
@@ -186,9 +188,8 @@ def deepattractornet_softmax_loss(partition_targets, spectogram_targets, mix_to_
             prod_1 = tf.matmul(A,V,transpose_a=False, transpose_b = True,name='AVT')
             # Softmax als alternatief?? Nakijken paper +testen
             M = tf.nn.softmax(prod_1,dim = 0,name='M') # dim: number_sources x N
-             # eliminate nan introduced by no dominant bins of speaker
 
-            X = tf.transpose(tf.reshape(mix_to_mask_batch,[N,1],name='X'))
+            X = tf.transpose(tf.reshape(mix_to_mask_batch,N,name='X'))
             masked_sources = tf.multiply(M,X) # dim: number_sources x N
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
