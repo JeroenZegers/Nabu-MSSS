@@ -54,7 +54,7 @@ def raw(signal):
     feat = signal.astype(numpy.float32)/numpy.max(numpy.abs(signal))
 
     return feat[:, numpy.newaxis]
-  
+
 def spec(signal, samplerate, conf):
     '''
     Compute complex spectrogram features from an audio signal.
@@ -68,17 +68,17 @@ def spec(signal, samplerate, conf):
     Returns:
         A numpy array of size (NUMFRAMES by numfreq) containing features. Each
         row holds 1 feature vector, a numpy vector containing the complex
-        spectrum of the corresponding frame 
-    '''    
+        spectrum of the corresponding frame
+    '''
     winfunc = _get_winfunc(conf['winfunc'])
-    
+
     frames = sigproc.framesig(signal, float(conf['winlen'])*samplerate,
                               float(conf['winstep'])*samplerate,
                               winfunc)
     spec = sigproc.spec(frames, int(conf['nfft']))
-    
+
     return spec
-  
+
 def spec2time(spec, samplerate, siglen, conf):
     '''
     Compute the time domain signal from the complex spectrogram. No preemphasis is assumed.
@@ -96,20 +96,20 @@ def spec2time(spec, samplerate, siglen, conf):
         signal: the audio signal from which to compute features. This is an
             N*1 array
     '''
-    
+
     frames = sigproc.spec2frames(spec)
-    
+
     winfunc = _get_winfunc(conf['winfunc'])
-    
+
     signal = sigproc.deframesig(frames, siglen,float(conf['winlen'])*samplerate,
                               float(conf['winstep'])*samplerate, winfunc)
-    
+
     #Limit the range of the signal between -1.0 and 1.0
     signal = signal/numpy.max(numpy.abs(signal))
-    
-    return signal 
-    
-  
+
+    return signal
+
+
 def magspec(signal, samplerate, conf):
     '''
     Compute magnitude spectrogram features from an audio signal.
@@ -123,17 +123,17 @@ def magspec(signal, samplerate, conf):
     Returns:
         A numpy array of size (NUMFRAMES by numfreq) containing features. Each
         row holds 1 feature vector, a numpy vector containing the magnitude
-        spectrum of the corresponding frame 
+        spectrum of the corresponding frame
     '''
     signal = sigproc.preemphasis(signal, float(conf['preemph']))
-    
+
     winfunc = _get_winfunc(conf['winfunc'])
-    
+
     frames = sigproc.framesig(signal, float(conf['winlen'])*samplerate,
                               float(conf['winstep'])*samplerate,
                               winfunc)
     magspec = sigproc.magspec(frames, int(conf['nfft']))
-    
+
     return magspec
 
 def logspec(signal, samplerate, conf):
@@ -149,44 +149,44 @@ def logspec(signal, samplerate, conf):
     Returns:
         A numpy array of size (NUMFRAMES by numfreq) containing features. Each
         row holds 1 feature vector, a numpy vector containing the log magnitude
-        spectrum of the corresponding frame 
+        spectrum of the corresponding frame
     '''
     signal = sigproc.preemphasis(signal, float(conf['preemph']))
-    
+
     winfunc = _get_winfunc(conf['winfunc'])
-    
+
     frames = sigproc.framesig(signal, float(conf['winlen'])*samplerate,
                               float(conf['winstep'])*samplerate,
                               winfunc)
     logspec = sigproc.logmagspec(frames, int(conf['nfft']))
-    
+
     return logspec
-  
+
 def _get_winfunc(str_winfunc):
     '''
     Get the requested window function.
-    
+
     Args:
 	str_winfunc: a string indicating the desired window function
-	
+
     Returns:
 	winfunc: the desired window function as a python lambda function
     '''
-  
+
     if str_winfunc=='cosine':
 	winfunc=lambda x: scipy.signal.cosine(x)
     elif str_winfunc=='hanning':
 	winfunc=lambda x: scipy.hanning(x)
     elif str_winfunc=='hamming':
 	winfunc=lambda x: scipy.signal.hamming(x)
-    elif str_winfunc=='none': 
+    elif str_winfunc=='none':
 	winfunc=lambda x: numpy.ones((x, ))
     else:
 	raise Exception('unknown window function: %s' % conf['winfunc'])
-      
+
     return winfunc
-  
-     
+
+
 
 def mfcc(signal, samplerate, conf):
     '''
