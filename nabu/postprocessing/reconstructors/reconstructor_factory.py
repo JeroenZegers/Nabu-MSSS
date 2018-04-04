@@ -8,6 +8,7 @@ deepattractornetnoise_soft_reconstructor, oracle_reconstructor, \
 deepattractornet_softmax_reconstructor
 
 
+
 def factory(reconstructor):
     '''
     gets a reconstructor class
@@ -38,6 +39,6 @@ def factory(reconstructor):
     elif reconstructor == 'deepattractornetnoisesoft':
         return deepattractornetnoise_soft_reconstructor.DeepattractornoisesoftReconstructor
     elif reconstuctor == 'oraclenoise':
-        return oracle_reconstructor.OracleReconstructor
+        return oracle_reconstructor_noise.OracleReconstructor
     else:
         raise Exception('Undefined reconstructor type: %s' % reconstructor)
