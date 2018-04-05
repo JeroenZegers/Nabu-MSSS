@@ -23,7 +23,7 @@ class DeepattractorSoftmaxReconstructor(mask_reconstructor.MaskReconstructor):
         dataconf: the database configuration
         rec_dir: the directory where the reconstructions will be stored'''
 
-        super(DeepattractorReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
+        super(DeepattractorSoftmaxReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
 
         #get the usedbins reader
         usedbins_name = conf['usedbins']

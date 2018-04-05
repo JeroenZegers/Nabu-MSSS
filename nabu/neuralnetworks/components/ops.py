@@ -189,11 +189,11 @@ def deepattractornet_softmax_loss(partition_targets, spectogram_targets, mix_to_
             # Softmax als alternatief?? Nakijken paper +testen
             M = tf.nn.softmax(prod_1,dim = 0,name='M') # dim: number_sources x N
 
-            X = tf.transpose(tf.reshape(mix_to_mask_batch,N,name='X'))
+            X = tf.transpose(tf.reshape(mix_to_mask_batch,[N,1],name='X'))
             masked_sources = tf.multiply(M,X) # dim: number_sources x N
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
-            norm += tf.to_float(tf.constant(N))
+            norm += tf.to_float(N*nr_S)
             loss += loss_utt
 
         return loss,norm
