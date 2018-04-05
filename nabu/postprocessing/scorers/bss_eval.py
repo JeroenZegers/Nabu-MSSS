@@ -205,7 +205,7 @@ def _any_source_silent(sources):
         sources, axis=tuple(range(2, sources.ndim))) == 0, axis=1))
 
 def bss_eval_sources_extended(reference_sources, estimated_sources,noise_source
-                     compute_permutation=True):
+                     ,compute_permutation=True):
     """
     Ordering and measurement of the separation quality for estimated source
     signals in terms of filtered true source, interference and artifacts.
