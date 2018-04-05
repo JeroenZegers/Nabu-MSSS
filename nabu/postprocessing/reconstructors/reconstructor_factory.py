@@ -4,7 +4,7 @@ contains the Reconstructor factory'''
 from . import  deepclustering_reconstructor, stackedmasks_reconstructor, \
 deepXclustering_reconstructor, deepattractornet_reconstructor, pit_l41_reconstructor, \
 deepclusteringnoise_reconstructor, deepattractornetnoise_hard_reconstructor, \
-deepattractornetnoise_soft_reconstructor, oracle_reconstructor, \
+deepattractornetnoise_soft_reconstructor, oracle_reconstructor_noise, \
 deepattractornet_softmax_reconstructor
 
 
