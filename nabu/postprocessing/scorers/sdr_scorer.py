@@ -14,7 +14,7 @@ class SdrScorer(scorer.Scorer):
     International Conference on Music Information Retrieval, 2014
 
     a scorer using SDR'''
-    	
+
     score_metrics = ('SDR','SIR','SAR','perm')
     score_metrics_to_summarize = ('SDR','SIR','SAR')
     score_scenarios = ('SS','base')
@@ -30,7 +30,7 @@ class SdrScorer(scorer.Scorer):
             rec_dir: the directory where the reconstructions are
             numbatches: the number of batches to process
         '''
-        
+
         super(SdrScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches, task)
 
 
@@ -44,29 +44,28 @@ class SdrScorer(scorer.Scorer):
 
         Returns:
             the score'''
-        
+
         #convert to numpy arrays
 	org_src_signals = np.array(org_src_signals)[:,:,0]
 	base_signals=np.array(base_signals)[:,:,0]
 	rec_src_signals=np.array(rec_src_signals)
-	
-	#  
-        collect_outputs=dict()         
-        collect_outputs[self.score_scenarios[1]] = bss_eval.bss_eval_sources(org_src_signals,base_signals) 
+
+	#
+        collect_outputs=dict()
+        collect_outputs[self.score_scenarios[1]] = bss_eval.bss_eval_sources(org_src_signals,base_signals)
         collect_outputs[self.score_scenarios[0]] = bss_eval.bss_eval_sources(org_src_signals,rec_src_signals)
 
 	nrS=len(org_src_signals)
-	
+
 	#convert the outputs to a single dictionary
 	score_dict = dict()
 	for i,metric in enumerate(self.score_metrics):
 	    score_dict[metric]=dict()
-	    
+
 	    for j,scen in enumerate(self.score_scenarios):
 		score_dict[metric][scen]=[]
-		
+
 		for spk in range(nrS):
 		    score_dict[metric][scen].append(collect_outputs[scen][i][spk])
-	  
-	return score_dict     
 
+	return score_dict
