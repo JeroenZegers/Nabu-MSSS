@@ -204,7 +204,7 @@ def _any_source_silent(sources):
     return np.any(np.all(np.sum(
         sources, axis=tuple(range(2, sources.ndim))) == 0, axis=1))
 
-def bss_eval_sources_extended(reference_sources, estimated_sources,noise_source
+def bss_eval_sources_extended(reference_sources, estimated_sources,noise_source,
                      compute_permutation=True):
     """
     Ordering and measurement of the separation quality for estimated source
@@ -327,7 +327,7 @@ def bss_eval_sources_extended(reference_sources, estimated_sources,noise_source
         return (sdr, sir, sar,snr, popt)
 
 
-    def bss_eval_sources(reference_sources, estimated_sources,
+def bss_eval_sources(reference_sources, estimated_sources,
                      compute_permutation=True):
     """
     Ordering and measurement of the separation quality for estimated source
@@ -385,60 +385,59 @@ def bss_eval_sources_extended(reference_sources, estimated_sources,noise_source
 
     """
 
-        # make sure the input is of shape (nsrc, nsampl)
-        if estimated_sources.ndim == 1:
-            estimated_sources = estimated_sources[np.newaxis, :]
-        if reference_sources.ndim == 1:
-            reference_sources = reference_sources[np.newaxis, :]
+    # make sure the input is of shape (nsrc, nsampl)
+    if estimated_sources.ndim == 1:
+        estimated_sources = estimated_sources[np.newaxis, :]
+    if reference_sources.ndim == 1:
+        reference_sources = reference_sources[np.newaxis, :]
 
-        validate(reference_sources, estimated_sources)
-        # If empty matrices were supplied, return empty lists (special case)
-        if reference_sources.size == 0 or estimated_sources.size == 0:
-            return np.array([]), np.array([]), np.array([]), np.array([])
+    validate(reference_sources, estimated_sources)
+    # If empty matrices were supplied, return empty lists (special case)
+    if reference_sources.size == 0 or estimated_sources.size == 0:
+         return np.array([]), np.array([]), np.array([]), np.array([])
 
-        nsrc = estimated_sources.shape[0]
-
-        # does user desire permutations?
-        if compute_permutation:
-            # compute criteria for all possible pair matches
-            sdr = np.empty((nsrc, nsrc))
-            sir = np.empty((nsrc, nsrc))
-            sar = np.empty((nsrc, nsrc))
-            for jest in range(nsrc):
-                for jtrue in range(nsrc):
-                    s_true, e_spat, e_interf, e_artif = \
-                        _bss_decomp_mtifilt(reference_sources,
-                                            estimated_sources[jest],
-                                            jtrue, 512)
-                    sdr[jest, jtrue], sir[jest, jtrue], sar[jest, jtrue] = \
-                        _bss_source_crit(s_true, e_spat, e_interf, e_artif)
-
-            # select the best ordering
-            perms = list(itertools.permutations(list(range(nsrc))))
-            mean_sir = np.empty(len(perms))
-            dum = np.arange(nsrc)
-            for (i, perm) in enumerate(perms):
-                mean_sir[i] = np.mean(sir[perm, dum])
-            popt = perms[np.argmax(mean_sir)]
-            idx = (popt, dum)
-            return (sdr[idx], sir[idx], sar[idx], np.asarray(popt))
-        else:
-            # compute criteria for only the simple correspondence
-            # (estimate 1 is estimate corresponding to reference source 1, etc.)
-            sdr = np.empty(nsrc)
-            sir = np.empty(nsrc)
-            sar = np.empty(nsrc)
-            for j in range(nsrc):
+    nsrc = estimated_sources.shape[0]
+    # does user desire permutations?
+    if compute_permutation:
+        # compute criteria for all possible pair matches
+        sdr = np.empty((nsrc, nsrc))
+        sir = np.empty((nsrc, nsrc))
+        sar = np.empty((nsrc, nsrc))
+        for jest in range(nsrc):
+            for jtrue in range(nsrc):
                 s_true, e_spat, e_interf, e_artif = \
                     _bss_decomp_mtifilt(reference_sources,
-                                        estimated_sources[j],
-                                        j, 512)
-                sdr[j], sir[j], sar[j] = \
+                                        estimated_sources[jest],
+                                        jtrue, 512)
+                sdr[jest, jtrue], sir[jest, jtrue], sar[jest, jtrue] = \
                     _bss_source_crit(s_true, e_spat, e_interf, e_artif)
 
-            # return the default permutation for compatibility
-            popt = np.arange(nsrc)
-            return (sdr, sir, sar, popt)
+        # select the best ordering
+        perms = list(itertools.permutations(list(range(nsrc))))
+        mean_sir = np.empty(len(perms))
+        dum = np.arange(nsrc)
+        for (i, perm) in enumerate(perms):
+            mean_sir[i] = np.mean(sir[perm, dum])
+        popt = perms[np.argmax(mean_sir)]
+        idx = (popt, dum)
+        return (sdr[idx], sir[idx], sar[idx], np.asarray(popt))
+    else:
+        # compute criteria for only the simple correspondence
+        # (estimate 1 is estimate corresponding to reference source 1, etc.)
+        sdr = np.empty(nsrc)
+        sir = np.empty(nsrc)
+        sar = np.empty(nsrc)
+        for j in range(nsrc):
+            s_true, e_spat, e_interf, e_artif = \
+                _bss_decomp_mtifilt(reference_sources,
+                                    estimated_sources[j],
+                                    j, 512)
+            sdr[j], sir[j], sar[j] = \
+                _bss_source_crit(s_true, e_spat, e_interf, e_artif)
+
+        # return the default permutation for compatibility
+        popt = np.arange(nsrc)
+        return (sdr, sir, sar, popt)
 
 
 def bss_eval_sources_framewise(reference_sources, estimated_sources,
@@ -821,7 +820,7 @@ def _bss_decomp_mtifilt_extended(reference_sources, estimated_source,noise_sourc
     # interference
     e_interf = _project(reference_sources,
                         estimated_source, flen) - s_true - e_spat
-    e_noise = _project(reference_sources,estimated_source,noise_source, flen) - \
+    e_noise = _project_extended(reference_sources,estimated_source,noise_source, flen) - \
         _project(reference_sources,estimated_source, flen)
     # artifacts
     e_artif = -s_true - e_spat - e_interf - e_noise
@@ -936,9 +935,9 @@ def _project_extended(reference_sources, estimated_source,noise_source, flen):
     # Computing projection
     # Distortion filters
     try:
-        C = np.linalg.solve(G, D).reshape(flen, nsrc, order='F')
+        C = np.linalg.solve(G, D).reshape(flen, nsrc+1, order='F')
     except np.linalg.linalg.LinAlgError:
-        C = np.linalg.lstsq(G, D)[0].reshape(flen, nsrc, order='F')
+        C = np.linalg.lstsq(G, D)[0].reshape(flen, nsrc+1, order='F')
     # Filtering
     sproj = np.zeros(nsampl + flen - 1)
     for i in range(nsrc+1):
@@ -1211,3 +1210,4 @@ if __name__=="__main__":
     print("""SDR: {}
 SIR: {}
 SAR: {}""".format(sdr, sir, sar))
+
