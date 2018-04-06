@@ -39,6 +39,7 @@ class SdrSnrScorer(object):
             batch_size = int(evalconf.get('evaluator','batch_size'))
         self.tot_utt = batch_size * numbatches
         print batch_size,self.tot_utt
+
         self.rec_dir = rec_dir
         self.segment_lengths = evalconf.get('evaluator','segment_length').split(' ')
 
@@ -78,8 +79,8 @@ class SdrSnrScorer(object):
         noise_dataconf = dict(dataconf.items(noise_name))
         self.noise_reader = data_reader.DataReader(noise_dataconf,self.segment_lengths)
     def __call__(self):
-    ''' score the utterances in the reconstruction dir with the original source signals
-    '''
+        ''' score the utterances in the reconstruction dir with the original source signals
+        '''
 
         for utt_ind in range(self.tot_utt):
             if np.mod(utt_ind,10) == 0:
@@ -90,11 +91,13 @@ class SdrSnrScorer(object):
 
                 #get the source signals
                 org_src_signals, utt_info = self.org_src_reader(utt_ind)
+                
                 nrS = utt_info['nrSig']
                 utt_name = utt_info['utt_name']
 
                 #get the base signal (original mixture) and duplicate it
                 base_signal, _ = self.base_reader(utt_ind)
+                
                 base_signals = list()
                 for spk in range(nrS):
                     base_signals.append(base_signal)
@@ -110,7 +113,7 @@ class SdrSnrScorer(object):
 
                 #get the scores for the utterance (in dictionary format)
                 utt_score_dict = self._get_score(org_src_signals, base_signals,
-                           rec_src_signals)
+                           rec_src_signals,noise_signal)
 
             elif self.score_expects == 'files':
                 #Gather the filnames for scoring
@@ -134,8 +137,8 @@ class SdrSnrScorer(object):
                     rec_src_filenames.append(filename)
 
                 #get the scores for the utterance (in dictionary format)
-                utt_score_dict = self._get_score(org_src_filenames, base_filenames,noise_filename,
-                           rec_src_filenames)
+                utt_score_dict = self._get_score(org_src_filenames, base_filenames,
+                           rec_src_filenames,noise_filename)
 
             else:
                 raise Exception('unexpected input for scrorer_expects: %s' %self.score_expects)
@@ -239,7 +242,7 @@ class SdrSnrScorer(object):
         org_src_signals = np.array(org_src_signals)[:,:,0]
         base_signals=np.array(base_signals)[:,:,0]
         rec_src_signals=np.array(rec_src_signals)
-        noise_signal = np.array(noise_signal)
+        noise_signal = np.squeeze(noise_signal)
         #
         collect_outputs=dict()
         collect_outputs[self.score_scenarios[1]] = bss_eval.bss_eval_sources_extended(org_src_signals,base_signals,noise_signal)
