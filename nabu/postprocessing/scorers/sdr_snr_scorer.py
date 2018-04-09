@@ -91,13 +91,13 @@ class SdrSnrScorer(object):
 
                 #get the source signals
                 org_src_signals, utt_info = self.org_src_reader(utt_ind)
-                
+
                 nrS = utt_info['nrSig']
                 utt_name = utt_info['utt_name']
 
                 #get the base signal (original mixture) and duplicate it
                 base_signal, _ = self.base_reader(utt_ind)
-                
+
                 base_signals = list()
                 for spk in range(nrS):
                     base_signals.append(base_signal)
