@@ -31,7 +31,7 @@ class PITLoss(loss_computer.LossComputer):
 	seq_length = seq_length['bin_est']
 	logits = logits['bin_est']
 		    
-	loss, norm = ops.pit_loss_different_efficient(multi_targets, logits, mix_to_mask, 
+	loss, norm = ops.pit_loss(multi_targets, logits, mix_to_mask, 
 					seq_length,self.batch_size)
             
         return loss, norm
