@@ -26,9 +26,11 @@ class MaskReconstructor(reconstructor.Reconstructor):
         super(MaskReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
         
         #get the original mixtures reader 
-        org_mix_name = conf['org_mix']
-        org_mix_dataconf = dict(dataconf.items(org_mix_name))
-        self.org_mix_reader = data_reader.DataReader(org_mix_dataconf, self.segment_lengths)
+        org_mix_names = conf['org_mix'].split(' ')
+        org_mix_dataconfs=[]
+        for org_mix_name in org_mix_names:
+	    org_mix_dataconfs.append(dict(dataconf.items(org_mix_name)))
+        self.org_mix_reader = data_reader.DataReader(org_mix_dataconfs, self.segment_lengths)
 
 
     def reconstruct_signals(self, output):
@@ -49,12 +51,18 @@ class MaskReconstructor(reconstructor.Reconstructor):
                 
         # apply the masks to obtain the reconstructed signals. Use the conf for feature
         #settings from the original mixture
+	for ind,start_index in enumerate(self.org_mix_reader.start_index_set):
+	    if start_index>self.pos:
+		processor=self.org_mix_reader.processors[ind-1]
+		comp_conf=processor.comp.conf
+		break
+		
         reconstructed_signals = list()
         for spk in range(self.nrS):
 	    spec_est = mixture * masks[spk,:,:]
 	    reconstructed_signals.append(base.spec2time(spec_est, utt_info['rate'], 
 						   utt_info['siglen'],
-						   self.org_mix_reader.processor.comp.conf))
+						   comp_conf))
         
         return reconstructed_signals, utt_info
         

@@ -49,6 +49,7 @@ def train(clusterfile,
     #segment length and its network is initliazed with the network of the previous 
     #training stage
     segment_lengths = trainer_cfg['segment_lengths'].split(' ')
+    #segment_lengths = [segment_lengths[-1]]
     #os.environ['CUDA_VISIBLE_DEVICES'] = '1'  
     for i,segment_length in enumerate(segment_lengths):
     

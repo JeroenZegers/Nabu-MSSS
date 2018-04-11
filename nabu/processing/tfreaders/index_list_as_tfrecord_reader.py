@@ -19,8 +19,16 @@ class IndexListAsTfrecordReader(tfreader.TfReader):
             Returns:
                 the metadata as a dictionary
         '''
+	metadata=dict()            
+	
+        with open(os.path.join(datadirs[0], 'nrS')) as fid:
+            metadata['nrS'] = int(fid.read().strip())
+        for datadir in datadirs:
+            with open(os.path.join(datadir, 'nrS')) as fid:
+                if metadata['nrS'] != int(fid.read().strip()):
+                    raise Exception(
+                        'all reader dimensions must be the same')
 
-        metadata = dict()
 
         return metadata
 
@@ -46,6 +54,8 @@ class IndexListAsTfrecordReader(tfreader.TfReader):
         '''
 
         data = tf.decode_raw(features['data'], tf.int32)
+        resh_dims = [self.metadata['nrS']]
+        data = tf.reshape(data, resh_dims)
         sequence_length = tf.constant([1])
 
         return data, sequence_length

@@ -116,7 +116,7 @@ def main(_):
 
 
     elif FLAGS.computing == 'standard':
-	os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+	os.environ['CUDA_VISIBLE_DEVICES'] = '2'
         test(expdir=os.path.join(FLAGS.expdir, 'test'))
 
     else:

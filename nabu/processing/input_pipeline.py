@@ -24,14 +24,15 @@ def get_filenames(dataconfs):
 
     #read all the names and files
     files = []
-    for dataconf in dataconfs:
+    for dataconfset in dataconfs:
 	#use an orderdict so the order in os.path.join(dataconf['dir'], 'pointers.scp') is kept
         setfiles = collections.OrderedDict()
-	with open(os.path.join(dataconf['store_dir'], 'pointers.scp')) as fid:
-	    for line in fid:
-		(n, f) = line.strip().split('\t')
-		setfiles['%s' %n] = f
-        files.append(setfiles)
+        for i, dataconf in enumerate(dataconfset):
+	    with open(os.path.join(dataconf['store_dir'], 'pointers.scp')) as fid:
+		for line in fid:
+		    (n, f) = line.strip().split('\t')
+                    setfiles['%s-%d' % (n, i)] = f
+	files.append(setfiles)
 
     #loop over the first names and look for them in the other names. If not
     #all sets contain the name, ignore it
@@ -51,7 +52,7 @@ def get_filenames(dataconfs):
                 data_queue_element += '\t' + setfile[name]
             data_queue_elements.append(data_queue_element)
             names.append(name)
-
+            		    
     return data_queue_elements, names
 
 def input_pipeline(data_queue, batch_size, numbuckets, dataconfs,
@@ -87,7 +88,7 @@ def input_pipeline(data_queue, batch_size, numbuckets, dataconfs,
 
         with tf.variable_scope('read_data'):
             #create a seperate queue for each data element
-            for i, dataconf in enumerate(dataconfs):
+            for i, dataconfset in enumerate(dataconfs):
                 with tf.variable_scope('reader'):
 
                     queue = tf.FIFOQueue(
@@ -100,8 +101,12 @@ def input_pipeline(data_queue, batch_size, numbuckets, dataconfs,
                     enqueue_op = queue.enqueue(filenames[i])
 		    
                     #create a reader to read from the queue
-                    reader = tfreader_factory.factory(dataconf['writer_style'])\
-						     (dataconf['store_dir'])
+                    writer_styles = [dataconf['writer_style'] for dataconf in dataconfset]
+                    if len(set(writer_styles)) > 1:
+                        raise Exception(
+                            'all data types in a set must be the same')
+                    dirs = [dataconf['store_dir'] for dataconf in dataconfset]
+                    reader = tfreader_factory.factory(writer_styles[0])(dirs)
 
                     #if i == 0:
                         #sequence_length_histogram = \

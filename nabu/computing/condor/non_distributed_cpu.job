@@ -1,15 +1,43 @@
 # Normal execution
 Universe         = vanilla
 # need enough RAM to store the parameters
+# RequestMemory    = 15G
 RequestMemory    = 15G
 requestCpus      = 8
 #request a week of wall time
 +RequestWalltime = 604800
 #specify that the cuda capability should be at least 3.0 and set the memory
 #requirement
-Requirements = (CUDACapability >= 3.0)\
-  &&(machine =!= LastRemoteHost)
-#  && (machine != "opal.esat.kuleuven.be") 
+#Requirements = (CUDACapability >= 3.0)
+Requirements =  (machine =!= LastRemoteHost)\
+  && (machine != "spchcl24.esat.kuleuven.be")\
+  && (machine != "spchcl23.esat.kuleuven.be")\
+  && (machine != "cancer.esat.kuleuven.be")\
+  && (machine != "libra.esat.kuleuven.be")\
+  && (machine != "virgo.esat.kuleuven.be")\
+  && (machine != "leo.esat.kuleuven.be")\
+  && (machine != "vladimir.esat.kuleuven.be")\
+  && (machine != "estragon.esat.kuleuven.be")\
+  && (machine != "topaz.esat.kuleuven.be")\
+  && (machine != "amethyst.esat.kuleuven.be")\
+# machines below should be re-added \
+  && (machine != "andromeda.esat.kuleuven.be") \
+  # I removed the following machines because I think cosic members kill them manually (not confirmed) \
+  && (machine != "bryggja.esat.kuleuven.be")\
+  && (machine != "koninck.esat.kuleuven.be")\
+  # machines removed because owner complained\
+  && (machine != "herkenrode.esat.kuleuven.be")
+  
+#  && (machine != "andromeda.esat.kuleuven.be")\
+#  && (machine != "hematite.esat.kuleuven.be")\
+#  && (machine != "leo.esat.kuleuven.be")\
+#  && (machine != "nickeline.esat.kuleuven.be")\
+#  && (machine != "ricotta.esat.kuleuven.be")\
+#  && (machine != "realgar.esat.kuleuven.be")\
+#  && (machine != "pyrite.esat.kuleuven.be")\
+#  && (machine != "cancer.esat.kuleuven.be")\
+#  && (machine != "libra.esat.kuleuven.be")\
+#  && (machine != "virgo.esat.kuleuven.be")
 
 
 #Specfy nice user behavior
@@ -30,6 +58,8 @@ Log          = $(expdir)/outputs/main.log
 Output       = $(expdir)/outputs/main.out
 #Standard error of the 'executable', in 'initialdir'
 Error        = $(expdir)/outputs/main.err
+
+priority = -10
 
 # Queue the job
 Queue

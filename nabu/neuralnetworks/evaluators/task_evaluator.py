@@ -40,18 +40,42 @@ class TaskEvaluator(object):
 	self.output_names = task_eval_conf['outputs'].split(' ')
 	self.input_names = task_eval_conf['inputs'].split(' ')
 	self.model_nodes = task_eval_conf['nodes'].split(' ')
-	self.input_dataconfs=[]
-	for input_name in self.input_names:
-	    #input config	    
-	    self.input_dataconfs.append(dict(dataconf.items(task_eval_conf[input_name])))
-	
 	self.target_names = task_eval_conf['targets'].split(' ')
 	if self.target_names == ['']:
 	    self.target_names = []
-	self.target_dataconfs=[]
-	for target_name in self.target_names:
-	    #target config	    
-	    self.target_dataconfs.append(dict(dataconf.items(task_eval_conf[target_name])))
+	
+	if 'linkedsets' in task_eval_conf:
+	    set_names=task_eval_conf['linkedsets'].split(' ')
+	    self.linkedsets=dict()
+	    for set_name in set_names:
+		inp_indices=map(int,task_eval_conf['%s_inputs'%set_name].split(' '))
+		tar_indices=map(int,task_eval_conf['%s_targets'%set_name].split(' '))
+		set_inputs = [inp for ind,inp in enumerate(self.input_names) if ind in inp_indices]
+		set_targets = [tar for ind,tar in enumerate(self.target_names) if ind in tar_indices]
+		self.linkedsets[set_name]={'inputs':set_inputs,'targets':set_targets}
+	else:
+	    self.linkedsets={'set0':{'inputs':self.input_names,'targets':self.target_names}}
+	
+	self.input_dataconfs=dict()
+	self.target_dataconfs=dict()
+	for linkedset in self.linkedsets:
+	    self.input_dataconfs[linkedset]=[]
+	    for input_name in self.linkedsets[linkedset]['inputs']:
+		#input config
+		dataconfs_for_input=[]
+		sections = task_eval_conf[input_name].split(' ')
+		for section in sections:
+		    dataconfs_for_input.append(dict(dataconf.items(section)))
+		self.input_dataconfs[linkedset].append(dataconfs_for_input)
+	    
+	    self.target_dataconfs[linkedset]=[]
+	    for target_name in self.linkedsets[linkedset]['targets']:
+		#target config	 
+		dataconfs_for_target=[]
+		sections = task_eval_conf[target_name].split(' ')
+		for section in sections:
+		    dataconfs_for_target.append(dict(dataconf.items(section)))
+		self.target_dataconfs[linkedset].append(dataconfs_for_target)   
 	    
 	self.model_links = dict()
 	self.inputs_links = dict()
@@ -69,46 +93,47 @@ class TaskEvaluator(object):
 
 
         with tf.name_scope('evaluate'):
-	    data_queue_elements, _ = input_pipeline.get_filenames(
-		self.input_dataconfs + self.target_dataconfs)
-	    
-	    max_number_of_elements = len(data_queue_elements)
-	    number_of_elements = min([max_number_of_elements,self.requested_utts])
-	    
-	    #compute the number of batches in the validation set
-	    numbatches = number_of_elements/self.batch_size
-	    number_of_elements = numbatches*self.batch_size
-	    print '%d utterances will be used for evaluation' %(number_of_elements)
-
-	    #cut the data so it has a whole number of batches
-	    data_queue_elements = data_queue_elements[:number_of_elements]
-		
-	    
-	    #create the data queue and queue runners (inputs are allowed to get shuffled. I already did this so set to False)
-	    data_queue = tf.train.string_input_producer(
-		string_tensor=data_queue_elements,
-		shuffle=False,
-		seed=None,
-		capacity=self.batch_size*2)
-		
-	    #create the input pipeline
-	    data, seq_length = input_pipeline.input_pipeline(
-		data_queue=data_queue,
-		batch_size=self.batch_size,
-		numbuckets=1,
-		dataconfs=self.input_dataconfs + self.target_dataconfs
-	    )
-	
-	    #split data into inputs and targets
 	    inputs=dict()
 	    seq_lengths=dict()
-	    for ind,input_name in enumerate(self.input_names):
-		inputs[input_name] = data[ind]
-		seq_lengths[input_name] = seq_length[ind]
-		    
 	    targets=dict()
-	    for ind,target_name in enumerate(self.target_names):
-		targets[target_name]=data[len(self.input_names)+ind]
+	    for linkedset in self.linkedsets:
+		data_queue_elements, _ = input_pipeline.get_filenames(
+		    self.input_dataconfs[linkedset] + self.target_dataconfs[linkedset])
+		
+		max_number_of_elements = len(data_queue_elements)
+		number_of_elements = min([max_number_of_elements,self.requested_utts])
+		
+		#compute the number of batches in the validation set
+		numbatches = number_of_elements/self.batch_size
+		number_of_elements = numbatches*self.batch_size
+		print '%d utterances will be used for evaluation' %(number_of_elements)
+
+		#cut the data so it has a whole number of batches
+		data_queue_elements = data_queue_elements[:number_of_elements]
+		    
+		
+		#create the data queue and queue runners (inputs are allowed to get shuffled. I already did this so set to False)
+		data_queue = tf.train.string_input_producer(
+		    string_tensor=data_queue_elements,
+		    shuffle=False,
+		    seed=None,
+		    capacity=self.batch_size*2)
+		    
+		#create the input pipeline
+		data, seq_length = input_pipeline.input_pipeline(
+		    data_queue=data_queue,
+		    batch_size=self.batch_size,
+		    numbuckets=1,
+		    dataconfs=self.input_dataconfs[linkedset] + self.target_dataconfs[linkedset]
+		)
+	  
+		#split data into inputs and targets
+		for ind,input_name in enumerate(self.linkedsets[linkedset]['inputs']):
+		    inputs[input_name] = data[ind]
+		    seq_lengths[input_name] = seq_length[ind]
+			
+		for ind,target_name in enumerate(self.linkedsets[linkedset]['targets']):
+		    targets[target_name]=data[len(self.linkedsets[linkedset]['inputs'])+ind]
 
 	    #get the logits
 	    logits = self._get_outputs(

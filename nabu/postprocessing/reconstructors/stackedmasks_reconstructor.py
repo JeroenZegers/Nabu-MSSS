@@ -4,6 +4,7 @@ contains the reconstor class using deep clustering'''
 from sklearn.cluster import KMeans
 import mask_reconstructor
 import numpy as np
+import pdb
 
 class StackedmasksReconstructor(mask_reconstructor.MaskReconstructor):
     '''the stacked masks reconstructor class
@@ -38,8 +39,7 @@ class StackedmasksReconstructor(mask_reconstructor.MaskReconstructor):
 	[T,target_dim] = np.shape(output['bin_est'])
 	F = target_dim/self.nrS
 	
-	
-	masks = output['bin_est'].reshape([T,F,self.nrS])
+	masks = np.reshape(output['bin_est'],[T,F,self.nrS],'F')
 	masks = np.transpose(masks,[2,0,1])
 	
 	#apply softmax

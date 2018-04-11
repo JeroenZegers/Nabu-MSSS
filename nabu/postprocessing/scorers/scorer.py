@@ -35,26 +35,31 @@ class Scorer(object):
         self.segment_lengths = evalconf.get('evaluator','segment_length').split(' ')
 	    
         #get the original source signals reader 
-        org_src_name = conf['org_src']
-        org_src_dataconf = dict(dataconf.items(org_src_name))
-        self.org_src_reader = data_reader.DataReader(org_src_dataconf,self.segment_lengths)
+        org_src_names = conf['org_src'].split(' ')
+        org_src_dataconfs=[]
+        for org_src_name in org_src_names:
+	    org_src_dataconfs.append(dict(dataconf.items(org_src_name)))
+        self.org_src_reader = data_reader.DataReader(org_src_dataconfs,self.segment_lengths)
         
         #get the base signal (original mixture) reader 
-        base_name = conf['base']
-        base_dataconf = dict(dataconf.items(base_name))
-        self.base_reader = data_reader.DataReader(base_dataconf,self.segment_lengths)
+        base_names = conf['base'].split(' ')
+        base_dataconfs=[]
+        for base_name in base_names:
+	    base_dataconfs.append(dict(dataconf.items(base_name)))
+        self.base_reader = data_reader.DataReader(base_dataconfs,self.segment_lengths)
         
         #get the speaker info
-        spkinfo_name = conf['spkinfo']
-        spkinfo_dataconf = dict(dataconf.items(spkinfo_name))
-        spkinfo_file = spkinfo_dataconf['datafiles']
-        
         self.utt_spkinfo = dict()
-        for line in open(spkinfo_file):
-	    splitline = line.strip().split(' ')
-	    utt_name = splitline[0]
-	    dataline = ' '.join(splitline[2:])
-	    self.utt_spkinfo[utt_name] = dataline
+        spkinfo_names = conf['spkinfo'].split(' ')
+        for spkinfo_name in spkinfo_names:
+	    spkinfo_dataconf=dict(dataconf.items(spkinfo_name))
+	    spkinfo_file = spkinfo_dataconf['datafiles']
+        
+	    for line in open(spkinfo_file):
+		splitline = line.strip().split(' ')
+		utt_name = splitline[0]
+		dataline = ' '.join(splitline[2:])
+		self.utt_spkinfo[utt_name] = dataline
 	#predefined mixture types
 	self.mix_types = ['all_m', 'all_f','same_gen', 'diff_gen']
         
@@ -64,6 +69,14 @@ class Scorer(object):
         #metrics to be used in sumarize function, if not yet stated
 	if not self.score_metrics_to_summarize:
 	    self.score_metrics_to_summarize = self.score_metrics
+	    
+	if 'score_from' in conf and conf['score_from']=='True':
+	    if self.score_expects!='data':
+		raise('Can only score from a specific timestamp on if scorer expects data')
+	    else:
+		self.score_from=True   
+	else:
+	    self.score_from=False
 
 
     def __call__(self):
@@ -83,8 +96,16 @@ class Scorer(object):
 		nrS = utt_info['nrSig']
 		utt_name = utt_info['utt_name']
 		
+		#determine from which sample on to score. This should be mentioned at the
+		#end of the utt_name
+		if self.score_from:
+		    score_from_sample=int(utt_name.split('_')[-1])
+		    org_src_signals=[signal[score_from_sample+1:] for signal in org_src_signals]
+		
 		#get the base signal (original mixture) and duplicate it
 		base_signal, _ = self.base_reader(utt_ind)
+		if self.score_from:
+		    base_signal=base_signal[score_from_sample+1:]
 		base_signals = list()
 		for spk in range(nrS):
 		    base_signals.append(base_signal)
@@ -95,8 +116,12 @@ class Scorer(object):
 		for spk in range(nrS):
 		    filename = os.path.join(self.rec_dir,'s'+str(spk+1),utt_name+'.wav')
 		    _, utterance = wav.read(filename)
+		    if self.score_from:
+			utterance=utterance[score_from_sample+1:]
 		    rec_src_signals.append(utterance)
 		    rec_src_filenames.append(filename)
+		
+		    
 		
 		#get the scores for the utterance (in dictionary format)
 		utt_score_dict = self._get_score(org_src_signals, base_signals, 

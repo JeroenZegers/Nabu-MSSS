@@ -28,9 +28,11 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
         super(DeepclusteringReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
         
         #get the usedbins reader
-        usedbins_name = conf['usedbins']
-        usedbins_dataconf = dict(dataconf.items(usedbins_name))
-        self.usedbins_reader = data_reader.DataReader(usedbins_dataconf,self.segment_lengths)
+        usedbins_names = conf['usedbins'].split(' ')
+        usedbins_dataconfs=[]
+        for usedbins_name in usedbins_names:
+	    usedbins_dataconfs.append(dict(dataconf.items(usedbins_name)))
+        self.usedbins_reader = data_reader.DataReader(usedbins_dataconfs, self.segment_lengths)
         
         #directory where cluster centroids will be stored
         self.center_store_dir = os.path.join(rec_dir,'cluster_centers')
@@ -69,7 +71,7 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 	embeddings_speech_resh = embeddings_resh[usedbins_resh]
 	    
 	#apply kmeans clustering and assign each bin to a clustering
-	kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=-1)
+	kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=7)
 	
 	for _ in range(5):
 	# Sometime it fails due to some indexerror and I'm not sure why. Just retry then. max 5 times

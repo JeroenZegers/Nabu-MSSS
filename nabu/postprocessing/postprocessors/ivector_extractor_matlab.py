@@ -54,13 +54,19 @@ class IvectorExtractor(postprocessor.Postprocessor):
 	    spk=filename_parts[-2]
 	    filedir='/'.join(filename_parts[0:-2])
 
-            if not self.lda:
-	      mat_output = self.matlab_eng.getiVecforpython(filedir, spk, wavname, 
-						      self.tv_dim,nargout=1)
-	    else:
+	    try:
+		if not self.lda:
+		  mat_output = self.matlab_eng.getiVecforpython(filedir, spk, wavname, 
+							  self.tv_dim,nargout=1)
+		else:
+		  
+		  mat_output = self.matlab_eng.getiVecLDAforpython(filedir, spk, wavname, 
+							  self.v_dim,nargout=1)
+	    except:
+		print ''
+		print filedir
+		raise
 	      
-	      mat_output = self.matlab_eng.getiVecLDAforpython(filedir, spk, wavname, 
-						      self.v_dim,nargout=1)
 
 	    ivec=[mat_out[0] for mat_out in mat_output]
 	    data.append(ivec)

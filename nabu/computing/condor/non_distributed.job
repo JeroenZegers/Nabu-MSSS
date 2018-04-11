@@ -1,18 +1,44 @@
 # Normal execution
 Universe         = vanilla
 # need enough RAM to store the parameters
-RequestMemory    = 3G
+RequestMemory    = 23G
 #number of GPUs equal to the number of workers
 request_GPUs      = 1
 #request a week of wall time
-+RequestWalltime = 604800
++RequestWalltime = 1209600
 #specify that the cuda capability should be at least 3.0 and set the memory
 #requirement
 Requirements = (CUDACapability >= 3.0)\
   &&(CUDAGlobalMemoryMb >= $(memory))\
   &&(machine =!= LastRemoteHost)\
-  && (machine != "larimar.esat.kuleuven.be")
-
+#  && (machine != "spchcl24.esat.kuleuven.be")\
+#  && (machine != "spchcl23.esat.kuleuven.be")\
+  && (machine != "cancer.esat.kuleuven.be")\
+  && (machine != "libra.esat.kuleuven.be")\
+  && (machine != "virgo.esat.kuleuven.be")\
+  && (machine != "iolite.esat.kuleuven.be")\
+  && (machine != "leo.esat.kuleuven.be")\
+  && (machine != "ulexite.esat.kuleuven.be")\
+  && (machine != "topaz.esat.kuleuven.be")\
+  && (machine != "pyrite.esat.kuleuven.be")\
+  && (machine != "jade.esat.kuleuven.be")\
+#  && (machine != "molder.esat.kuleuven.be")\
+# machines below should be re-added \
+#  && (machine != "andromeda.esat.kuleuven.be") \
+# machines below are removed since using 8 cpus is faster\\
+  && (machine != "tiger.esat.kuleuven.be")
+  
+  
+#  && (machine != "andromeda.esat.kuleuven.be") \
+#  && (machine != "hematite.esat.kuleuven.be")\
+#  && (machine != "leo.esat.kuleuven.be")\
+#  && (machine != "nickeline.esat.kuleuven.be")\
+#  && (machine != "ricotta.esat.kuleuven.be")\
+#  && (machine != "realgar.esat.kuleuven.be")\
+#  && (machine != "pyrite.esat.kuleuven.be")\
+#  && (machine != "cancer.esat.kuleuven.be")\
+#  && (machine != "libra.esat.kuleuven.be")\
+#  && (machine != "virgo.esat.kuleuven.be")\
 
 #Specfy nice user behavior
 NiceUser = true
@@ -25,6 +51,7 @@ initialdir = .
 Arguments = "python -u $(script) --expdir=$(expdir)"
 # This is the executable or script I want to run
 executable = nabu/computing/condor/create_environment.sh
+# executable = nabu/computing/condor/cr_env.sh
 
 #Output of condors handling of the jobs, will be in 'initialdir'
 Log          = $(expdir)/outputs/main.log
@@ -32,6 +59,8 @@ Log          = $(expdir)/outputs/main.log
 Output       = $(expdir)/outputs/main.out
 #Standard error of the 'executable', in 'initialdir'
 Error        = $(expdir)/outputs/main.err
+
+priority = -8
 
 # Queue the job
 Queue

@@ -13,7 +13,7 @@ import pdb
 
 def main(expdir, recipe, computing):
     '''main method'''
-    
+        
     if recipe is None:
         raise Exception('no recipe specified. Command usage: '
                         'nabu data --recipe=/path/to/recipe')

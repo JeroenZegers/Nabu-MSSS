@@ -5,7 +5,7 @@ import shutil
 from six.moves import configparser
 import tensorflow as tf
 
-def main(sweep, command, expdir, recipe, mode, computing):
+def main(sweep, command, expdir, recipe, mode, computing,resume, duplicates):
     '''main function'''
 
 
@@ -20,30 +20,42 @@ def main(sweep, command, expdir, recipe, mode, computing):
     if not os.path.isdir(expdir):
         os.makedirs(expdir)
 
-    #copy the recipe dir to the expdir
-    if os.path.isdir(os.path.join(expdir, 'recipe')):
-        shutil.rmtree(os.path.join(expdir, 'recipe'))
-    shutil.copytree(recipe, os.path.join(expdir, 'recipe'))
-
     for i, expname in enumerate(expnames):
+	#copy the recipe dir to the expdir
+	if os.path.isdir(os.path.join(expdir, 'recipes',expname)):
+	    shutil.rmtree(os.path.join(expdir, 'recipes',expname))
+	shutil.copytree(recipe, os.path.join(expdir, 'recipes',expname))
+	
         for param in params[i]:
             #read the config
             conf = configparser.ConfigParser()
-            conf.read(os.path.join(expdir, 'recipe', param[0]))
+            conf.read(os.path.join(expdir, 'recipes',expname, param[0]))
 
             #create the new configuration
-            conf.set(param[1], param[2], param[3])
-            with open(os.path.join(expdir, 'recipe', param[0]), 'w') as fid:
+            conf.set(param[1], param[2], ' '.join(param[3:]) )
+            with open(os.path.join(expdir, 'recipes',expname, param[0]), 'w') as fid:
                 conf.write(fid)
 
         #run the new recipe
-        os.system('run %s --expdir=%s --recipe=%s --computing=%s --mode=%s' % (
-            command,
-            os.path.join(expdir, expname),
-            os.path.join(expdir, 'recipe'),
-            computing,
-            mode
-        ))
+        if int(duplicates)==1:
+	    os.system('run %s --expdir=%s --recipe=%s --computing=%s --mode=%s --resume=%s' % (
+		command,
+		os.path.join(expdir, expname),
+		os.path.join(expdir, 'recipes',expname),
+		computing,
+		mode,
+		resume
+	    ))
+	else:
+	    os.system('run %s --expdir=%s --recipe=%s --computing=%s --mode=%s --resume=%s --duplicates=%s' % (
+		command,
+		os.path.join(expdir, expname),
+		os.path.join(expdir, 'recipes',expname),
+		computing,
+		mode,
+		resume,
+		duplicates
+	    ))
 
 if __name__ == '__main__':
     tf.app.flags.DEFINE_string('expdir', None,
@@ -56,7 +68,7 @@ if __name__ == '__main__':
                                'The computing mode, one of non_distributed, '
                                'single_machine or multi_machine'
                               )
-    tf.app.flags.DEFINE_string('computing', 'standart',
+    tf.app.flags.DEFINE_string('computing', 'standard',
                                'the distributed computing system one of'
                                ' standart or condor'
                               )
@@ -66,8 +78,15 @@ if __name__ == '__main__':
     tf.app.flags.DEFINE_string('command', 'train',
                                'the command to run'
                               )
+    tf.app.flags.DEFINE_string('resume', 'False',
+                               'wether the experiment in expdir, if available, '
+                               'has to be resumed'
+                               )
+    tf.app.flags.DEFINE_string('duplicates', '1',
+                               'How many duplicates of the same experiment should be run'
+                               )
 
     FLAGS = tf.app.flags.FLAGS
 
     main(FLAGS.sweep, FLAGS.command, FLAGS.expdir, FLAGS.recipe, FLAGS.mode,
-         FLAGS.computing)
+         FLAGS.computing, FLAGS.resume, FLAGS.duplicates)

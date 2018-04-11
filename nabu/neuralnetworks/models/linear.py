@@ -36,10 +36,17 @@ class Linear(model.Model):
 		    stddev=float(self.conf['input_noise']))
 		    
 	    logits = inputs
-
 	    output = tf.contrib.layers.linear(
 		inputs=logits,
 		num_outputs=int(self.conf['output_dims']))
+	    
+	    if 'activation_func' in self.conf and self.conf['activation_func']!='None':
+		if self.conf['activation_func']=='tanh':
+		    output = tf.tanh(output)
+		elif self.conf['activation_func']=='sigmoid':
+		    output = tf.sigmoid(output)
+		else:
+		    raise 'Activation function %s not found' %(self.conf['activation_func'])
 
 	    #dropout is not recommended
 	    if is_training and float(self.conf['dropout']) < 1:

@@ -6,9 +6,10 @@ nabu/computing/condor/create_environment.sh
 # .gitignore
 sweeps
 *debug*
+*_backup
 *Old*
 *kate-swp*
-config/recipes_Jeroen/*
+config/recipes_Jeroen*/*
 nabu/postprocessing/scorers/pesq
 nabu/neuralnetworks/trainers/task_trainer.py
 nabu/neuralnetworks/evaluators/evaluator.py
@@ -16,3 +17,5 @@ nabu/neuralnetworks/evaluators/loss_evaluator.py
 nabu/neuralnetworks/models/dblstm_linear.py
 usefull_tf_stuff.txt
 analyse_scripts
+nabu/scripts/prepare_train2.py
+test_files_to_run

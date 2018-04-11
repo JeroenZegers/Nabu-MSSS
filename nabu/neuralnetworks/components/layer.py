@@ -3,7 +3,7 @@ Neural network layers '''
 
 import tensorflow as tf
 from tensorflow.python.ops.rnn import bidirectional_dynamic_rnn
-from nabu.neuralnetworks.components import ops
+from nabu.neuralnetworks.components import ops, rnn_cell
 
 #class BLSTMLayer(object):
     #'''a BLSTM layer'''
@@ -112,6 +112,252 @@ class BLSTMLayer(object):
             outputs = tf.concat(outputs_tupple, 2)
 
             return outputs
+
+
+class LeakyBLSTMLayer(object):
+    '''a leaky BLSTM layer'''
+
+    def __init__(self, num_units, layer_norm=False, recurrent_dropout=1.0, leak_factor=1.0):
+        '''
+        LeakyBLSTMLayer constructor
+
+        Args:
+            num_units: The number of units in the one directon
+            layer_norm: whether layer normalization should be applied
+            recurrent_dropout: the recurrent dropout keep probability
+            leak_factor: the leak factor (if 1, there is no leakage)
+        '''
+
+        self.num_units = num_units
+        self.layer_norm = layer_norm
+        self.recurrent_dropout = recurrent_dropout
+        self.leak_factor = leak_factor
+
+    def __call__(self, inputs, sequence_length, scope=None):
+        '''
+        Create the variables and do the forward computation
+
+        Args:
+            inputs: the input to the layer as a
+                [batch_size, max_length, dim] tensor
+            sequence_length: the length of the input sequences as a
+                [batch_size] tensor
+            scope: The variable scope sets the namespace under which
+                the variables created during this call will be stored.
+
+        Returns:
+            the output of the layer
+        '''
+
+        with tf.variable_scope(scope or type(self).__name__):
+
+            #create the lstm cell that will be used for the forward and backward
+            #pass
+            lstm_cell_fw = rnn_cell.LayerNormBasicLeakLSTMCell(
+                num_units=self.num_units,
+                leak_factor=self.leak_factor,
+                layer_norm=self.layer_norm,
+                dropout_keep_prob=self.recurrent_dropout,
+                reuse=tf.get_variable_scope().reuse)
+            lstm_cell_bw = rnn_cell.LayerNormBasicLeakLSTMCell(
+                self.num_units,
+                leak_factor=self.leak_factor,
+                layer_norm=self.layer_norm,
+                dropout_keep_prob=self.recurrent_dropout,
+                reuse=tf.get_variable_scope().reuse)
+                	    
+            #do the forward computation
+            outputs_tupple, _ = bidirectional_dynamic_rnn(
+                lstm_cell_fw, lstm_cell_bw, inputs, dtype=tf.float32,
+                sequence_length=sequence_length)
+
+            outputs = tf.concat(outputs_tupple, 2)
+
+            return outputs	  
+
+class LeakyBLSTMIZNotRecLayer(object):
+    '''a leaky BLSTM layer'''
+
+    def __init__(self, num_units, layer_norm=False, recurrent_dropout=1.0, leak_factor=1.0):
+        '''
+        LeakyBLSTMIZNotRecLayer constructor
+
+        Args:
+            num_units: The number of units in the one directon
+            layer_norm: whether layer normalization should be applied
+            recurrent_dropout: the recurrent dropout keep probability
+            leak_factor: the leak factor (if 1, there is no leakage)
+        '''
+
+        self.num_units = num_units
+        self.layer_norm = layer_norm
+        self.recurrent_dropout = recurrent_dropout
+        self.leak_factor = leak_factor
+
+    def __call__(self, inputs, sequence_length, scope=None):
+        '''
+        Create the variables and do the forward computation
+
+        Args:
+            inputs: the input to the layer as a
+                [batch_size, max_length, dim] tensor
+            sequence_length: the length of the input sequences as a
+                [batch_size] tensor
+            scope: The variable scope sets the namespace under which
+                the variables created during this call will be stored.
+
+        Returns:
+            the output of the layer
+        '''
+
+        with tf.variable_scope(scope or type(self).__name__):
+
+            #create the lstm cell that will be used for the forward and backward
+            #pass
+            lstm_cell_fw = rnn_cell.LayerNormIZNotRecLeakLSTMCell(
+                num_units=self.num_units,
+                leak_factor=self.leak_factor,
+                layer_norm=self.layer_norm,
+                dropout_keep_prob=self.recurrent_dropout,
+                reuse=tf.get_variable_scope().reuse)
+            lstm_cell_bw = rnn_cell.LayerNormIZNotRecLeakLSTMCell(
+                self.num_units,
+                leak_factor=self.leak_factor,
+                layer_norm=self.layer_norm,
+                dropout_keep_prob=self.recurrent_dropout,
+                reuse=tf.get_variable_scope().reuse)
+                	    
+            #do the forward computation
+            outputs_tupple, _ = bidirectional_dynamic_rnn(
+                lstm_cell_fw, lstm_cell_bw, inputs, dtype=tf.float32,
+                sequence_length=sequence_length)
+
+            outputs = tf.concat(outputs_tupple, 2)
+
+            return outputs	  
+
+class LeakyBLSTMNotRecLayer(object):
+    '''a leaky BLSTM layer'''
+
+    def __init__(self, num_units, layer_norm=False, recurrent_dropout=1.0, leak_factor=1.0):
+        '''
+        LeakyBLSTMNotRecLayer constructor
+
+        Args:
+            num_units: The number of units in the one directon
+            layer_norm: whether layer normalization should be applied
+            recurrent_dropout: the recurrent dropout keep probability
+            leak_factor: the leak factor (if 1, there is no leakage)
+        '''
+
+        self.num_units = num_units
+        self.layer_norm = layer_norm
+        self.recurrent_dropout = recurrent_dropout
+        self.leak_factor = leak_factor
+
+    def __call__(self, inputs, sequence_length, scope=None):
+        '''
+        Create the variables and do the forward computation
+
+        Args:
+            inputs: the input to the layer as a
+                [batch_size, max_length, dim] tensor
+            sequence_length: the length of the input sequences as a
+                [batch_size] tensor
+            scope: The variable scope sets the namespace under which
+                the variables created during this call will be stored.
+
+        Returns:
+            the output of the layer
+        '''
+
+        with tf.variable_scope(scope or type(self).__name__):
+
+            #create the lstm cell that will be used for the forward and backward
+            #pass
+            lstm_cell_fw = rnn_cell.LayerNormNotRecLeakLSTMCell(
+                num_units=self.num_units,
+                leak_factor=self.leak_factor,
+                layer_norm=self.layer_norm,
+                dropout_keep_prob=self.recurrent_dropout,
+                reuse=tf.get_variable_scope().reuse)
+            lstm_cell_bw = rnn_cell.LayerNormNotRecLeakLSTMCell(
+                self.num_units,
+                leak_factor=self.leak_factor,
+                layer_norm=self.layer_norm,
+                dropout_keep_prob=self.recurrent_dropout,
+                reuse=tf.get_variable_scope().reuse)
+                	    
+            #do the forward computation
+            outputs_tupple, _ = bidirectional_dynamic_rnn(
+                lstm_cell_fw, lstm_cell_bw, inputs, dtype=tf.float32,
+                sequence_length=sequence_length)
+
+            outputs = tf.concat(outputs_tupple, 2)
+
+            return outputs	  
+
+
+class LeakychBLSTMLayer(object):
+    '''a leaky ch BLSTM layer'''
+
+    def __init__(self, num_units, layer_norm=False, recurrent_dropout=1.0, leak_factor=1.0):
+        '''
+        LeakyBLSTMLayer constructor
+
+        Args:
+            num_units: The number of units in the one directon
+            layer_norm: whether layer normalization should be applied
+            recurrent_dropout: the recurrent dropout keep probability
+            leak_factor: the leak factor (if 1, there is no leakage)
+        '''
+
+        self.num_units = num_units
+        self.layer_norm = layer_norm
+        self.recurrent_dropout = recurrent_dropout
+        self.leak_factor = leak_factor
+
+    def __call__(self, inputs, sequence_length, scope=None):
+        '''
+        Create the variables and do the forward computation
+
+        Args:
+            inputs: the input to the layer as a
+                [batch_size, max_length, dim] tensor
+            sequence_length: the length of the input sequences as a
+                [batch_size] tensor
+            scope: The variable scope sets the namespace under which
+                the variables created during this call will be stored.
+
+        Returns:
+            the output of the layer
+        '''
+
+        with tf.variable_scope(scope or type(self).__name__):
+
+            #create the lstm cell that will be used for the forward and backward
+            #pass
+            lstm_cell_fw = rnn_cell.LayerNormBasicLeakchLSTMCell(
+                num_units=self.num_units,
+                leak_factor=self.leak_factor,
+                layer_norm=self.layer_norm,
+                dropout_keep_prob=self.recurrent_dropout,
+                reuse=tf.get_variable_scope().reuse)
+            lstm_cell_bw = rnn_cell.LayerNormBasicLeakchLSTMCell(
+                self.num_units,
+                leak_factor=self.leak_factor,
+                layer_norm=self.layer_norm,
+                dropout_keep_prob=self.recurrent_dropout,
+                reuse=tf.get_variable_scope().reuse)
+                	    
+            #do the forward computation
+            outputs_tupple, _ = bidirectional_dynamic_rnn(
+                lstm_cell_fw, lstm_cell_bw, inputs, dtype=tf.float32,
+                sequence_length=sequence_length)
+
+            outputs = tf.concat(outputs_tupple, 2)
+
+            return outputs	
 	  
 class PBLSTMLayer(object):
     ''' a pyramidal bidirectional LSTM layer'''

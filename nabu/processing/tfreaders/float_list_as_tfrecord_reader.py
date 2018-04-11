@@ -21,10 +21,14 @@ class FloatListAsTfrecordReader(tfreader.TfReader):
         '''
 
 	metadata = dict()
-
-        with open(os.path.join(datadirs, 'dim')) as fid:
+	
+        with open(os.path.join(datadirs[0], 'dim')) as fid:
             metadata['dim'] = int(fid.read())
-
+        for datadir in datadirs:
+            with open(os.path.join(datadir, 'dim')) as fid:
+                if metadata['dim'] != int(fid.read()):
+                    raise Exception(
+                        'all reader dimensions must be the same')
         return metadata
 
     def _create_features(self):

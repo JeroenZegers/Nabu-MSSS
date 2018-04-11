@@ -28,6 +28,7 @@ class Strlabel2indexProcessor(processor.Processor):
         self.comp = feature_computer_factory.factory(conf['feature'])(conf)
 
         #create the string label to index dictionary
+        self.nrS = int(conf['nrs'])
         self.label2index = dict()
         self.next_index = 0
 
@@ -52,8 +53,7 @@ class Strlabel2indexProcessor(processor.Processor):
         audiofile = split_dataline[0]
         string_labels = split_dataline[1::2]
         
-        nrS = len(string_labels)
-        utt_info['nrS']=nrS
+        utt_info['nrS']=self.nrS
         index_labels=[]
         for str_label in string_labels:
 	    if str_label not in self.label2index.keys():
@@ -98,7 +98,9 @@ class Strlabel2indexProcessor(processor.Processor):
 	    with open(os.path.join(seg_dir, 'label2index.json'), 'w') as fid:
 		    json.dump(self.label2index,fid)	    
             with open(os.path.join(seg_dir, 'totnrS'), 'w') as fid:
-		fid.write(str(self.next_index))
+		fid.write(str(self.next_index))	    
+            with open(os.path.join(seg_dir, 'nrS'), 'w') as fid:
+		fid.write(str(self.nrS))
 		
 
 		

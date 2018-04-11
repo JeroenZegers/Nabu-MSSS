@@ -13,11 +13,12 @@ from nabu.postprocessing.reconstructors import reconstructor_factory
 from nabu.postprocessing.scorers import scorer_factory
 from nabu.postprocessing.postprocessors import postprocessor_factory
 import json
+import time
 import pdb
 
 def test(expdir):
     '''does everything for testing'''
-
+    
     #read the database config file
     database_cfg = configparser.ConfigParser()
     database_cfg.read(os.path.join(expdir, 'database.cfg'))
@@ -48,7 +49,7 @@ def test(expdir):
 	    postprocessor_cfg = None
     except:
 	postprocessor_cfg = None
-      
+    postprocessor_cfg = None
 
     if evaluator_cfg.get('evaluator','evaluator') == 'multi_task':
 	tasks = evaluator_cfg.get('evaluator','tasks').split(' ')
@@ -114,26 +115,34 @@ def test(expdir):
 
 		#create a hook for summary writing
 		summary_hook = SummaryHook(os.path.join(expdir, 'logdir'))
-		config = tf.ConfigProto(device_count = {'GPU': 0})
+		
+		config = tf.ConfigProto(device_count = {'CPU': 1,'GPU':0})
+		
+		options = tf.RunOptions()
+		options.report_tensor_allocations_upon_oom = True
+		
 		#start the session
 		with tf.train.SingularMonitoredSession(
 		    hooks=[load_hook, summary_hook],config=config) as sess:
-
+		    
 		    loss = 0.0
 		    loss_norm = 0.0
 
 		    for batch_ind in range(0,numbatches):
 			print 'evaluating batch number %d' %batch_ind
-
+			last_time = time.time()
 			[batch_loss_eval, batch_norm_eval, batch_outputs_eval, 
 			      batch_seq_length_eval] = sess.run(
-			      fetches=[batch_loss, batch_norm, batch_outputs, batch_seq_length])
+			      fetches=[batch_loss, batch_norm, batch_outputs, batch_seq_length],
+			      options=options)
 			
 			loss += batch_loss_eval
 			loss_norm += batch_norm_eval
-
+			print '%f'%(time.time()-last_time)
+			last_time = time.time()
 			#chosing the first seq_length
-			reconstructor(batch_outputs_eval, batch_seq_length_eval)              
+			reconstructor(batch_outputs_eval, batch_seq_length_eval) 
+			print '%f'%(time.time()-last_time)             
 			
 		    loss = loss/loss_norm
 
