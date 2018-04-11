@@ -2,11 +2,10 @@
 contains the Loss computer factory mehod'''
 
 from . import deepclustering_loss, pit_loss, l41_loss, pit_l41_loss,\
-  deepclustering_L1_loss, ldajer_loss, dist2mean_rat_loss,\
+  deepclustering_L1_loss, dist2mean_rat_loss,\
   dist2mean_rat_squared_loss, intravar2centervar_rat_loss,\
   dist2mean_rat_fracbins_loss, crossentropy_multi_loss,\
-  dist2mean_closest_rat_loss,\
-  direct_loss, dist2mean_epsilon_closest_rat_loss,\
+  dist2mean_closest_rat_loss,direct_loss, dist2mean_epsilon_closest_rat_loss,\
   dc_pit_loss, crossentropy_multi_loss_reshapelogits,\
   crossentropy_multi_loss_reshapelogits_avtime,\
   deepclustering_full_crossentropy_multi_reshapedlogits_avtime_loss,\
@@ -33,8 +32,6 @@ def factory(loss_type):
         return pit_l41_loss.PITL41Loss
     elif loss_type == 'deepclustering_l1':
         return deepclustering_L1_loss.DeepclusteringL1Loss
-    elif loss_type == 'ldajer':
-        return ldajer_loss.LdaJerLoss
     elif loss_type == 'intravar2centervar_rat':
         return intravar2centervar_rat_loss.IntraVar2CenterVarRatLoss
     elif loss_type == 'dist2mean_rat':
