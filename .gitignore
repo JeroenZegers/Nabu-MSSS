@@ -19,3 +19,5 @@ usefull_tf_stuff.txt
 analyse_scripts
 nabu/scripts/prepare_train2.py
 test_files_to_run
+nabu/computing/condor/non_distributed_cpu_train.job
+*jeroen*
