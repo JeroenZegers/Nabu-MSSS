@@ -9,6 +9,7 @@ request_GPUs      = 1
 #specify that the cuda capability should be at least 3.0 and set the memory
 #requirement
 Requirements = (CUDACapability >= 3.0)\
+  && has_avx\
   &&(CUDAGlobalMemoryMb >= $(memory))\
   &&(machine =!= LastRemoteHost)\
 #  && (machine != "spchcl24.esat.kuleuven.be")\

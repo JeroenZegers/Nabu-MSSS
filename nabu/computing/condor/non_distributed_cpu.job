@@ -9,7 +9,8 @@ requestCpus      = 8
 #specify that the cuda capability should be at least 3.0 and set the memory
 #requirement
 #Requirements = (CUDACapability >= 3.0)
-Requirements =  (machine =!= LastRemoteHost)\
+Requirements =  has_avx\
+  && (machine =!= LastRemoteHost)\
   && (machine != "spchcl24.esat.kuleuven.be")\
   && (machine != "spchcl23.esat.kuleuven.be")\
   && (machine != "cancer.esat.kuleuven.be")\
@@ -38,7 +39,6 @@ Requirements =  (machine =!= LastRemoteHost)\
 #  && (machine != "cancer.esat.kuleuven.be")\
 #  && (machine != "libra.esat.kuleuven.be")\
 #  && (machine != "virgo.esat.kuleuven.be")
-
 
 #Specfy nice user behavior
 NiceUser = true
