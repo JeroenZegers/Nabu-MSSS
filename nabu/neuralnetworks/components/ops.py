@@ -259,8 +259,6 @@ def deepattractornetnoise_hard_loss(partition_targets, spectogram_targets, mix_t
             # V : matrix containing the embeddingsvectors for this batch,
             # has shape [nb_bins ( =T*F = N ) x emb_dim]
             V = tf.reshape(embedding_batch,[N,emb_dim],name='V')
-            # No need to normalize: Vnorm = tf.nn.l2_normalize(V, dim=1, epsilon=1e-12, name='Vnorm')
-            # V = tf.multiply(V,ubreshV) # elementwise multiplication
             Y = tf.reshape(partition_batch,[N,nr_S],name='Y')
 
             Y_tilde_tilde = tf.multiply(tf.multiply(Y,ubreshY),nbreshY)
@@ -362,8 +360,8 @@ def deepattractornetnoise_soft_loss(partition_targets, spectogram_targets, mix_t
 
             prod_1 = tf.matmul(A,V,transpose_a=False, transpose_b = True,name='AVT')
             # Softmax als alternatief?? Nakijken paper +testen
-            M = tf.nn.softmax(prod_1,dim = 0,name='M') # dim: number_sources x N
-             # eliminate nan introduced by no dominant bins of speaker
+            M_speaker = tf.nn.softmax(prod_1,dim = 0,name='M') # dim: number_sources x N
+
             X = tf.reshape(mix_to_mask_batch,[N,1],name='X')
             X_filter_noise = tf.transpose(tf.multiply(X,nbresh))
             masked_sources = tf.multiply(M,X_filter_noise) # dim: number_sources x N
