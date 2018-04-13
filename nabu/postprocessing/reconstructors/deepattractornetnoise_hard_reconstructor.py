@@ -13,8 +13,8 @@ class DeepattractornoisehardReconstructor(mask_reconstructor.MaskReconstructor):
 
     a reconstructor using deep clustering'''
     requested_output_names = ['bin_emb','noise_filter']
-    noise_threshold = 0.5
-    
+    noise_threshold = 0.75
+
     def __init__(self, conf, evalconf, dataconf, rec_dir, task):
         '''DeepclusteringReconstructor constructor
 
@@ -34,9 +34,9 @@ class DeepattractornoisehardReconstructor(mask_reconstructor.MaskReconstructor):
         #directory where cluster centroids will be stored
         self.center_store_dir = os.path.join(rec_dir,'cluster_centers')
         if not os.path.isdir(self.center_store_dir):
-            os.makedirs(self.center_store_dir)        
-      
-        
+            os.makedirs(self.center_store_dir)
+
+
     def _get_masks(self,output, utt_info):
         '''estimate the masks
 
@@ -46,12 +46,12 @@ class DeepattractornoisehardReconstructor(mask_reconstructor.MaskReconstructor):
 
         Returns:
             the estimated masks'''
-            
+
         embeddings = output['bin_emb']
         noise_filter = output['noise_filter']
-        #only the non-silence bins will be used for the clustering    
+        #only the non-silence bins will be used for the clustering
         usedbins, _ = self.usedbins_reader(self.pos)
-        
+
         [T,F] = np.shape(usedbins)
         emb_dim = np.shape(embeddings)[1]/F
         N = T*F
@@ -64,10 +64,10 @@ class DeepattractornoisehardReconstructor(mask_reconstructor.MaskReconstructor):
         #reshape the outputs
         output = embeddings[:T,:]
         output_resh = np.reshape(output,[T*F,emb_dim])
-        
+
         noise_filter_reshape = np.reshape(noise_filter[:T,:],[T*F,1])
         noise_filt_bin = np.reshape(noise_filter_reshape >self.noise_threshold,T*F)
-        
+
         usedbins_resh = np.reshape(usedbins, T*F)
         filt = np.logical_and(usedbins_resh,noise_filt_bin)
         #Only keep the active bins (above threshold) for clustering
@@ -83,17 +83,17 @@ class DeepattractornoisehardReconstructor(mask_reconstructor.MaskReconstructor):
             except IndexError:
               continue
             break
-        
+
         A = kmeans_model.cluster_centers_ # dim: nrS x embdim
-        
-        
+
+
         prod_1 = np.matmul(A,output_resh.T) # dim: nrS x N
         numerator = np.exp(prod_1-np.max(prod_1,axis=0))
         denominator = np.sum(numerator,axis=0)
         M = numerator/denominator
         M_final = np.multiply(M,np.transpose(noise_filter_reshape))
-	    
+
         #reconstruct the masks from the cluster labels
         masks = np.reshape(M_final,[self.nrS,T,F])
-        np.save(os.path.join(self.center_store_dir,utt_info['utt_name']),kmeans_model.cluster_centers_)	
+        np.save(os.path.join(self.center_store_dir,utt_info['utt_name']),kmeans_model.cluster_centers_)
         return masks

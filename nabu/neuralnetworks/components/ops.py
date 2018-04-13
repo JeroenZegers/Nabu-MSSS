@@ -228,7 +228,7 @@ def deepattractornetnoise_hard_loss(partition_targets, spectogram_targets, mix_t
 
         loss = 0.0
         norm = 0.0
-        noise_threshold = 0.5
+        noise_threshold = 0.75
         for batch_ind in range(batch_size):
             # T : length of the current timeframe
             T = seq_length[batch_ind]
@@ -251,8 +251,6 @@ def deepattractornetnoise_hard_loss(partition_targets, spectogram_targets, mix_t
             #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
     	    #targets will give 0 contribution to loss.
             ubresh = tf.reshape(usedbins_batch,[N,1],name='ubresh')
-            #ubreshV= tf.tile(ubresh,[1,emb_dim])
-            #ubreshV=tf.to_float(ubreshV)
             ubreshY=tf.tile(ubresh,[1,nr_S])
 
             nbresh = tf.cast(tf.reshape(noise_filter_batch,[N,1])>noise_threshold,tf.int32)
@@ -590,8 +588,8 @@ def pit_L41_loss(targets, bin_embeddings, spk_embeddings, mix_to_mask, seq_lengt
 
     return loss , norm
 
-def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_output, usedbins,\
-			        seq_length,batch_size):
+def deepclustering_noise_loss(speech_target,noise_target,noise_ratio,emb_vec,noise_filter, \
+    usedbins,seq_length,batch_size):
     '''
     Compute the deep clustering loss
     cost function based on Hershey et al. 2016
@@ -627,10 +625,10 @@ def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_o
             logits_utt = logits_utt[:T,:]
             targets_utt = speech_target[utt_ind]
             targets_utt = targets_utt[:T,:]
-            noise_target_utt = noise_target[utt_ind]
-            noise_target_utt = noise_target_utt[:T,:]
-            noise_detect_output_utt = noise_detect_output[utt_ind]
-            noise_detect_output_utt = noise_detect_output_utt[:T,:]
+            noise_ratio_utt = noise_ratio[utt_ind]
+            noise_ratio_utt = noise_ratio_utt[:T,:]
+            noise_filter_utt = noise_filter[utt_ind]
+            noise_filter_utt = noise_filter_utt[:T,:]
 
 
             #remove the non_silence (cfr bins below energy thresh) bins. Removing in logits and
@@ -667,8 +665,8 @@ def deepclustering_noise_loss(speech_target,noise_target, emb_vec,noise_detect_o
             norm_1= tf.square(tf.to_float(tf.reduce_sum(tf.multiply(1-noise_target_utt,usedbins_utt))))
             norm_1 = tf.maximum(norm_1,1)
 
-            noise_desired = tf.to_float(tf.reshape(noise_target_utt,[Nspec,1],name='ndesired'))
-            noise_actual = tf.reshape(noise_detect_output_utt,[Nspec,1],name='nactual')
+            noise_desired = tf.to_float(tf.reshape(noise_ratio_utt,[Nspec,1],name='ndesired'))
+            noise_actual = tf.reshape(noise_filter_utt,[Nspec,1],name='nactual')
             loss_utt_2 = tf.reduce_sum(tf.square(noise_desired-noise_actual))
 
             norm_2 = tf.to_float(Nspec)

@@ -13,7 +13,7 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
 
     a reconstructor using deep clustering'''
 
-    requested_output_names = ['bin_emb','noise_labels']
+    requested_output_names = ['bin_emb','noise_filter']
     noise_threshold = 0.5
 
     def __init__(self, conf, evalconf, dataconf, rec_dir, task):
@@ -50,7 +50,7 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
 	    the estimated masks'''
 
         embeddings = output['bin_emb']
-        noise_detect = output['noise_labels']
+        noise_filter = output['noise_filter']
         #only the non-silence bins will be used for the clustering
         usedbins, _ = self.usedbins_reader(self.pos)
 
@@ -71,9 +71,9 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
         embeddings_resh_norm = np.linalg.norm(embeddings_resh,axis=1,keepdims=True)
         embeddings_resh = embeddings_resh/embeddings_resh_norm
 
-        noise_detect = noise_detect[:T,:]
-        noise_detect_resh = np.reshape(noise_detect,T*F)
-        no_noise = noise_detect_resh < self.noise_threshold
+        noise_filter = noise_filter[:T,:]
+        noise_filter_resh = np.reshape(noise_filter,T*F)
+        no_noise = noise_detect_resh > self.noise_threshold
         #only keep the active bins (above threshold) for clustering
         usedbins_resh = np.reshape(usedbins, T*F)
         filt = np.logical_and(usedbins_resh,no_noise)
@@ -97,7 +97,7 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
         #reconstruct the masks from the cluster labels
         masks = np.zeros([self.nrS,T,F])
         for spk in range(self.nrS):
-            masks[spk,:,:] = np.logical_and(predicted_labels_resh==spk,noise_detect<self.noise_threshold)
+            masks[spk,:,:] = (predicted_labels_resh==spk)*noise_filter
 
         #store the clusters
         np.save(os.path.join(self.center_store_dir,utt_info['utt_name']),kmeans_model.cluster_centers_)

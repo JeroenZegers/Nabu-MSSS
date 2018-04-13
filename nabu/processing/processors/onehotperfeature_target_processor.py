@@ -19,22 +19,22 @@ class onehotperfeatureTargetProcessor(processor.Processor):
 
         Args:
             conf: onehotperfeatureTargetProcessor configuration as a dict of strings
-            segment_lengths: A list containing the desired lengths of segments. 
+            segment_lengths: A list containing the desired lengths of segments.
             Possibly multiple segment lengths'''
 
         #create the feature computer
         self.comp = feature_computer_factory.factory(conf['feature'])(conf)
-        
+
         #set the length of the segments. Possibly multiple segment lengths
         self.segment_lengths = segment_lengths
-        
+
         #initialize the metadata
         self.nrS = int(conf['nrs'])
         self.dim = self.comp.get_dim()* self.nrS
         self.target_dim = self.comp.get_dim() * self.nrS
         self.nontime_dims=[self.target_dim]
 
-        
+
         super(onehotperfeatureTargetProcessor, self).__init__(conf)
 
     def __call__(self, dataline):
@@ -46,11 +46,11 @@ class onehotperfeatureTargetProcessor(processor.Processor):
         Returns:
             segmented_data: The segmented targets as a list of numpy arrays per segment length
             utt_info: some info on the utterance'''
-            
+
         utt_info= dict()
 
 	splitdatalines = dataline.strip().split(' ')
-	
+
 	clean_features = None
 	for splitdataline in splitdatalines:
 	    #read the wav file
@@ -59,22 +59,22 @@ class onehotperfeatureTargetProcessor(processor.Processor):
 	    #compute the features
 	    features = self.comp(utt, rate)
 	    features = np.expand_dims(features, 2)
-	    
+
 	    if clean_features is None:
 		clean_features = features
-	    else:  
+	    else:
 		clean_features = np.append(clean_features,features,2)
-	    
+
 	winner=np.argmax(clean_features,axis=2)
 	targets=np.empty([features.shape[0],self.dim],dtype=bool)
 	for s_ind in range(self.nrS):
 	    targets[:,s_ind::self.nrS]=winner==s_ind
-        
+
         # split the data for all desired segment lengths
 	segmented_data = self.segment_data(targets)
 
         return segmented_data, utt_info
-      
+
 
     def write_metadata(self, datadir):
         '''write the processor metadata to disk
@@ -90,7 +90,7 @@ class onehotperfeatureTargetProcessor(processor.Processor):
 		fid.write(str(self.dim))
 	    with open(os.path.join(seg_dir, 'nontime_dims'), 'w') as fid:
 		fid.write(str(self.nontime_dims)[1:-1])
-            
+
 def _read_wav(wavfile):
     '''
     read a wav file
