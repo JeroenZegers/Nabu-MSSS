@@ -426,7 +426,7 @@ def bss_eval_sources_extended_noise(reference_sources, estimated_sources,noise_s
         for (i, perm) in enumerate(perms):
             mean_sir[i] = np.mean(sir[perm[0:nspk], dum])
         popt = perms[np.argmax(mean_sir)]
-        idx = (popt, dum)
+        idx = (popt[0:nspk], dum)
         return (sdr[idx], sir[idx], sar[idx],snr[idx], np.asarray(popt))
     else:
         # compute criteria for only the simple correspondence
