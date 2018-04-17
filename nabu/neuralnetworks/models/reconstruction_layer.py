@@ -27,10 +27,12 @@ class Reconstruction_Layer(model.Model):
         if len(inputs) != 2:
             raise Exception('The implementation of Reconstruction layer expects 2 inputs and not %d' %len(inputs))
         else:
-            signal=inputs[0]
-            mask = inputs[1]
+            signal = inputs[0]
+            mask   = inputs[1]
+
 
         with tf.variable_scope(self.scope):
             output = tf.multiply(mask,signal)
-
-        return output
+            output = tf.where(output <= 1e-30,tf.ones_like(output)* 1e-30,output)
+            lms = 10*numpy.log10(output)
+        return lms

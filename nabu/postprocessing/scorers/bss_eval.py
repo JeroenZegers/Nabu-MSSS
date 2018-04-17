@@ -326,7 +326,127 @@ def bss_eval_sources_extended(reference_sources, estimated_sources,noise_source,
         popt = np.arange(nsrc)
         return (sdr, sir, sar,snr, popt)
 
+def bss_eval_sources_extended_noise(reference_sources, estimated_sources,noise_source,
+                     compute_permutation=True):
+    """
+    Ordering and measurement of the separation quality for estimated source
+    signals in terms of filtered true source, interference and artifacts.
 
+    The decomposition allows a time-invariant filter distortion of length
+    512, as described in Section III.B of [#vincent2006performance]_.
+
+    Passing ``False`` for ``compute_permutation`` will improve the computation
+    performance of the evaluation; however, it is not always appropriate and
+    is not the way that the BSS_EVAL Matlab toolbox computes bss_eval_sources.
+
+    Examples
+    --------
+    >>> # reference_sources[n] should be an ndarray of samples of the
+    >>> # n'th reference source
+    >>> # estimated_sources[n] should be the same for the n'th estimated
+    >>> # source
+    >>> (sdr, sir, sar,
+    ...  perm) = mir_eval.separation.bss_eval_sources(reference_sources,
+    ...                                               estimated_sources)
+
+    Parameters
+    ----------
+    reference_sources : np.ndarray, shape=(nsrc, nsampl)
+        matrix containing true sources (must have same shape as
+        estimated_sources)
+    estimated_sources : np.ndarray, shape=(nsrc, nsampl)
+        matrix containing estimated sources (must have same shape as
+        reference_sources)
+    noise_source :np.ndarray, shape = (1,nsampl)
+        matrix containing the noise sourse (must have same number of
+        samples as reference_sources)
+    compute_permutation : bool, optional
+        compute permutation of estimate/source combinations (True by default)
+
+    Returns
+    -------
+    sdr : np.ndarray, shape=(nsrc,)
+        vector of Signal to Distortion Ratios (SDR)
+    sir : np.ndarray, shape=(nsrc,)
+        vector of Source to Interference Ratios (SIR)
+    sar : np.ndarray, shape=(nsrc,)
+        vector of Sources to Artifacts Ratios (SAR)
+    snr : np.ndarray, shape=(nsrc,)
+        vector of Source to Noise Ratios (SNR)
+    perm : np.ndarray, shape=(nsrc,)
+        vector containing the best ordering of estimated sources in
+        the mean SIR sense (estimated source number ``perm[j]`` corresponds to
+        true source number ``j``). Note: ``perm`` will be ``[0, 1, ...,
+        nsrc-1]`` if ``compute_permutation`` is ``False``.
+
+    References
+    ----------
+    .. [#] Emmanuel Vincent, Shoko Araki, Fabian J. Theis, Guido Nolte, Pau
+        Bofill, Hiroshi Sawada, Alexey Ozerov, B. Vikrham Gowreesunker, Dominik
+        Lutter and Ngoc Q.K. Duong, "The Signal Separation Evaluation Campaign
+        (2007-2010): Achievements and remaining challenges", Signal Processing,
+        92, pp. 1928-1936, 2012.
+
+    """
+
+    # make sure the input is of shape (nsrc, nsampl)
+    if estimated_sources.ndim == 1:
+        estimated_sources = estimated_sources[np.newaxis, :]
+    if reference_sources.ndim == 1:
+        reference_sources = reference_sources[np.newaxis, :]
+
+    #validate_extended(reference_sources, estimated_sources,noise_source)
+    # If empty matrices were supplied, return empty lists (special case)
+    if reference_sources.size == 0 or estimated_sources.size == 0 or noise_source.size == 0:
+        return np.array([]), np.array([]), np.array([]), np.array([])
+
+    nsrc = estimated_sources.shape[0]
+    nspk = reference_sources.shape[0]
+    # does user desire permutations?
+    if compute_permutation:
+        # compute criteria for all possible pair matches
+        sdr = np.empty((nsrc, nspk))
+        sir = np.empty((nsrc, nspk))
+        sar = np.empty((nsrc, nspk))
+        snr = np.empty((nsrc, nspk))
+        for jest in range(nsrc):
+            for jtrue in range(nspk):
+                s_true, e_spat, e_interf,e_noise, e_artif = \
+                    _bss_decomp_mtifilt_extended(reference_sources,
+                                        estimated_sources[jest],
+                                        noise_source,
+                                        jtrue, 512)
+                sdr[jest, jtrue], sir[jest, jtrue], sar[jest, jtrue],snr[jest,jtrue] = \
+                    _bss_source_crit_extended(s_true, e_spat, e_interf,e_noise, e_artif)
+
+        # select the best ordering
+        perms = list(itertools.permutations(list(range(nsrc))))
+        mean_sir = np.empty(len(perms))
+        dum = np.arange(nspk)
+        for (i, perm) in enumerate(perms):
+            mean_sir[i] = np.mean(sir[perm[0:nspk], dum])
+        popt = perms[np.argmax(mean_sir)]
+        idx = (popt, dum)
+        return (sdr[idx], sir[idx], sar[idx],snr[idx], np.asarray(popt))
+    else:
+        # compute criteria for only the simple correspondence
+        # (estimate 1 is estimate corresponding to reference source 1, etc.)
+        sdr = np.empty(nspk)
+        sir = np.empty(nspk)
+        sar = np.empty(nspk)
+        snr = np.empty(nspk)
+        for j in range(nspk):
+            s_true, e_spat, e_interf,e_noise, e_artif = \
+                _bss_decomp_mtifilt_extended(reference_sources,
+                                    estimated_sources[j],
+                                    noise_source,
+                                    j, 512)
+            sdr[j], sir[j], sar[j],snr[j] = \
+                _bss_source_crit_extended(s_true, e_spat, e_interf,e_noise, e_artif)
+
+        # return the default permutation for compatibility
+        popt = np.arange(nsrc)
+        return (sdr, sir, sar,snr, popt)
 def bss_eval_sources(reference_sources, estimated_sources,
                      compute_permutation=True):
     """
@@ -1210,4 +1330,3 @@ if __name__=="__main__":
     print("""SDR: {}
 SIR: {}
 SAR: {}""".format(sdr, sir, sar))
-
