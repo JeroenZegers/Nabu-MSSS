@@ -11,8 +11,8 @@ from nabu.processing.feature_computers import feature_computer_factory
 import pdb
 
 class noiseRatioProcessor(processor.Processor):
-'''a processor for audio files, this will compute which bins are used
-(above a certain energy threshold) for scoring'''
+    '''a processor for audio files, this will compute which bins are used
+    (above a certain energy threshold) for scoring'''
 
     def __init__(self, conf, segment_lengths):
         '''ScorelabelperfeatureProcessor constructor
@@ -77,11 +77,11 @@ class noiseRatioProcessor(processor.Processor):
             dir: the directory where the metadata should be written'''
 
         for i,seg_length in enumerate(self.segment_lengths):
-        seg_dir = os.path.join(datadir,seg_length)
-        with open(os.path.join(seg_dir, 'dim'), 'w') as fid:
-        fid.write(str(self.dim))
-        with open(os.path.join(seg_dir, 'nontime_dims'), 'w') as fid:
-        fid.write(str(self.nontime_dims)[1:-1])
+            seg_dir = os.path.join(datadir,seg_length)
+            with open(os.path.join(seg_dir, 'dim'), 'w') as fid:
+                fid.write(str(self.dim))
+            with open(os.path.join(seg_dir, 'nontime_dims'), 'w') as fid:
+                fid.write(str(self.nontime_dims)[1:-1])
 
     def _read_wav(wavfile):
         '''

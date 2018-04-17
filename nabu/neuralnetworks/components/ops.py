@@ -364,7 +364,7 @@ def deepattractornetnoise_soft_loss(partition_targets, spectogram_targets, mix_t
 
             X = tf.reshape(mix_to_mask_batch,[N,1],name='X')
             X_filter_noise = tf.transpose(tf.multiply(X,nbresh))
-            masked_sources = tf.multiply(M,X_filter_noise) # dim: number_sources x N
+            masked_sources = tf.multiply(M_speaker,X_filter_noise) # dim: number_sources x N
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
             norm += tf.to_float(N*nr_S)
