@@ -81,7 +81,7 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
         prod_1 = np.matmul(A,output_resh.T)
         ones_M = np.ones([self.nrS,N])
         M = np.divide(ones_M,ones_M+np.exp(-prod_1)) # dim: nrS x N
-
+        
         #reconstruct the masks from the cluster labels
         masks = np.reshape(M,[self.nrS,T,F])
         np.save(os.path.join(self.center_store_dir,utt_info['utt_name']),kmeans_model.cluster_centers_)
