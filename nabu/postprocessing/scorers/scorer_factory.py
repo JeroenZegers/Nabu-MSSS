@@ -18,6 +18,8 @@ def factory(scorer):
         return sdr_scorer.SdrScorer
     elif scorer == 'sdr_snr':
         return sdr_snr_scorer.SdrSnrScorer
+elif scorer == 'sdr_snr_noise':
+        return sdr_snr_noise_scorer.SdrSnrNoiseScorer
     elif scorer == 'pesq':
         return pesq_scorer.PESQScorer
     else:

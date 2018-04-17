@@ -112,6 +112,105 @@ def dense_sequence_to_sparse(sequences, sequence_lengths):
 
     return sparse
 
+def deepattractornet_noisefilter_loss(partion_target, spectrogram_targets, mix_to_mask, usedbins,\
+    embeddings,noise_filter,seq_length,batch_size):
+    with tf.name_scope('deepattractornetnoise_hard_loss'):
+        # feat_dim : F
+        F = tf.shape(mix_to_mask)[2]
+        # embedding dimension d
+        emb_dim = tf.shape(embeddings)[2]/F
+        nr_S= tf.shape(spectogram_targets)[3]
+
+        loss = 0.0
+        norm = 0.0
+        usedbin_threshold = 100.
+        for batch_ind in range(batch_size):
+            # T : length of the current timeframe
+            T = seq_length[batch_ind]
+            # N: number of bins in current spectogram
+            N = T*F
+            # Which time/frequency-bins are used in this batch
+
+
+            embedding_batch = embeddings[batch_ind]
+            embedding_batch = embedding_batch[:T,:]
+
+            partition_batch = partition_targets[batch_ind]
+            partition_batch = partition_batch[:T,:]
+
+            mix_to_mask_batch = mix_to_mask[batch_ind]
+            mix_to_mask_batch = mix_to_mask_batch[:T,:]
+
+            spectogram_batch = spectogram_targets[batch_ind]
+            spectogram_batch = spectogram_batch[:T,:,:]
+
+            noise_filter_batch = noise_filter[batch_ind]
+            noise_filter_batch = noise_filter_batch[:T,:] # T x F
+
+            X_clean = tf.reshape(tf.multiply(mix_to_mask,noise_filter_batch),[N,1])
+            maxbin = tf.reduce_max(X_clean)
+    	    floor = maxbin/usedbin_threshold
+
+    	    #apply floor to get the used bins
+    	    ubresh = tf.greater(X_clean,floor)
+            #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
+    	    #targets will give 0 contribution to loss.
+            ubreshY=tf.tile(ubresh,[1,nr_S])
+
+
+
+            # V : matrix containing the embeddingsvectors for this batch,
+            # has shape [nb_bins ( =T*F = N ) x emb_dim]
+            V = tf.reshape(embedding_batch,[N,emb_dim],name='V')
+            Y = tf.reshape(partition_batch,[N,nr_S],name='Y')
+
+            Y_tilde = tf.multiply(Y,ubreshY)
+            Y_tilde = tf.to_float(Y_tilde)
+
+            numerator_A=tf.matmul(Y_tilde,V,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=False, name='YTV')
+            nb_bins_class = tf.reduce_sum(Y_tilde,axis = 0) # dim: (rank 1) number_sources
+            nb_bins_class = tf.where(tf.equal(nb_bins_class,tf.zeros_like(nb_bins_class)), tf.ones_like(nb_bins_class), nb_bins_class)
+            nb_bins_class = tf.expand_dims(nb_bins_class,1) # dim: (rank 2) number_sources x 1
+            denominator_A = tf.tile(nb_bins_class,[1,emb_dim],name='denominator_A') #number_sources x emb_dim
+            A = tf.divide(numerator_A,denominator_A,name='A')
+
+            prod_1 = tf.matmul(A,V,transpose_a=False, transpose_b = True,name='AVT')
+
+            M_speaker = tf.nn.softmax(prod_1,dim = 0,name='M') # dim: number_sources x N
+
+            masked_sources = tf.multiply(M_speaker,X_clean) # dim: number_sources x N
+            S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
+            loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
+            norm += tf.to_float(N*nr_S)
+            loss += loss_utt
+
+        return loss,norm
+
+
+def noise_filter_loss(clean_spectrogram,noise_spectrogram,noise_filter,seq_length,batch_size):
+
+    with tf.name.scope('noise_filter_loss'):
+        loss = 0.0
+        norm = 0.0
+        F = tf.shape(noise_spectrogram[2])
+        for batch_ind in range(batch_size):
+            T = seq_length[batch_ind]
+
+            noise_spectrogram_batch = noise_spectrogram[batch_ind]
+            noise_spectrogram_batch = noise_spectrogram_batch[:T,:]
+
+            clean_spectrogram_batch = clean_spectrogram[batch_ind]
+            clean_spectrogram_batch = clean_spectrogram_batch[:T,:]
+
+            noise_filter_batch = noise_filter[batch_ind]
+            noise_filter_batch = noise_filter_batch[:T,:]
+
+            estimate = tf.multiply(noise_spectrogram_batch,noise_filter_batch)
+            loss += tf.reduce_sum(tf.square(clean_spectrogram_batch-estimate))
+            norm += tf.to_float(T*F)
+    return loss,norm
+
+
 def deepattractornet_softmax_loss(partition_targets, spectogram_targets, mix_to_mask, usedbins, embeddings,\
                 seq_length, batch_size):
     '''
