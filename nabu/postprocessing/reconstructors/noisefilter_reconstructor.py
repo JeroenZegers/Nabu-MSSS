@@ -36,8 +36,8 @@ class NoiseFilterReconstructor(mask_reconstructor.MaskReconstructor):
         Returns:
             the estimated masks'''
 
-	    noise_filter = output['noise_filter']
-	    #only the non-silence bins will be used for the clustering
+        noise_filter = output['noise_filter']
+        #only the non-silence bins will be used for the clustering
 
 
     	[T,F] = np.shape(noise_filter)
