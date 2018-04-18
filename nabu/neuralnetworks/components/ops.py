@@ -186,9 +186,19 @@ def deepattractornet_noisefilter_loss(partion_target, spectrogram_targets, mix_t
 
         return loss,norm
 
-
 def noise_filter_loss(clean_spectrogram,noise_spectrogram,noise_filter,seq_length,batch_size):
-
+    '''
+        Calculates loss for loss filter
+        Args:
+            clean_spectrogram: a [batch_size x time (T) x feature_dim(F)] tensor containing the clean (target) spectrogram
+            noise_spectogram: a [batch_size x time (T) x feature_dim (F)] tensor containing the noisy spectrogram
+            noise_filter: a [batch_size x time(T) x feature_dim (F)] tensor containing output network (mask to filter noise)
+            seq_length: a [batch_size] vector containing the sequence lengths
+            batch_size: batch_size (# of elements in batch)
+        Returns:
+            a scalar value containing the loss
+            a scalar value containing the normalisation constant
+    '''
     with tf.name.scope('noise_filter_loss'):
         loss = 0.0
         norm = 0.0
