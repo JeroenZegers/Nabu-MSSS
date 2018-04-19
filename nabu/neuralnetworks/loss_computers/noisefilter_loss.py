@@ -34,5 +34,6 @@ class NoisefilterLoss(loss_computer.LossComputer):
 
         loss, norm = ops.noise_filter_loss(clean_spectrogram,noise_spectrogram,
             noise_filter,seq_length,self.batch_size)
-
+        
+        
         return loss, norm

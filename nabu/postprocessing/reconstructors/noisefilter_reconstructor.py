@@ -34,9 +34,9 @@ class NoiseFilterReconstructor(mask_reconstructor.MaskReconstructor):
                 utt_info: some info on the utterance
 
         Returns:
-            the estimated masks'''
-
-	    noise_filter = output['noise_filter']
+            the estimated masks
+        '''
+        noise_filter = output['noise_filter']
     	[T,F] = np.shape(noise_filter)
 
     	masks = np.empty([1,T,F])
