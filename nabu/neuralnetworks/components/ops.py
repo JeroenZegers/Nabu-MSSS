@@ -199,10 +199,10 @@ def noise_filter_loss(clean_spectrogram,noise_spectrogram,noise_filter,seq_lengt
             a scalar value containing the loss
             a scalar value containing the normalisation constant
     '''
-    with tf.name.scope('noise_filter_loss'):
+    with tf.name_scope('noise_filter_loss'):
         loss = 0.0
         norm = 0.0
-        F = tf.shape(noise_spectrogram[2])
+        F = tf.shape(noise_spectrogram)[2]
         for batch_ind in range(batch_size):
             T = seq_length[batch_ind]
 
@@ -216,7 +216,8 @@ def noise_filter_loss(clean_spectrogram,noise_spectrogram,noise_filter,seq_lengt
             noise_filter_batch = noise_filter_batch[:T,:]
 
             estimate = tf.multiply(noise_spectrogram_batch,noise_filter_batch)
-            loss += tf.reduce_sum(tf.square(clean_spectrogram_batch-estimate))
+            loss += tf.reduce_sum(tf.square(clean_spectrogram_batch-estimate),name='loss')
+            
             norm += tf.to_float(T*F)
     return loss,norm
 
@@ -938,7 +939,6 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
             #normalizer= tf.to_float(tf.square(tf.reduce_sum(ubresh)))
             #loss += loss_utt/normalizer*(10**9)
             loss += loss_utt
-
             norm += tf.square(tf.to_float(tf.reduce_sum(usedbins_utt)))
 
     #loss = loss/tf.to_float(batch_size)

@@ -26,12 +26,13 @@ class DeepclusteringLoss(loss_computer.LossComputer):
             norm: a scalar value indicating how to normalize the loss
         '''
                        
-	binary_target=targets['binary_targets']            
-	usedbins = targets['usedbins']
-	seq_length = seq_length['bin_emb']
-	logits = logits['bin_emb']
+        binary_target=targets['binary_targets']            
+        usedbins = targets['usedbins']
+        seq_length = seq_length['bin_emb']
+        logits = logits['bin_emb']
 		    
-	loss, norm = ops.deepclustering_loss(binary_target, logits, usedbins, 
+        loss, norm = ops.deepclustering_loss(binary_target, logits, usedbins, 
 					seq_length,self.batch_size)
-            
+        print tf.shape(loss)    
+        print tf.shape(norm)
         return loss, norm
