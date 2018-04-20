@@ -1,7 +1,7 @@
 '''@file scorer_factory.py
 contains the Scorer factory'''
 
-from . import  sdr_scorer, sdr_snr_scorer, pesq_scorer
+from . import  sdr_scorer, sdr_snr_scorer, pesq_scorer,sdr_snr_noise_scorer
 
 def factory(scorer):
     '''
