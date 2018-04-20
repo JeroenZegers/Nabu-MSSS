@@ -34,5 +34,6 @@ class Reconstruction_Layer(model.Model):
         with tf.variable_scope(self.scope):
             output = tf.multiply(mask,signal)
             output = tf.where(output <= 1e-30,tf.ones_like(output)* 1e-30,output)
-            lms = 10*numpy.log10(output)
-        return lms
+            nom = 10*tf.log(output)
+            denom = tf.log(tf.constant(10, dtype=nom.dtype))
+        return nom/denom

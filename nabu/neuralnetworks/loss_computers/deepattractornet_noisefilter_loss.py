@@ -29,7 +29,7 @@ class DeepattractornetnoisefilterLoss(loss_computer.LossComputer):
         # Which class belongs bin
         partion_target = targets['partition_targets']
         # Clean spectograms of sources
-        spectrogram_targets=targets['spectogram_targets']
+        spectrogram_targets=targets['spectrogram_targets']
         # Spectogram of the original mixture, used to mask for scoring
         mix_to_mask = targets['mix_to_mask']
         # Which bins contain enough energy

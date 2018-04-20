@@ -62,23 +62,24 @@ class DeepattractornoisefilterReconstructor(mask_reconstructor.MaskReconstructor
         if np.shape(noise_filter)[1] != F:
             raise 'Number of noise filter outputs does not match number of frequency bins'
         #reshape the outputs
-        output = embeddings[:T,:]
-        output_resh = np.reshape(output,[T*F,emb_dim])
+        emb_vec = embeddings[:T,:]
+        emb_vec_resh = np.reshape(emb_vec,[T*F,emb_dim])
 
-        X_clean = np.multiply(mix_to_mask,noise_filter)
-        maxbin = np.max(X_clean)
+        X_hat_clean = np.multiply(mix_to_mask,noise_filter[:T,:])
+        maxbin = np.max(X_hat_clean)
 	    floor=maxbin/self.usedbin_threshold
 
 	    #apply floor to get the used bins
-	    usedbins=np.greater(X_clean,floor)
+	    usedbins=np.greater(X_hat_clean,floor)
         noise_filter_reshape = np.reshape(noise_filter[:T,:],[T*F,1])
 
 
         usedbins_resh = np.reshape(usedbins, T*F)
 
         #Only keep the active bins (above threshold) for clustering
-        output_speech_resh = output_resh[usedbins_resh] # dim:N' x embdim (N' is number of bins that are used N'<N)
+        output_speech_resh = emb_vec_resh[usedbins_resh] # dim:N' x embdim (N' is number of bins that are used N'<N)
         if np.shape(output_speech_resh)[0] < 2:
+            print 'insufficient bins with energie'
             return np.zeros([self.nrS,T,F])
         #apply kmeans clustering and assign each bin to a clustering
         kmeans_model=KMeans(n_clusters=self.nrS, init='k-means++', n_init=10, max_iter=100, n_jobs=-1)
@@ -93,7 +94,7 @@ class DeepattractornoisefilterReconstructor(mask_reconstructor.MaskReconstructor
         A = kmeans_model.cluster_centers_ # dim: nrS x embdim
 
 
-        prod_1 = np.matmul(A,output_resh.T) # dim: nrS x N
+        prod_1 = np.matmul(A,emb_vec_resh.T) # dim: nrS x N
         numerator = np.exp(prod_1-np.max(prod_1,axis=0))
         denominator = np.sum(numerator,axis=0)
         M = numerator/denominator

@@ -147,12 +147,12 @@ def deepattractornet_noisefilter_loss(partion_target, spectrogram_targets, mix_t
             noise_filter_batch = noise_filter[batch_ind]
             noise_filter_batch = noise_filter_batch[:T,:] # T x F
 
-            X_clean = tf.reshape(tf.multiply(mix_to_mask,noise_filter_batch),[N,1])
+            X_hat_clean = tf.reshape(tf.multiply(mix_to_mask_batch,noise_filter_batch),[N,1])
             maxbin = tf.reduce_max(X_clean)
     	    floor = maxbin/usedbin_threshold
 
     	    #apply floor to get the used bins
-    	    ubresh = tf.greater(X_clean,floor)
+    	    ubresh = tf.greater(X_hat_clean,floor)
             #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
     	    #targets will give 0 contribution to loss.
             ubreshY=tf.tile(ubresh,[1,nr_S])
@@ -178,7 +178,7 @@ def deepattractornet_noisefilter_loss(partion_target, spectrogram_targets, mix_t
 
             M_speaker = tf.nn.softmax(prod_1,dim = 0,name='M') # dim: number_sources x N
 
-            masked_sources = tf.multiply(M_speaker,X_clean) # dim: number_sources x N
+            masked_sources = tf.multiply(M_speaker,X_hat_clean) # dim: number_sources x N
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
             norm += tf.to_float(N*nr_S)
@@ -217,7 +217,7 @@ def noise_filter_loss(clean_spectrogram,noise_spectrogram,noise_filter,seq_lengt
 
             estimate = tf.multiply(noise_spectrogram_batch,noise_filter_batch)
             loss += tf.reduce_sum(tf.square(clean_spectrogram_batch-estimate),name='loss')
-            
+
             norm += tf.to_float(T*F)
     return loss,norm
 
