@@ -6,7 +6,7 @@ deepXclustering_reconstructor, deepattractornet_reconstructor, pit_l41_reconstru
 deepclusteringnoise_reconstructor, deepattractornetnoise_hard_reconstructor, \
 deepattractornetnoise_soft_reconstructor, oracle_reconstructor_noise, \
 deepattractornet_softmax_reconstructor,noisefilter_reconstructor, \
-deepattractornet_noise_filter_reconstructor
+deepattractornet_noisefilter_reconstructor
 
 
 
@@ -44,6 +44,6 @@ def factory(reconstructor):
     elif reconstructor == 'noisefilter':
         return noisefilter_reconstructor.NoiseFilterReconstructor
     elif reconstructor == 'deepattractornet_noisefilter':
-        return deepattractornet_noise_filter_reconstructor.DeepattractornoisefilterReconstructor
+        return deepattractornet_noisefilter_reconstructor.DeepattractornoisefilterReconstructor
     else:
         raise Exception('Undefined reconstructor type: %s' % reconstructor)
