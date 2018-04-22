@@ -112,14 +112,14 @@ def dense_sequence_to_sparse(sequences, sequence_lengths):
 
     return sparse
 
-def deepattractornet_noisefilter_loss(partion_target, spectrogram_targets, mix_to_mask, usedbins,\
+def deepattractornet_noisefilter_loss(partition_targets, spectrogram_targets, mix_to_mask,\
     embeddings,noise_filter,seq_length,batch_size):
-    with tf.name_scope('deepattractornetnoise_hard_loss'):
+    with tf.name_scope('deepattractornet_noisefilter'):
         # feat_dim : F
         F = tf.shape(mix_to_mask)[2]
         # embedding dimension d
         emb_dim = tf.shape(embeddings)[2]/F
-        nr_S= tf.shape(spectogram_targets)[3]
+        nr_S= tf.shape(spectrogram_targets)[3]
 
         loss = 0.0
         norm = 0.0
@@ -141,18 +141,18 @@ def deepattractornet_noisefilter_loss(partion_target, spectrogram_targets, mix_t
             mix_to_mask_batch = mix_to_mask[batch_ind]
             mix_to_mask_batch = mix_to_mask_batch[:T,:]
 
-            spectogram_batch = spectogram_targets[batch_ind]
-            spectogram_batch = spectogram_batch[:T,:,:]
+            spectrogram_batch = spectrogram_targets[batch_ind]
+            spectrogram_batch = spectrogram_batch[:T,:,:]
 
             noise_filter_batch = noise_filter[batch_ind]
             noise_filter_batch = noise_filter_batch[:T,:] # T x F
 
             X_hat_clean = tf.reshape(tf.multiply(mix_to_mask_batch,noise_filter_batch),[N,1])
-            maxbin = tf.reduce_max(X_clean)
+            maxbin = tf.reduce_max(X_hat_clean)
     	    floor = maxbin/usedbin_threshold
 
     	    #apply floor to get the used bins
-    	    ubresh = tf.greater(X_hat_clean,floor)
+    	    ubresh = tf.cast(tf.greater(X_hat_clean,floor),tf.int32)
             #remove the non_silence (cfr bins above energy thresh) bins. Removing in logits and
     	    #targets will give 0 contribution to loss.
             ubreshY=tf.tile(ubresh,[1,nr_S])
@@ -178,8 +178,8 @@ def deepattractornet_noisefilter_loss(partion_target, spectrogram_targets, mix_t
 
             M_speaker = tf.nn.softmax(prod_1,dim = 0,name='M') # dim: number_sources x N
 
-            masked_sources = tf.multiply(M_speaker,X_hat_clean) # dim: number_sources x N
-            S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
+            masked_sources = tf.multiply(M_speaker,tf.transpose(X_hat_clean)) # dim: number_sources x N
+            S = tf.reshape(tf.transpose(spectrogram_batch,perm=[2,0,1]),[nr_S,N])
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
             norm += tf.to_float(N*nr_S)
             loss += loss_utt

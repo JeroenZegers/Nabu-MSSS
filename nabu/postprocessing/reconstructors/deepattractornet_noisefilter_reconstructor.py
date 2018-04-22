@@ -67,10 +67,10 @@ class DeepattractornoisefilterReconstructor(mask_reconstructor.MaskReconstructor
 
         X_hat_clean = np.multiply(mix_to_mask,noise_filter[:T,:])
         maxbin = np.max(X_hat_clean)
-	    floor=maxbin/self.usedbin_threshold
+        floor=maxbin/self.usedbin_threshold
 
-	    #apply floor to get the used bins
-	    usedbins=np.greater(X_hat_clean,floor)
+        #apply floor to get the used bins
+        usedbins=np.greater(X_hat_clean,floor)
         noise_filter_reshape = np.reshape(noise_filter[:T,:],[T*F,1])
 
 
