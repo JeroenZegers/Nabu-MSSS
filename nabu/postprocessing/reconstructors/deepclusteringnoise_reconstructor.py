@@ -14,7 +14,7 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
     a reconstructor using deep clustering'''
 
     requested_output_names = ['bin_emb','noise_filter']
-    noise_threshold = 0.5
+    noise_threshold = 0.75
 
     def __init__(self, conf, evalconf, dataconf, rec_dir, task):
         '''DeepclusteringReconstructor constructor
@@ -59,9 +59,9 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
 
         if np.shape(embeddings)[0] != T:
             raise 'Number of frames in usedbins does not match the sequence length'
-        if np.shape(noise_detect)[0] != T:
+        if np.shape(noise_filter)[0] != T:
             raise 'Number of frames in noise detect does not match the sequence length'
-        if np.shape(noise_detect)[1] != F:
+        if np.shape(noise_filter)[1] != F:
             raise 'Number of noise detect outputs does not match number of frequency bins'
 
 
@@ -73,7 +73,7 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
 
         noise_filter = noise_filter[:T,:]
         noise_filter_resh = np.reshape(noise_filter,T*F)
-        no_noise = noise_detect_resh > self.noise_threshold
+        no_noise = noise_filter_resh > self.noise_threshold
         #only keep the active bins (above threshold) for clustering
         usedbins_resh = np.reshape(usedbins, T*F)
         filt = np.logical_and(usedbins_resh,no_noise)

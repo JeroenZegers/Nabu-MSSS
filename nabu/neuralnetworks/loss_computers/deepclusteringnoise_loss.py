@@ -33,8 +33,8 @@ class DeepclusteringnoiseLoss(loss_computer.LossComputer):
         noise_filter = logits['noise_filter']
         nrS = tf.shape(binary_target)[2]/tf.shape(usedbins)[2]
         noise_target = targets['noise_targets'][:,:,nrS::nrS+1]
-        noise_ratio = targets['noise_ratio']
-        loss, norm = ops.deepclustering_noise_loss(binary_target,noise_target,noise_ratio,emb_vec,
+        ideal_ratio = targets['ideal_ratio']
+        loss, norm = ops.deepclustering_noise_loss(binary_target,noise_target,ideal_ratio,emb_vec,
             noise_filter,usedbins,seq_length,self.batch_size)
 
         return loss, norm

@@ -3,7 +3,7 @@ contains the Processor factory method'''
 
 from . import audio_feat_processor, onehotperfeature_target_processor, scorelabelperfeature_processor, \
 audio_multi_signal_processor, audio_signal_processor, multi_target_processor, strlabel2index_processor, \
-matrix2vector_processor, noise_ratio_processor
+matrix2vector_processor, ideal_ratio_processor, zero_processor
 
 
 def factory(processor):
@@ -31,7 +31,9 @@ def factory(processor):
         return strlabel2index_processor.Strlabel2indexProcessor
     elif processor == 'matrix2vector_processor':
         return matrix2vector_processor.Matrix2VectorProcessor
-    elif processor == 'noise_ratio_processor':
-        return noise_ratio_processor.noiseRatioProcessor
+    elif processor == 'ideal_ratio_processor':
+        return ideal_ratio_processor.IdealRatioProcessor
+    elif processor == 'zero_processor':
+        return zero_processor.ZeroProcessor
     else:
         raise Exception('unknown processor type: %s' % processor)

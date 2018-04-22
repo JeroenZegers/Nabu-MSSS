@@ -10,9 +10,8 @@ import processor
 from nabu.processing.feature_computers import feature_computer_factory
 import pdb
 
-class noiseRatioProcessor(processor.Processor):
-    '''a processor for audio files, this will compute which bins are used
-    (above a certain energy threshold) for scoring'''
+class ZeroProcessor(processor.Processor):
+    '''a processor for audio files, this will return all 0'''
 
     def __init__(self, conf, segment_lengths):
         '''ScorelabelperfeatureProcessor constructor
@@ -29,10 +28,12 @@ class noiseRatioProcessor(processor.Processor):
         self.segment_lengths = segment_lengths
 
         #initialize the metadata
-        self.dim = self.comp.get_dim()
-        self.nontime_dims=[self.dim]
+        self.nrS = int(conf['nrs'])
 
-        super(noiseRatioProcessor, self).__init__(conf)
+        self.dim = self.comp.get_dim()*self.nrS
+        self.target_dim = self.comp.get_dim() * self.nrS
+        self.nontime_dims=[self.target_dim]
+        super(ZeroProcessor, self).__init__(conf)
 
     def __call__(self, dataline):
         '''process the data in dataline
@@ -41,30 +42,17 @@ class noiseRatioProcessor(processor.Processor):
                 an audio file
 
         Returns:
-            segmented_data: The segmented info on bins to be used for scoring as a list of numpy arrays per segment length
+            segmented_data: The segmented zeros
             utt_info: some info on the utterance'''
 
         utt_info= dict()
 
-        splitdatalines = dataline.strip().split(' ')
+        rate, utt = _read_wav(dataline)
 
-        clean_features = None
-        for splitdataline in splitdatalines:
-            #read the wav file
-            rate, utt = _read_wav(splitdataline)
 
-            #compute the features
-            features = self.comp(utt, rate)
-            features = np.expand_dims(features, 2)
-            if clean_features is None:
-                clean_features = features
-            else:
-                clean_features = np.append(clean_features,features,2)
-
-        targets=np.empty([features.shape[0],self.dim],dtype=bool)
-        for row in range(features.shape[0]):
-            for col in range(self.dim):
-                targets[col] = clean_features[1]/clean_features[0]
+        features = self.comp(utt, rate)
+        T = np.shape(features)[0]
+        targets = np.zeros(T,self.dim)
         segmented_data = self.segment_data(targets)
 
         return segmented_data, utt_info
