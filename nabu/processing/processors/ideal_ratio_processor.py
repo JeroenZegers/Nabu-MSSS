@@ -86,7 +86,7 @@ class IdealRatioProcessor(processor.Processor):
             with open(os.path.join(seg_dir, 'nontime_dims'), 'w') as fid:
                 fid.write(str(self.nontime_dims)[1:-1])
 
-    def _read_wav(wavfile):
+def _read_wav(wavfile):
         '''
         read a wav file
 

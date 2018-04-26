@@ -39,7 +39,7 @@ def factory(reconstructor):
         return deepattractornetnoise_hard_reconstructor.DeepattractornoisehardReconstructor
     elif reconstructor == 'deepattractornetnoisesoft':
         return deepattractornetnoise_soft_reconstructor.DeepattractornoisesoftReconstructor
-    elif reconstuctor == 'oraclenoise':
+    elif reconstructor == 'oraclenoise':
         return oracle_reconstructor_noise.OracleReconstructor
     elif reconstructor == 'noisefilter':
         return noisefilter_reconstructor.NoiseFilterReconstructor
