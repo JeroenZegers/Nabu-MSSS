@@ -473,7 +473,7 @@ def deepattractornetnoise_soft_loss(partition_targets, spectogram_targets, mix_t
             M_speaker = tf.nn.softmax(prod_1,dim = 0,name='M') # dim: number_sources x N
 
             X = tf.reshape(mix_to_mask_batch,[N,1],name='X')
-            X_filter_noise = tf.transpose(tf.multiply(X,nbresh))noise
+            X_filter_noise = tf.transpose(tf.multiply(X,nbresh))
             masked_sources = tf.multiply(M_speaker,X_filter_noise) # dim: number_sources x N
             S = tf.reshape(tf.transpose(spectogram_batch,perm=[2,0,1]),[nr_S,N])
             loss_utt = tf.reduce_sum(tf.square(S-masked_sources),name='loss')
@@ -735,6 +735,8 @@ def deepclustering_noise_loss(speech_target,noise_target,ideal_ratio,emb_vec,noi
             logits_utt = logits_utt[:T,:]
             targets_utt = speech_target[utt_ind]
             targets_utt = targets_utt[:T,:]
+            noise_target_utt = noise_target[utt_ind]
+            noise_target_utt = noise_target_utt[:T,:]
             ideal_ratio_utt = ideal_ratio[utt_ind]
             ideal_ratio_utt = ideal_ratio_utt[:T,:]
             noise_filter_utt = noise_filter[utt_ind]
@@ -774,7 +776,7 @@ def deepclustering_noise_loss(speech_target,noise_target,ideal_ratio,emb_vec,noi
             norm_1= tf.square(tf.to_float(tf.reduce_sum(tf.multiply(ndresh,ubresh))))
             norm_1 = tf.maximum(norm_1,1)
 
-            ideal_ratio_utt_resh = tf.reshape(ideal_ratio_utt,[Nspec,1],name='ideal_ratio'))
+            ideal_ratio_utt_resh = tf.reshape(ideal_ratio_utt,[Nspec,1],name='ideal_ratio')
             noise_actual = tf.reshape(noise_filter_utt,[Nspec,1],name='nactual')
             loss_utt_2 = tf.reduce_sum(tf.square(ideal_ratio_utt_resh-noise_actual))
 
@@ -785,9 +787,8 @@ def deepclustering_noise_loss(speech_target,noise_target,ideal_ratio,emb_vec,noi
 
 
     #loss = loss/tf.to_float(batch_size)
-
-    return loss , tf.constant(batch_size)
-
+    norm = tf.to_float(tf.constant(batch_size))
+    return loss , norm
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
     '''
     Compute the deep clustering loss

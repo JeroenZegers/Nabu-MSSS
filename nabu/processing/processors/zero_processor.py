@@ -34,44 +34,9 @@ class ZeroProcessor(processor.Processor):
         self.target_dim = self.comp.get_dim() * self.nrS
         self.nontime_dims=[self.target_dim]
         super(ZeroProcessor, self).__init__(conf)
-
-    def __call__(self, dataline):
-        '''process the data in dataline
-        Args:
-            dataline: either a path to a wav file or a command to read and pipe
-                an audio file
-
-        Returns:
-            segmented_data: The segmented zeros
-            utt_info: some info on the utterance'''
-
-        utt_info= dict()
-
-        rate, utt = _read_wav(dataline)
-
-
-        features = self.comp(utt, rate)
-        T = np.shape(features)[0]
-        targets = np.zeros(T,self.dim)
-        segmented_data = self.segment_data(targets)
-
-        return segmented_data, utt_info
-
-
-    def write_metadata(self, datadir):
-        '''write the processor metadata to disk
-
-        Args:
-            dir: the directory where the metadata should be written'''
-
-        for i,seg_length in enumerate(self.segment_lengths):
-            seg_dir = os.path.join(datadir,seg_length)
-            with open(os.path.join(seg_dir, 'dim'), 'w') as fid:
-                fid.write(str(self.dim))
-            with open(os.path.join(seg_dir, 'nontime_dims'), 'w') as fid:
-                fid.write(str(self.nontime_dims)[1:-1])
-
-    def _read_wav(wavfile):
+    def a(self,b):
+        print b
+    def _read_wav(self,wavfile):
         '''
         read a wav file
 
@@ -107,3 +72,41 @@ class ZeroProcessor(processor.Processor):
 
 
         return rate, utterance
+    def __call__(self, dataline):
+        '''process the data in dataline
+        Args:
+            dataline: either a path to a wav file or a command to read and pipe
+                an audio file
+
+        Returns:
+            segmented_data: The segmented zeros
+            utt_info: some info on the utterance'''
+
+        utt_info= dict()
+        print dataline
+        
+        rate, utt = self._read_wav(dataline)
+
+
+        features = self.comp(utt, rate)
+        T = np.shape(features)[0]
+        
+        targets = np.zeros((T,self.dim))
+        segmented_data = self.segment_data(targets)
+
+        return segmented_data, utt_info
+
+
+    def write_metadata(self, datadir):
+        '''write the processor metadata to disk
+
+        Args:
+            dir: the directory where the metadata should be written'''
+
+        for i,seg_length in enumerate(self.segment_lengths):
+            seg_dir = os.path.join(datadir,seg_length)
+            with open(os.path.join(seg_dir, 'dim'), 'w') as fid:
+                fid.write(str(self.dim))
+            with open(os.path.join(seg_dir, 'nontime_dims'), 'w') as fid:
+                fid.write(str(self.nontime_dims)[1:-1])
+
