@@ -21,19 +21,19 @@ def main(expdir):
 
     #read the section
     conf = dict(parsed_cfg.items(name))
-    
+
     #the length of the segments. Possibly multiple segment lengths
     if 'segment_lengths' in conf:
 	segment_lengths = conf['segment_lengths'].split(' ')
     else:
 	segment_lengths = ['full']
-    
+
     if not os.path.exists(conf['store_dir']):
 	os.makedirs(conf['store_dir'])
     else:
 	print '%s already exists, skipping this section' % conf['store_dir']
 	return
-    
+
     #read the processor config
     parsed_proc_cfg = configparser.ConfigParser()
     parsed_proc_cfg.read(os.path.join(expdir, 'processor.cfg'))
@@ -48,7 +48,7 @@ def main(expdir):
 	writer_store_dir = os.path.join(conf['store_dir'],seg_length)
 	writers[seg_length] = tfwriter_factory.factory(conf['writer_style'])(writer_store_dir)
 
-    #before looping over the data, allow the processor to access the data (e.g. 
+    #before looping over the data, allow the processor to access the data (e.g.
     #for global mean and variance calculation) (or should this be done in init?)
     processor.pre_loop(conf)
 
@@ -58,7 +58,7 @@ def main(expdir):
 	    open_fn = gzip.open
 	else:
 	    open_fn = open
-	
+
 	#loop over the lines in the datafile
 	for line in open_fn(datafile):
 	    #split the name and the data line
@@ -71,12 +71,12 @@ def main(expdir):
 
 	    #write the processed data to disk
 	    for seg_length in segment_lengths:
-	      
+
 		for i,proc_seg in enumerate(processed[seg_length]):
-		  
+
 		    seg_utt_name = utt_name + '_part %d' %i
 		    writers[seg_length].write(proc_seg, seg_utt_name)
-    
+
     #after looping over the data, allow the processor to access the data
     processor.post_loop(conf)
 

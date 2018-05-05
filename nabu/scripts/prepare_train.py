@@ -65,20 +65,20 @@ def main(expdir, recipe, mode, computing, resume):
         if os.path.isdir(os.path.join(expdir, 'model')):
             shutil.rmtree(os.path.join(expdir, 'model'))
         os.makedirs(os.path.join(expdir, 'model'))
-        
+
         if 'segment_lengths' in trainer_cfg:
 	    #create a separate directory for each training stage
 	    segment_lengths = trainer_cfg['segment_lengths'].split(' ')
 	    for seg_length in segment_lengths:
 		seg_expdir = os.path.join(expdir,seg_length)
-		
+
 		if os.path.isdir(os.path.join(seg_expdir, 'logdir')):
 		    shutil.rmtree(os.path.join(seg_expdir, 'logdir'))
 		if not os.path.isdir(seg_expdir):
 		    os.makedirs(seg_expdir)
 		if os.path.isdir(os.path.join(seg_expdir, 'model')):
 		    shutil.rmtree(os.path.join(seg_expdir, 'model'))
-		os.makedirs(os.path.join(seg_expdir, 'model'))		
+		os.makedirs(os.path.join(seg_expdir, 'model'))
 
         #copy the configs to the expdir so they can be read there and the
         #experiment information is stored
@@ -89,22 +89,22 @@ def main(expdir, recipe, mode, computing, resume):
                         os.path.join(expdir, 'model.cfg'))
         shutil.copyfile(evaluator_cfg_file,
                         os.path.join(expdir, 'evaluator.cfg'))
-	shutil.copyfile(trainer_cfg_file, 
+	shutil.copyfile(trainer_cfg_file,
 			os.path.join(expdir, 'trainer.cfg'))
 
 	if 'segment_lengths' in trainer_cfg:
 	    #create designated database and trainer config files for each training stage
-		
+
 	    batch_size_perseg = trainer_cfg['batch_size'].split(' ')
 	    numbatches_to_aggregate_perseg = trainer_cfg['numbatches_to_aggregate'].split(' ')
 	    initial_learning_rate_perseg = trainer_cfg['initial_learning_rate'].split(' ')
-	    
+
 	    parsed_database_cfg = configparser.ConfigParser()
 	    parsed_database_cfg.read(database_cfg_file)
-	    
+
 	    for i,seg_length in enumerate(segment_lengths):
 		seg_expdir = os.path.join(expdir,seg_length)
-		
+
 		segment_parsed_trainer_cfg = configparser.ConfigParser()
 		segment_parsed_trainer_cfg.read(trainer_cfg_file)
 		segment_parsed_trainer_cfg.set('trainer','batch_size',batch_size_perseg[i])
@@ -114,10 +114,10 @@ def main(expdir, recipe, mode, computing, resume):
 				 initial_learning_rate_perseg[i])
 		with open(os.path.join(seg_expdir, 'trainer.cfg'), 'w') as fid:
 		    segment_parsed_trainer_cfg.write(fid)
-		
+
 		segment_parsed_database_cfg = configparser.ConfigParser()
 		segment_parsed_database_cfg.read(database_cfg_file)
-		
+
 		for section in segment_parsed_database_cfg.sections():
 		    if 'store_dir' in dict(segment_parsed_database_cfg.items(section)).keys():
 			segment_parsed_database_cfg.set(section,'store_dir',
