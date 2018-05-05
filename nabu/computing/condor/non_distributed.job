@@ -1,7 +1,7 @@
 # Normal execution
 Universe         = vanilla
 # need enough RAM to store the parameters
-RequestMemory    = 4G
+RequestMemory    = 3G
 #number of GPUs equal to the number of workers
 request_GPUs      = 1
 #request a week of wall time
@@ -11,8 +11,8 @@ request_GPUs      = 1
 Requirements = (CUDACapability >= 3.0)\
   &&(CUDAGlobalMemoryMb >= $(memory))\
   &&(machine =!= LastRemoteHost)\
-#  && (machine != "larimar.esat.kuleuven.be")\
-#  && (machine != "andromeda.esat.kuleuven.be")\
+  && (machine != "malachite.esat.kuleuven.be")\
+  && (machine != "fluorite.esat.kuleuven.be")\
 #  && (machine != "hematite.esat.kuleuven.be")\
 #  && (machine != "leo.esat.kuleuven.be")\
 #  && (machine != "nickeline.esat.kuleuven.be")\
