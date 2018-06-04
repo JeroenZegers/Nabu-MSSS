@@ -345,7 +345,7 @@ def bss_eval_sources_extended_noise(reference_sources, estimated_sources,noise_s
     >>> # n'th reference source
     >>> # estimated_sources[n] should be the same for the n'th estimated
     >>> # source
-    >>> (sdr, sir, sar,
+    >>> (sdr, sir, sar,snr
     ...  perm) = mir_eval.separation.bss_eval_sources(reference_sources,
     ...                                               estimated_sources)
 
@@ -1021,6 +1021,11 @@ def _bss_decomp_mtifilt_images(reference_sources, estimated_source, j, flen,
 def _project_extended(reference_sources, estimated_source,noise_source, flen):
     """Least-squares projection of estimated source on the subspace spanned by
     delayed versions of reference sources, with delays between 0 and flen-1
+    input:
+        reference_sources: original sources
+        estimated_source: the estimated source
+        noise_source: the seperated signal of the noise
+
     """
     nsrc = reference_sources.shape[0]
     nsampl = reference_sources.shape[1]
@@ -1191,7 +1196,14 @@ def _project_images(reference_sources, estimated_source, flen, G=None):
 
 def _bss_source_crit_extended(s_true, e_spat, e_interf, e_noise, e_artif):
     """Measurement of the separation quality for a given source in terms of
-    filtered true source, interference and artifacts.
+    filtered true source, interference, noise and artifacts.
+     input:
+        s_true + e_spat: allowed variation of target speaker
+        e_interf: component caused by interfering speakers
+        e_noise: component caused by noise
+        e_artif: component not caused by other speakers or noise
+     output:
+        SDR,SIR,SNR and SAR
     """
     # energy ratios
     s_filt = s_true + e_spat

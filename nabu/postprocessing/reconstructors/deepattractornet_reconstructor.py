@@ -1,5 +1,5 @@
-'''@file deepclustering_reconstructor.py
-contains the reconstor class using deep clustering'''
+'''@file deepattractornet_reconstructor.py
+contains the reconstor class using deep attractor network with sigmoid masks'''
 
 from sklearn.cluster import KMeans
 import mask_reconstructor
@@ -11,7 +11,7 @@ import pdb
 class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
     '''the deepclustering reconstructor class
 
-    a reconstructor using deep clustering'''
+    a reconstructor using deep attractor network with sigmoid masks'''
     requested_output_names = ['bin_emb']
 
     def __init__(self, conf, evalconf, dataconf, rec_dir, task):
@@ -21,7 +21,9 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
         conf: the reconstructor configuration as a dictionary
         evalconf: the evaluator configuration as a ConfigParser
         dataconf: the database configuration
-        rec_dir: the directory where the reconstructions will be stored'''
+        rec_dir: the directory where the reconstructions will be stored
+        task: task name
+        '''
 
         super(DeepattractorReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
 
@@ -50,7 +52,9 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
         #only the non-silence bins will be used for the clustering
         usedbins, _ = self.usedbins_reader(self.pos)
 
+        # Get number of time frames and frequency cells
         [T,F] = np.shape(usedbins)
+        # Calculate the used embedding dimension
         emb_dim = np.shape(embeddings)[1]/F
         N = T*F
         if np.shape(embeddings)[0] != T:
@@ -58,9 +62,10 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
 
         #reshape the outputs
         output = embeddings[:T,:]
+        # output_resh is a N times emb_dim matrix with the embedding vectors for all cells
         output_resh = np.reshape(output,[T*F,emb_dim])
 
-
+        #Only keep the active bins (above threshold) for clustering
         usedbins_resh = np.reshape(usedbins, T*F)
         #Only keep the active bins (above threshold) for clustering
         output_speech_resh = output_resh[usedbins_resh] # dim:N' x embdim (N' is number of bins that are used N'<N)
@@ -75,13 +80,14 @@ class DeepattractorReconstructor(mask_reconstructor.MaskReconstructor):
               continue
             break
 
+        # get cluster centers
         A = kmeans_model.cluster_centers_ # dim: nrS x embdim
 
 
-        prod_1 = np.matmul(A,output_resh.T)
-        ones_M = np.ones([self.nrS,N])
+        prod_1 = np.matmul(A,output_resh.T) # dim: nrS x N
+        ones_M = np.ones([self.nrS,N]) # dim: nrS x N
         M = np.divide(ones_M,ones_M+np.exp(-prod_1)) # dim: nrS x N
-        
+
         #reconstruct the masks from the cluster labels
         masks = np.reshape(M,[self.nrS,T,F])
         np.save(os.path.join(self.center_store_dir,utt_info['utt_name']),kmeans_model.cluster_centers_)

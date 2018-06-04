@@ -1,5 +1,5 @@
-'''@file deepclustering_loss.py
-contains the DeepclusteringLoss'''
+'''@file deepattractornet_softmax_loss.py
+contains the DeepattractornetSoftmaxLoss'''
 
 import tensorflow as tf
 import loss_computer
@@ -12,7 +12,7 @@ class DeepattractornetSoftmaxLoss(loss_computer.LossComputer):
         '''
         Compute the loss
 
-        Creates the operation to compute the deep clustering loss
+        Creates the operation to compute the deep attractor network with softmax loss
 
         Args:
             targets: a dictionary of [batch_size x time x ...] tensor containing
@@ -26,19 +26,23 @@ class DeepattractornetSoftmaxLoss(loss_computer.LossComputer):
             norm: a scalar value indicating how to normalize the loss
         '''
 
-        # Which class belongs bin
-        partion_target = targets['partition_targets']
+        # To which class belongs bin
+        partioning = targets['partitioning']
 
         # Clean spectograms of sources
         spectrogram_targets=targets['spectogram_targets']
+
         # Spectogram of the original mixture, used to mask for scoring
         mix_to_mask = targets['mix_to_mask']
-        # Which bins contain enough energy
-        usedbins = targets['usedbins']
-        seq_length = seq_length['bin_emb']
-        logits = logits['bin_emb']
 
-        loss,norm = ops.deepattractornet_softmax_loss(partion_target, spectrogram_targets, mix_to_mask, usedbins, logits,
+        # Which bins contain enough energy
+        energybins = targets['energybins']
+        # Length of sequences
+        seq_length = seq_length['emb_vec']
+        # Logits (=output network)
+        emb_vec = logits['emb_vec']
+        # calculate loss and normalisation factor of mini-batch
+        loss,norm = ops.deepattractornet_softmax_loss(partioning, spectrogram_targets, mix_to_mask, energybins, emb_vec,
                             seq_length,self.batch_size)
 
         return loss,norm

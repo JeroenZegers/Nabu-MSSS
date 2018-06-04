@@ -1,18 +1,18 @@
-'''@file deepclustering_loss.py
-contains the DeepclusteringLoss'''
+'''@file deepattractornet_loss.py
+contains the DeepattractornetSigmoidLoss'''
 
 import tensorflow as tf
 import loss_computer
 from nabu.neuralnetworks.components import ops
 
-class DeepattractornetLoss(loss_computer.LossComputer):
+class DeepattractornetSigmoidLoss(loss_computer.LossComputer):
     '''A loss computer that calculates the loss'''
 
     def __call__(self, targets, logits, seq_length):
         '''
         Compute the loss
 
-        Creates the operation to compute the deep clustering loss
+        Creates the operation to compute the deep attractor network with sigmoid mask loss
 
         Args:
             targets: a dictionary of [batch_size x time x ...] tensor containing
@@ -27,18 +27,18 @@ class DeepattractornetLoss(loss_computer.LossComputer):
         '''
 
         # Which class belongs bin
-        partion_target = targets['partition_targets']
-
+        partioning = targets['partitioning']
         # Clean spectograms of sources
         spectrogram_targets=targets['spectogram_targets']
-        # Spectogram of the original mixture, used to mask for scoring
+        # Spectogram of the original mixture
         mix_to_mask = targets['mix_to_mask']
         # Which bins contain enough energy
-        usedbins = targets['usedbins']
-        seq_length = seq_length['bin_emb']
-	logits = logits['bin_emb']
-
-        loss,norm = ops.deepattractornet_loss(partion_target, spectrogram_targets, mix_to_mask, usedbins, logits,
+        energybins = targets['energybins']
+        seq_length = seq_length['emb_vec']
+        # Get embedding vectors
+	    emb_vec = logits['emb_vec']
+        # Calculate loss and normalisation factor
+        loss,norm = ops.deepattractornet_sigmoid_loss(partioning, spectrogram_targets, mix_to_mask, energybins, emb_vec,
                             seq_length,self.batch_size)
-		
+
         return loss,norm

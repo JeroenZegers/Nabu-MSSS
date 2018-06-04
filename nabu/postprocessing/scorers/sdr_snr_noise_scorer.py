@@ -1,4 +1,4 @@
-'''@file sdr_scorer.py
+'''@file sdr_snr_noise_scorer.py
 contains the scorer using SDR'''
 
 import scorer
@@ -16,7 +16,10 @@ class SdrSnrNoiseScorer(object):
     'mir_eval: A Transparent Implementation of Common MIR Metrics', Proceedings of the 15th
     International Conference on Music Information Retrieval, 2014
 
-    a scorer using SDR'''
+    a scorer using SDR
+
+
+    '''
 
     score_metrics = ('SDR','SIR','SNR','SAR','perm')
     score_metrics_to_summarize = ('SDR','SIR','SNR','SAR')

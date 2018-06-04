@@ -1,0 +1,115 @@
+* config:
+    * DAN_A_A:      Deep attractor network for Train: Arabic                    Test: Arabic
+    * DAN_C_C:      Deep attractor network for Train: Mandarin                  Test: Mandarin
+    * DAN_F_FPC:    Deep attractor network for Train: French                    Test: French Mandarin Portuguese
+    * DAN_FT_FPC:   Deep attractor network for Train: French Turkish            Test: French Mandarin Portuguese
+    * DAN_FTJ_FPC:  Deep attractor network for Train: French Turkish Japanese   Test: French Mandarin Portuguese
+    * DAN_P_P:      Deep attractor network for Train: Portuguese                Test: Portuguese
+    * DAN_S_S:      Deep attractor network for Train: Spanish                   Test: Spanish
+    * DAN_WSJ_2spk: Deep attractor network for Train: WSJ_NO_NOISE              Test: WSJ_NO_NOISE,WSJ_0,WSJ_3,WSJ_6
+    * DAN_WSJ_3spk: Deep attractor network for Train: WSJ_0                     Test: WSJ_NO_NOISE,WSJ_0,WSJ_3,WSJ_6
+    * DAN_WSJ_NOISE_HARD: DAN (hard decisions) Train: WSJ_0                     Test: WSJ_NO_NOISE,WSJ_0,WSJ_3,WSJ_6
+    * DAN_WSJ_NOISE_SOFT: DAN (soft decisions) Train: WSJ_0                     Test: WSJ_NO_NOISE,WSJ_0,WSJ_3,WSJ_6
+    * DAN_Z_ZAS:    Deep attractor network for Train: Swedish                   Test: Swedish Arabic Spanish
+    * DAN_ZT_ZAS:   Deep attractor network for Train: Swedish Turkish           Test: Swedish Arabic Spanish
+    * DAN_ZTJ_ZAS:  Deep attractor network for Train: Swedish Turkish Japanese  Test: Swedish Arabic Spanish
+    * DC_A_A:       Deep Clustering        for Train: Arabic                    Test: Arabic
+    * DC_C_C:       Deep Clustering        for Train: Mandarin                  Test: Mandarin
+    * DC_F_FPC:     Deep Clustering        for Train: French                    Test: French Mandarin Portuguese
+    * DC_FT_FPC:    Deep Clustering        for Train: French Turkish            Test: French Mandarin Portuguese
+    * DC_FTJ_FPC:   Deep Clustering        for Train: French Turkish Japanese   Test: French Mandarin Portuguese
+    * DC_P_P:       Deep Clustering        for Train: Portuguese                Test: Portuguese
+    * DC_S_S:       Deep Clustering        for Train: Spanish                   Test: Spanish
+    * DC_WSJ:       Deep Clustering        for Train: WSJ_NO_NOISE              Test: WSJ_NO_NOISE,WSJ_0,WSJ_3,WSJ_6
+    * DC_WSJ_3spk:  Deep Clustering        for Train: WSJ_0                     Test: WSJ_NO_NOISE,WSJ_0,WSJ_3,WSJ_6
+    * DC_WSJ_3spk_4layer: Deep Clustering  for Train: WSJ_0                     Test: WSJ_NO_NOISE,WSJ_0,WSJ_3,WSJ_6
+    * DC_WSJ_NOISE: Deep Clustering        for Train: WSJ_0                     Test: WSJ_NO_NOISE,WSJ_0,WSJ_3,WSJ_6
+    * DC_Z_ZAS:     Deep Clustering        for Train: Swedish                   Test: Swedish Arabic Spanish
+    * DC_ZT_ZAS:    Deep Clustering        for Train: Swedish Turkish           Test: Swedish Arabic Spanish
+    * DC_ZTJ_ZAS:   Deep Clustering        for Train: Swedish Turkish Japanese  Test: Swedish Arabic Spanish
+    * FILTER_NOISE: Filtering network
+* nabu:
+    * scripts
+        * oracle_no_noise.py:
+            Script om de orakel performantie in de afwezigheid van ruis te berekenen
+        * oracle_noise.py:
+            Script om de orakel performantie in de aanwezigheid van ruis te berekenen
+        * visualise_embedding_vectors.py:
+            Script om de embeddingsvectoren voor deep attractor network te visualiseren
+    * neuralnetworks
+        * components
+            * ops.py:
+                - Functie deepattractornet_sigmoid_loss toegevoegd. Deze berekent de kost en normalisatie
+                    voor een mini-batch voor het deep attractor netwerk met sigmoid masker.
+                - Functie deepattractornet_softmax_loss toegevoegd. Deze berekent de kost en normalisatie
+                    voor een mini-batch voor het deep attractor netwerk met softmax masker.
+                - Functie deepclustering_noise_loss toegevoegd. Berekent kost en normalisatie
+                    voor mini-batch voor deep clustering met aangepaste ruis architectuur
+                - Functie deepattractornetnoise_soft_loss toegevoegd. Deze berekent kost en normalisatie
+                    voor een mini-batch voor deep attractor netwerk met zachte beslissing voor het berekenen
+                    van de aantrekkingspunten.
+                - Functie deepattractornetnoise_hard_loss toegevoegd. Deze berekent kost en normalisatie
+                    voor een mini-batch voor deep attractor netwerk met harde beslissing voor het berekenen
+                    van de aantrekkingspunten.
+                - Functie noise_filter_loss toegevoegd. Kost voor ruis filter netwerk.
+                - Functie deepattractornet_noisefilter_loss toegevoegd. Kost voor gekoppeld netwerk.
+
+        * loss_computers
+            * deepattractornet_sigmoid_loss.py:
+                - Nieuwe klasse DeepattractornetSigmoidLoss toegevoegd om kost voor deep attractor
+                    netwerk met sigmoid masker te berekenen
+            * deepattractornet_softmax_loss.py:
+                - Nieuwe klasse DeepattractornetSoftmaxLoss toegevoegd om kost voor deep attractor
+                    netwerk met softmax masker te berekenen
+            * deepclusteringnoise_loss.py:
+                - Nieuwe klasse DeepclusteringnoiseLoss toegevoegd om kost voor deep clustering
+                    met aangepaste ruis architectuur
+            * deepattractornet_soft_loss.py:
+                - Nieuwe klasse DeepattractornetnoisesoftLoss toegevoegd om kost voor deep attractor
+                    netwerk met aangepaste architectuur en zachte toewijzingen te berekenen.
+            * deepattractornet_hard_loss.py:
+                - Nieuwe klasse DeepattractornetnoisehardLoss toegevoegd om kost voor deep attractor
+                    netwerk met aangepaste architectuur en hard toewijzingen te berekenen.
+            * noisefilter_loss.py:
+                - Nieuwe klasse NoisefilterLoss toegevoegd om kost voor ruis verwijderend netwerk te
+                    berekenen
+            * deepattractornet_noisefilter_loss.py:
+                - Nieuwe klasse DeepattractornetnoisefilterLoss toegevoegd om kost voor gekoppeld netwerk
+                    te berekenen
+        * models
+            * relu.py: (niet gebruikt)
+                - Nieuwe klasse RELU: implementeert 1 of meerdere RELU lagen
+            * sigmoid.py:
+                - Nieuwe klasse Sigmoid: implementeert 1 of meerdere sigmoid lagen
+            * reconstruction_layer.py:
+                - Nieuwe klasse Reconstruction_Layer: implementeerd reconstructie laag voor gekoppeld netwerk
+    * postprocessing
+        * reconstructors
+            * deepattractornet_reconstructor.py:
+                - Nieuwe klasse DeepattractorReconstructor toegevoegd. Berekent reconstructies
+                    voor deep attractor netwerk met sigmoid maskers
+            * deepattractornet_softmax_reconstructor.py
+                - Nieuwe klasse DeepattractorSoftmaxReconstructor toegevoegd. Berekent reconstructies
+                    voor deep attractor netwerk met softmax maskers
+            * deepclusteringnoise_reconstructor.py:
+                - Nieuwe klasse DeepclusteringnoiseReconstructor toegevoegd. Berekent reconstructies
+                    voor deep clustering netwerk met aangepaste architectuur in de aanwezigheid van
+                    ruis
+        * scorers:
+            * bss_eval.py
+                - Nieuwe functie validate_extended: uitbreiding van validate om SNR te berekenen
+                - Nieuwe functie bss_eval_sources_extended: uitbreiding van bss_eval_sources om SNR te berekenen
+                - Nieuwe functie _project_extended: uitbreiding van _project om SNR te berekenen
+                - Nieuwe functie _bss_source_crit_extended: uitbreiding _bss_source_crit
+
+            * sdr_snr_scorer.py
+                - Nieuwe klasse SdrSnrScorer die naast SDR, SAR en SIR ook de SNR berekent.
+            * sdr_snr_scorer.py
+                - Nieuwe klasse SdrSnrScorer die naast SDR, SAR en SIR ook de SNR berekent wanneer er een reconstructie meer is
+                    dan er sprekers zijn.
+    * processing
+        * processsors:
+            * ideal_ratio_processor.py
+                - Nieuwe klasse IdealRatioProcessor die ideaal ratio masker berekent.
+            * zero_processor.py
+                - Nieuwe klasse ZeroProcessor die zero masker vormt.

@@ -1,6 +1,6 @@
-'''@file sdr_scorer.py
-contains the scorer using SDR'''
-
+'''@file sdr_snr_scorer.py
+contains the scorer using SdrSnrScorer'''
+ # Edited by Pieter Appeltans (added snr score)
 import scorer
 import numpy as np
 import os
@@ -11,7 +11,7 @@ import bss_eval
 import pdb
 
 class SdrSnrScorer(object):
-    '''the SDR scorer class. Uses the script from
+    '''the SDR and SNR scorer class. Uses the script from
     C. Raffel, B. McFee, E. J. Humphrey, J. Salamon, O. Nieto, D. Liang, and D. P. W. Ellis,
     'mir_eval: A Transparent Implementation of Common MIR Metrics', Proceedings of the 15th
     International Conference on Music Information Retrieval, 2014

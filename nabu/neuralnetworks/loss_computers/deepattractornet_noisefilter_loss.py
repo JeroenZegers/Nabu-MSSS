@@ -1,5 +1,5 @@
-'''@file deepclustering_loss.py
-contains the DeepclusteringLoss'''
+'''@file deepattractornet_noisefilter_loss.py
+contains the DeepattractornetnoisefilterLoss'''
 
 import tensorflow as tf
 import loss_computer
@@ -12,7 +12,7 @@ class DeepattractornetnoisefilterLoss(loss_computer.LossComputer):
         '''
         Compute the loss
 
-        Creates the operation to compute the deep clustering loss
+        Creates the operation to compute the deep attractor network loss for the connected network
 
         Args:
             targets: a dictionary of [batch_size x time x ...] tensor containing
@@ -26,18 +26,18 @@ class DeepattractornetnoisefilterLoss(loss_computer.LossComputer):
             norm: a scalar value indicating how to normalize the loss
         '''
 
-        # Which class belongs bin
-        partion_target = targets['partition_targets']
+        # To which class belongs bin
+        partitioning = targets['partitioning']
         # Clean spectograms of sources
         spectrogram_targets=targets['spectrogram_targets']
         # Spectogram of the original mixture, used to mask for scoring
         mix_to_mask = targets['mix_to_mask']
         # Which bins contain enough energy
-        seq_length = seq_length['bin_emb']
-        emb_vec = logits['bin_emb']
-        noise_filter = logits['noise_filter']
+        seq_length = seq_length['emb_vec']
+        emb_vec = logits['emb_vec']
+        alpha = logits['alpha']
 
-        loss,norm = ops.deepattractornet_noisefilter_loss(partion_target, spectrogram_targets, mix_to_mask,\
-                emb_vec,noise_filter,seq_length,self.batch_size)
+        loss,norm = ops.deepattractornet_noisefilter_loss(partition_target, spectrogram_targets, mix_to_mask,\
+                emb_vec,alpha,seq_length,self.batch_size)
 
         return loss,norm

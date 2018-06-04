@@ -1,12 +1,12 @@
-'''@file linear.py
-contains the linear class'''
+'''@file sigmoid.py
+contains the Sigmoid class'''
 
 import tensorflow as tf
 import model
 
 
 class Sigmoid(model.Model):
-    '''A linear classifier'''
+    '''One or multiple sigmoid layes'''
 
     def  _get_outputs(self, inputs, input_seq_length, is_training):
         '''

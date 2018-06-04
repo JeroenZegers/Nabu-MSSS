@@ -1,12 +1,12 @@
 '''@file linear.py
-contains the linear class'''
+contains the Reconstruction_Layer class'''
 
 import tensorflow as tf
 import model
 
 
 class Reconstruction_Layer(model.Model):
-    '''A linear classifier'''
+    '''Reconstruction layer'''
 
     def  _get_outputs(self, inputs, input_seq_length, is_training):
         '''

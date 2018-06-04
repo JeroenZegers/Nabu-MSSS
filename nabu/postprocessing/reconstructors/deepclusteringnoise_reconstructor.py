@@ -1,5 +1,5 @@
 '''@file deepclusteringnoise_reconstructor.py
-contains the reconstor class using deep clustering'''
+contains the reconstor class using deep clustering for modified noise architecture'''
 
 from sklearn.cluster import KMeans
 import mask_reconstructor
@@ -9,21 +9,22 @@ import os
 import pdb
 
 class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
-    '''the deepclustering reconstructor class
+    '''the deepclusteringnoise reconstructor class for modified architecture for noise
 
     a reconstructor using deep clustering'''
 
     requested_output_names = ['bin_emb','noise_filter']
-    noise_threshold = 0.75
+    noise_threshold = 0.75 # Cells with to much noise are discarded to calculate clustercenters
 
     def __init__(self, conf, evalconf, dataconf, rec_dir, task):
-        '''DeepclusteringReconstructor constructor
+        '''DeepclusteringnoiseReconstructor constructor
 
         Args:
             conf: the reconstructor configuration as a dictionary
             evalconf: the evaluator configuration as a ConfigParser
             dataconf: the database configuration
             rec_dir: the directory where the reconstructions will be stored
+            task: name of task
         '''
 
         super(DeepclusteringnoiseReconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
@@ -49,8 +50,8 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
 	Returns:
 	    the estimated masks'''
 
-        embeddings = output['bin_emb']
-        noise_filter = output['noise_filter']
+        embeddings = output['bin_emb'] # Embeddingvectors
+        noise_filter = output['noise_filter'] # noise filter output network (alpha)
         #only the non-silence bins will be used for the clustering
         usedbins, _ = self.usedbins_reader(self.pos)
 
@@ -65,16 +66,18 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
             raise 'Number of noise detect outputs does not match number of frequency bins'
 
 
-        #reshape the outputs
+        #reshape the embeddings vectors
         embeddings = embeddings[:T,:]
         embeddings_resh = np.reshape(embeddings,[T*F,emb_dim])
         embeddings_resh_norm = np.linalg.norm(embeddings_resh,axis=1,keepdims=True)
         embeddings_resh = embeddings_resh/embeddings_resh_norm
 
+        # reshape noise filter
         noise_filter = noise_filter[:T,:]
         noise_filter_resh = np.reshape(noise_filter,T*F)
+        # which celss have not too much noise
         no_noise = noise_filter_resh > self.noise_threshold
-        #only keep the active bins (above threshold) for clustering
+        #only keep the active bins (above threshold) for clustering and not too noisy
         usedbins_resh = np.reshape(usedbins, T*F)
         filt = np.logical_and(usedbins_resh,no_noise)
         embeddings_speech_resh = embeddings_resh[filt]
@@ -90,7 +93,7 @@ class DeepclusteringnoiseReconstructor(mask_reconstructor.MaskReconstructor):
             except IndexError:
                 continue
             break
-
+        # assign each cell to cluster
         predicted_labels = kmeans_model.predict(embeddings_resh)
         predicted_labels_resh = np.reshape(predicted_labels,[T,F])
 

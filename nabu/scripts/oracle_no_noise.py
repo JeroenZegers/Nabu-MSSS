@@ -1,3 +1,5 @@
+# Calculate oracle performance for noise free mixtures
+
 import sys
 import os
 import numpy as np
@@ -21,7 +23,7 @@ def write_audiofile(rec_dir,scp_file,nrS, reconstructed_signals, utt_info):
     for spk in range(nrS):
         rec_dir_spk = os.path.join(rec_dir,'s' + str(spk+1))
         filename = os.path.join(rec_dir_spk,utt_info['utt_name']+'.wav')
-        
+
         signal = reconstructed_signals[spk]
         wav.write(filename, utt_info['rate'], signal)
         write_str += ' ' + filename
@@ -40,12 +42,12 @@ def reconstruct_signals(mixture,bin_targets_1,bin_targets_2,utt_info,org_mix_rea
             some info on the utterance'''
     reconstructed_signals = list()
     sig_1 = mixture*bin_targets_1
-    reconstructed_signals.append(base.spec2time(sig_1, utt_info['rate'], 
+    reconstructed_signals.append(base.spec2time(sig_1, utt_info['rate'],
                            utt_info['siglen'],
                            org_mix_reader.processor.comp.conf))
-        
+
     sig_2 = mixture*bin_targets_2
-    reconstructed_signals.append(base.spec2time(sig_2, utt_info['rate'], 
+    reconstructed_signals.append(base.spec2time(sig_2, utt_info['rate'],
                            utt_info['siglen'],
                            org_mix_reader.processor.comp.conf))
     return reconstructed_signals
@@ -104,7 +106,7 @@ for i in range(0,3000):
     mixture_shape = np.shape(mixture)
     assert np.shape(partition_targets_spk1) == mixture_shape
     rs = reconstruct_signals(mixture,partition_targets_spk1,partition_targets_spk2,utt_info,org_mix_reader)
-    write_audiofile(rec_dir,scp_file,nrS,rs, utt_info) 
+    write_audiofile(rec_dir,scp_file,nrS,rs, utt_info)
 
 scorer_cfg = configparser.ConfigParser()
 scorer_cfg.read(os.path.join(expdir,'scorer.cfg'))
@@ -112,4 +114,3 @@ task_scorer_cfg = dict(scorer_cfg.items(task))
 scorer = SdrScorer(task_scorer_cfg,evaluator_cfg,database_cfg,rec_dir,100,task)
 scorer()
 scorer.summarize()
-

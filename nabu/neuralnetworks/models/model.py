@@ -7,16 +7,16 @@ import pdb
 class Model(object):
     '''a general class for a deep learning model'''
     __metaclass__ = ABCMeta
-    
+
     def __init__(self, conf, name=None):
         '''Model constructor
 
         Args:
             conf: The model configuration as a configparser object
         '''
-        
+
         self.conf = conf
-        
+
         self.scope = tf.VariableScope(False, name or type(self).__name__)
 
 
@@ -49,7 +49,7 @@ class Model(object):
             is_training=is_training)
 
 	self.scope.reuse_variables()
-	
+
         return logits
 
     @property
@@ -76,5 +76,3 @@ class Model(object):
             - output logits, which is a dictionary of [batch_size x time x ...]
                 tensors
         '''
-
-        

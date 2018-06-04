@@ -1,5 +1,5 @@
-'''@file onehotperfeature_target_processor.py
-contains the onehotperfeatureTargetProcessor class'''
+'''@file ideal_ratio_processor.py
+contains the idealRatioProcessor class'''
 
 import os
 import subprocess
@@ -11,14 +11,13 @@ from nabu.processing.feature_computers import feature_computer_factory
 import pdb
 
 class IdealRatioProcessor(processor.Processor):
-    '''a processor for audio files, this will compute which bins are used
-    (above a certain energy threshold) for scoring'''
+    '''a processor for audio files, this will compute the ideal ratio masks'''
 
     def __init__(self, conf, segment_lengths):
-        '''ScorelabelperfeatureProcessor constructor
+        '''IdealRatioProcessor constructor
 
         Args:
-            conf: ScorelabelperfeatureProcessor configuration as a dict of strings
+            conf: IdealRatioProcessor configuration as a dict of strings
             segment_lengths: A list containing the desired lengths of segments.
             Possibly multiple segment lengths'''
 
@@ -50,6 +49,7 @@ class IdealRatioProcessor(processor.Processor):
         nrS = len(splitdatalines) - 1
         speaker_rate = None
         speaker_utt = None
+        # Add speaker signals
         for s in range(nrS):
             #read the wav file
             rate, utt = _read_wav(splitdatalines[s])
@@ -66,7 +66,7 @@ class IdealRatioProcessor(processor.Processor):
         speaker_features[speaker_features < 1e-30] = 0 # avoid problems for silent bins
         mix_rate,mix_utt = _read_wav(splitdatalines[-1])
         mixture_features = self.comp(mix_utt,mix_rate) + 1e-48 # avoid division by zero
-
+        # calculate ideal ratio mask
         targets=speaker_features/mixture_features
         segmented_data = self.segment_data(targets)
 

@@ -1,11 +1,11 @@
-'''@file linear.py
-contains the linear class'''
+'''@file relu.py
+contains the RELU class'''
 
 import tensorflow as tf
 import model
 
 class RELU(model.Model):
-    '''A RELU layer'''
+    '''One or multiple RELU layers'''
 
     def  _get_outputs(self, inputs, input_seq_length, is_training):
         '''
@@ -36,7 +36,6 @@ class RELU(model.Model):
 
             logits = inputs
             for l in range(int(self.conf['num_layers'])):
-                print "Layer: ",l
                 logits = tf.contrib.layers.fully_connected(
                 activation_fn=tf.nn.relu,
                 inputs=logits,
