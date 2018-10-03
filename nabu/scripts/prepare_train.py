@@ -18,7 +18,7 @@ from nabu.computing.static import kill_processes
 from train import train
 import pdb
 
-def main(expdir, recipe, mode, computing, resume, duplicates):
+def main(expdir, recipe, mode, computing, resume, duplicates, sweep_flag):
     '''main function'''
 
     if expdir is None:
@@ -147,7 +147,7 @@ def main(expdir, recipe, mode, computing, resume, duplicates):
 
 	    if mode == 'non_distributed':
 		#manualy set for machine
-		os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+		os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 		train(clusterfile=None,
 		      job_name='local',
@@ -250,24 +250,28 @@ def main(expdir, recipe, mode, computing, resume, duplicates):
 	    if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
 		os.makedirs(os.path.join(expdir_run, 'outputs'))
 
-	    if mode == 'non_distributed':
+	    #read the computing config file
+	    parsed_computing_cfg = configparser.ConfigParser()
+	    parsed_computing_cfg.read(computing_cfg_file)
+	    computing_cfg = dict(parsed_computing_cfg.items('computing'))
+		
+	    if sweep_flag == 'True':
+		condor_prio='-8'
+		minmemory = computing_cfg['minmemory_sweep']
+	    else:
+		condor_prio='-4'
+		minmemory = computing_cfg['minmemory']
+	      
 
-		#read the computing config file
-		parsed_computing_cfg = configparser.ConfigParser()
-		parsed_computing_cfg.read(computing_cfg_file)
-		computing_cfg = dict(parsed_computing_cfg.items('computing'))
+	    if mode == 'non_distributed':
 
 		subprocess.call(['condor_submit', 'expdir=%s' % expdir_run,
 				'script=nabu/scripts/train.py',
-				'memory=%s' % computing_cfg['minmemory'],
+				'memory=%s' % minmemory,
+				'condor_prio=%s' % condor_prio,
 				'nabu/computing/condor/non_distributed.job'])
 
 	    elif mode == 'single_machine':
-
-		#read the computing config file
-		parsed_computing_cfg = configparser.ConfigParser()
-		parsed_computing_cfg.read(computing_cfg_file)
-		computing_cfg = dict(parsed_computing_cfg.items('computing'))
 
 		if os.path.isdir(os.path.join(expdir_run, 'cluster')):
 		    shutil.rmtree(os.path.join(expdir_run, 'cluster'))
@@ -291,18 +295,14 @@ def main(expdir, recipe, mode, computing, resume, duplicates):
 		#submit the job
 		subprocess.call(['condor_submit', 'expdir=%s' % expdir_run,
 				'GPUs=%d' % (int(computing_cfg['numworkers'])),
-				'memory=%s' % computing_cfg['minmemory'],
+				'memory=%s' % minmemory,
+				'condor_prio=%s' % condor_prio,
 				'nabu/computing/condor/local.job'])
 
 		print ('job submitted look in %s/outputs for the job outputs' %
 		      expdir_run)
 
 	    elif mode == 'multi_machine':
-
-		#read the computing config file
-		parsed_computing_cfg = configparser.ConfigParser()
-		parsed_computing_cfg.read(computing_cfg_file)
-		computing_cfg = dict(parsed_computing_cfg.items('computing'))
 
 		if os.path.isdir(os.path.join(expdir_run, 'cluster')):
 		    shutil.rmtree(os.path.join(expdir_run, 'cluster'))
@@ -317,7 +317,8 @@ def main(expdir, recipe, mode, computing, resume, duplicates):
 		#submit the worker jobs
 		subprocess.call(['condor_submit', 'expdir=%s' % expdir_run,
 				'numjobs=%s' % computing_cfg['numworkers'],
-				'memory=%s' % computing_cfg['minmemory'],
+				'memory=%s' % minmemory,
+				'condor_prio=%s' % condor_prio,
 				'ssh_command=%s' % computing_cfg['ssh_command'],
 				'nabu/computing/condor/worker.job'])
 
@@ -431,10 +432,14 @@ if __name__ == '__main__':
     tf.app.flags.DEFINE_string('duplicates', '1',
                                'How many duplicates of the same experiment should be run'
                                )
+    tf.app.flags.DEFINE_string('sweep_flag', 'False',
+                               'wheter the script was called from a sweep'
+                               )
 
     FLAGS = tf.app.flags.FLAGS
 
-    main(FLAGS.expdir, FLAGS.recipe, FLAGS.mode, FLAGS.computing, FLAGS.resume, FLAGS.duplicates)
+    main(FLAGS.expdir, FLAGS.recipe, FLAGS.mode, FLAGS.computing, FLAGS.resume, 
+	 FLAGS.duplicates, FLAGS.sweep_flag)
 
 def cond_term(process):
     '''terminate pid if it exists'''

@@ -85,7 +85,7 @@ def train(clusterfile,
 	if os.path.exists(os.path.join(expdir, segment_lengths[i], 'model', 'network.ckpt.index')):
 	    print 'Already found a fully trained model for segment length %s' %segment_length
 	else:
-	  
+	    
 	    #create the cluster and server
 	    server = create_server.create_server(
 		clusterfile=clusterfile,
@@ -110,7 +110,7 @@ def train(clusterfile,
 		##let the ps wait untill all workers are finished
 		    #ps.join()
 		    #return
-
+	    
 	    tr = trainer_factory.factory(segment_trainer_cfg['trainer'])(
 		conf=segment_trainer_cfg,
 		tasksconf=segment_tasks_cfg,

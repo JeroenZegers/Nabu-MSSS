@@ -38,23 +38,27 @@ def main(sweep, command, expdir, recipe, mode, computing,resume, duplicates):
 
         #run the new recipe
         if int(duplicates)==1:
-	    os.system('run %s --expdir=%s --recipe=%s --computing=%s --mode=%s --resume=%s' % (
-		command,
-		os.path.join(expdir, expname),
-		os.path.join(expdir, 'recipes',expname),
-		computing,
-		mode,
-		resume
-	    ))
-	else:
-	    os.system('run %s --expdir=%s --recipe=%s --computing=%s --mode=%s --resume=%s --duplicates=%s' % (
+	    os.system('run %s --expdir=%s --recipe=%s --computing=%s --mode=%s' 
+	       ' --resume=%s --sweep_flag=%s' % (
 		command,
 		os.path.join(expdir, expname),
 		os.path.join(expdir, 'recipes',expname),
 		computing,
 		mode,
 		resume,
-		duplicates
+		True
+	    ))
+	else:
+	    os.system('run %s --expdir=%s --recipe=%s --computing=%s --mode=%s' 
+	       ' --resume=%s --duplicates=%s --sweep_flag=%s' % (
+		command,
+		os.path.join(expdir, expname),
+		os.path.join(expdir, 'recipes',expname),
+		computing,
+		mode,
+		resume,
+		duplicates,
+		True
 	    ))
 
 if __name__ == '__main__':

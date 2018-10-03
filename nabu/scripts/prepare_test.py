@@ -22,6 +22,9 @@ tf.app.flags.DEFINE_string('computing', 'standard',
                            'the distributed computing system one of standart or'
                            ' condor'
                           )
+tf.app.flags.DEFINE_string('sweep_flag', 'False',
+			    'wheter the script was called from a sweep'
+			    )
 
 FLAGS = tf.app.flags.FLAGS
 
