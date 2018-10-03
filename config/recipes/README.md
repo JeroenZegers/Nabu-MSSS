@@ -11,7 +11,7 @@ that specifies where to read and write the data in your file system and wich
 processors should be used to process the data. Every recipe contains a template
 for the database configuration, but because the pahs are different ofor each
 person this has to be completed. You can put the completed database configuation
-in database.conf (which will automatically be added to the gitignore)
+in database.conf
 - processor configuration files: One or multiple files for the data processors
 that are used. The database confiuration will point to these processor
 confiurations. For example, a feature processor specifies the type
