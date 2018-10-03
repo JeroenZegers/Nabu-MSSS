@@ -131,62 +131,6 @@ def capsule_initializer(scale=1.0, seed=None, dtype=tf.float32):
         dtype=dtype
     )
 
-def pyramid_stack(inputs, sequence_lengths, numsteps, axis=2, scope=None):
-    '''
-    concatenate each two consecutive elements
-
-    Args:
-        inputs: A time minor tensor [batch_size, time, input_size]
-        sequence_lengths: the length of the input sequences
-        numsteps: number of time steps to concatenate
-        axis: the axis where the inputs should be stacked
-        scope: the current scope
-
-    Returns:
-        inputs: Concatenated inputs
-            [batch_size, time/numsteps, input_size*numsteps]
-        sequence_lengths: the lengths of the inputs sequences [batch_size]
-    '''
-
-    with tf.name_scope(scope or 'pyramid_stack'):
-
-        numdims = len(inputs.shape)
-
-        #convert imputs to time major
-        time_major_input = tf.transpose(inputs, [1, 0] + range(2, numdims))
-
-
-        #pad the inputs to an appropriate length length
-        length = tf.cast(tf.shape(time_major_input)[0], tf.float32)
-        pad_length = tf.ceil(length/numsteps)*numsteps - length
-        pad_length = tf.cast(pad_length, tf.int32)
-        pad_shape = tf.concat([[pad_length],
-                               tf.shape(time_major_input)[1:]], 0)
-        padding = tf.zeros(pad_shape, dtype=inputs.dtype)
-        padded_inputs = tf.concat([time_major_input, padding], 0)
-
-        #get the new length
-        length = tf.shape(padded_inputs)[0]
-
-        #seperate the inputs for every concatenated timestep
-        seperated = []
-        for i in range(numsteps):
-            seperated.append(tf.gather(
-                padded_inputs, tf.range(i, length, numsteps)))
-
-        #concatenate odd and even inputs
-        time_major_outputs = tf.concat(seperated, axis)
-
-        #convert back to time minor
-        outputs = tf.transpose(time_major_outputs, [1, 0] + range(2, numdims))
-
-        #compute the new sequence length
-        output_sequence_lengths = tf.cast(tf.ceil(tf.cast(sequence_lengths,
-                                                          tf.float32)/numsteps),
-                                          tf.int32)
-
-    return outputs
-
 def seq2nonseq(sequential, sequence_lengths, name=None):
     '''
     Convert sequential data to non sequential data
@@ -1153,44 +1097,3 @@ def get_indices(sequence_length):
                                    tf.expand_dims(sequence_length, numdims)))
 
     return indices
-
-def mix(inputs, hidden_dim, scope=None):
-    '''mix the layer in the time dimension'''
-
-    with tf.variable_scope(scope or 'mix'):
-
-        #append the possition to the inputs
-        position = tf.expand_dims(tf.expand_dims(tf.range(
-            tf.shape(inputs)[1]), 0), 2)
-        position = tf.cast(position, tf.float32)
-        position = tf.tile(position, [tf.shape(inputs)[0], 1, 1])
-        expanded_inputs = tf.concat([inputs, position], 2)
-
-        #apply the querry layer
-        query = tf.contrib.layers.linear(expanded_inputs, hidden_dim,
-                                         scope='query')
-
-        #apply the attention layer
-        queried = tf.contrib.layers.linear(expanded_inputs, hidden_dim,
-                                           scope='queried')
-
-        #create a sum for every combination of query and attention
-        query = tf.expand_dims(query, 0)
-        query = tf.tile(query, [tf.shape(query)[2], 1, 1, 1])
-        summed = tf.transpose(tf.nn.tanh(query + queried), [1, 2, 0, 3])
-
-        #map the combinations to single values
-        attention = tf.contrib.layers.fully_connected(
-            inputs=summed,
-            num_outputs=1,
-            scope='attention',
-            activation_fn=tf.nn.tanh
-        )[:, :, :, 0]
-
-        #apply softmax to the attention values
-        attention = tf.nn.softmax(attention)
-
-        #use the attention to recombine the inputs
-        outputs = tf.matmul(attention, inputs)
-
-    return outputs
