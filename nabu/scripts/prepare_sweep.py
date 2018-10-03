@@ -44,7 +44,6 @@ def main(sweep, command, expdir, recipe, mode, computing,resume, duplicates):
 		os.path.join(expdir, expname),
 		os.path.join(expdir, 'recipes',expname),
 		computing,
-		mode,
 		resume,
 		True
 	    ))
@@ -55,7 +54,6 @@ def main(sweep, command, expdir, recipe, mode, computing,resume, duplicates):
 		os.path.join(expdir, expname),
 		os.path.join(expdir, 'recipes',expname),
 		computing,
-		mode,
 		resume,
 		duplicates,
 		True
@@ -67,10 +65,6 @@ if __name__ == '__main__':
                               )
     tf.app.flags.DEFINE_string('recipe', None,
                                'The directory containing the recipe'
-                              )
-    tf.app.flags.DEFINE_string('mode', 'non_distributed',
-                               'The computing mode, one of non_distributed, '
-                               'single_machine or multi_machine'
                               )
     tf.app.flags.DEFINE_string('computing', 'standard',
                                'the distributed computing system one of'
@@ -92,5 +86,5 @@ if __name__ == '__main__':
 
     FLAGS = tf.app.flags.FLAGS
 
-    main(FLAGS.sweep, FLAGS.command, FLAGS.expdir, FLAGS.recipe, FLAGS.mode,
+    main(FLAGS.sweep, FLAGS.command, FLAGS.expdir, FLAGS.recipe,
          FLAGS.computing, FLAGS.resume, FLAGS.duplicates)
