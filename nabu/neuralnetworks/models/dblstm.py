@@ -24,10 +24,26 @@ class DBLSTM(model.Model):
         '''
 
         #the blstm layer
+        num_units = int(self.conf['num_units'])
+        layer_norm=self.conf['layer_norm'] == 'True'
+        recurrent_dropout=float(self.conf['recurrent_dropout'])
+        if 'activation_fn' in self.conf:
+	  if self.conf['activation_fn'] == 'tanh':
+	    activation_fn = tf.nn.tanh
+	  elif self.conf['activation_fn'] == 'relu':
+	    activation_fn = tf.nn.relu
+	  elif self.conf['activation_fn'] == 'sigmoid':
+	    activation_fn = tf.nn.sigmoid
+	  else:
+	    raise Exception('Undefined activation function: %s' % activation_fn)
+	else:
+	  activation_fn = tf.nn.tanh
+	  
         blstm = layer.BLSTMLayer(
-            num_units=int(self.conf['num_units']),
-            layer_norm=self.conf['layer_norm'] == 'True',
-            recurrent_dropout=float(self.conf['recurrent_dropout']))
+            num_units=num_units,
+            layer_norm=layer_norm,
+            recurrent_dropout=recurrent_dropout,
+            activation_fn=activation_fn)
 	
 	#code not available for multiple inputs!!
 	if len(inputs) > 1:
