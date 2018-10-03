@@ -5,7 +5,7 @@ import shutil
 from six.moves import configparser
 import tensorflow as tf
 
-def main(sweep, command, expdir, recipe, mode, computing,resume, duplicates):
+def main(sweep, command, expdir, recipe, computing,resume, duplicates):
     '''main function'''
 
 
@@ -38,7 +38,7 @@ def main(sweep, command, expdir, recipe, mode, computing,resume, duplicates):
 
         #run the new recipe
         if int(duplicates)==1:
-	    os.system('run %s --expdir=%s --recipe=%s --computing=%s --mode=%s' 
+	    os.system('run %s --expdir=%s --recipe=%s --computing=%s' 
 	       ' --resume=%s --sweep_flag=%s' % (
 		command,
 		os.path.join(expdir, expname),
@@ -48,7 +48,7 @@ def main(sweep, command, expdir, recipe, mode, computing,resume, duplicates):
 		True
 	    ))
 	else:
-	    os.system('run %s --expdir=%s --recipe=%s --computing=%s --mode=%s' 
+	    os.system('run %s --expdir=%s --recipe=%s --computing=%s' 
 	       ' --resume=%s --duplicates=%s --sweep_flag=%s' % (
 		command,
 		os.path.join(expdir, expname),
