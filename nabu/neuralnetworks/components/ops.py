@@ -3,7 +3,133 @@ some operations'''
 
 import tensorflow as tf
 import itertools
+import math
+from tensorflow.python.framework import ops
 import pdb
+
+def unit_activation(x, name=None):
+
+  with ops.name_scope(name, "unit_activation", [x]) as name:
+    x = ops.convert_to_tensor(x, name="x")
+    return tf.ones(tf.shape(x))
+  
+def squash(s, axis=-1, epsilon=1e-7, name=None):
+    '''squash function'''
+    with tf.name_scope(name, default_name="squash"):
+        squared_norm = tf.reduce_sum(tf.square(s), axis=axis,
+                                     keepdims=True)
+        sn = tf.sqrt(squared_norm + epsilon)
+        squash_factor = squared_norm / (1. + squared_norm)
+        squash_factor /= sn
+
+        return squash_factor * s
+      
+def safe_norm(s, axis=-1, keepdims=False, epsilon=1e-7, name=None):
+    '''compute a safe norm'''
+
+    with tf.name_scope(name, default_name='safe_norm'):
+        x = tf.reduce_sum(tf.square(s), axis=axis, keepdims=keepdims)
+        return tf.sqrt(x + epsilon)
+      
+class VoteTranformInitializer(tf.keras.initializers.Initializer):
+    '''An Initializer for the voting transormation matrix in a capsule layer'''
+
+    def __init__(self,
+                 scale=1.0,
+                 mode='fan_in',
+                 distribution='normal',
+                 seed=None,
+                 dtype=tf.float32):
+        '''
+        Constructor
+        args:
+            scale: how to scale the initial values (default: 1.0)
+            mode: One of 'fan_in', 'fan_out', 'fan_avg'. (default: fan_in)
+            distribution: one of 'uniform' or 'normal' (default: normal)
+            seed: A Python integer. Used to create random seeds.
+            dtype: The data type. Only floating point types are supported.
+        '''
+
+        if scale <= 0.:
+            raise ValueError('`scale` must be positive float.')
+        if mode not in {'fan_in', 'fan_out', 'fan_avg'}:
+            raise ValueError('Invalid `mode` argument:', mode)
+        distribution = distribution.lower()
+        if distribution not in {'normal', 'uniform'}:
+            raise ValueError('Invalid `distribution` argument:', distribution)
+
+
+        self.scale = scale
+        self.mode = mode
+        self.distribution = distribution
+        self.seed = seed
+        self.dtype = tf.as_dtype(dtype)
+
+    def __call__(self, shape, dtype=None, partition_info=None):
+        '''initialize the variables
+        args:
+            shape: List of `int` representing the shape of the output `Tensor`.
+                [num_capsules_in, capsule_dim_in, num_capsules_out,
+                 capsule_dim_out]
+            dtype: (Optional) Type of the output `Tensor`.
+            partition_info: (Optional) variable_scope._PartitionInfo object
+                holding additional information about how the variable is
+                partitioned. May be `None` if the variable is not partitioned.
+        Returns:
+            A `Tensor` of type `dtype` and `shape`.
+        '''
+
+        if dtype is None:
+            dtype = self.dtype
+        scale = self.scale
+        scale_shape = shape
+
+        if partition_info is not None:
+            scale_shape = partition_info.full_shape
+
+        if len(scale_shape) != 4:
+            raise ValueError('expected shape to be of length 4', scale_shape)
+
+        fan_in = scale_shape[1]
+        fan_out = scale_shape[3]
+
+        if self.mode == 'fan_in':
+            scale /= max(1., fan_in)
+        elif self.mode == 'fan_out':
+            scale /= max(1., fan_out)
+        else:
+            scale /= max(1., (fan_in + fan_out) / 2.)
+
+        if self.distribution == 'normal':
+            stddev = math.sqrt(scale)
+            return tf.truncated_normal(
+                shape, 0.0, stddev, dtype, seed=self.seed)
+        else:
+            limit = math.sqrt(3.0 * scale)
+            return tf.random_uniform(
+                shape, -limit, limit, dtype, seed=self.seed)
+
+    def get_config(self):
+        '''get the initializer config'''
+
+        return {
+            'scale': self.scale,
+            'mode': self.mode,
+            'distribution': self.distribution,
+            'seed': self.seed,
+            'dtype': self.dtype.name
+        }
+
+def capsule_initializer(scale=1.0, seed=None, dtype=tf.float32):
+    '''a VoteTranformInitializer'''
+
+    return VoteTranformInitializer(
+        scale=scale,
+        mode='fan_avg',
+        distribution='uniform',
+        seed=seed,
+        dtype=dtype
+    )
 
 def pyramid_stack(inputs, sequence_lengths, numsteps, axis=2, scope=None):
     '''
@@ -622,6 +748,53 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
 	feat_dim = usedbins.get_shape()[2]
         output_dim = logits.get_shape()[2]
         emb_dim = output_dim/feat_dim
+        target_dim = targets.get_shape()[2]
+        nrS = target_dim/feat_dim
+                
+	ubresh=tf.reshape(usedbins,[batch_size,-1,1],name='ubresh') 
+	ubresh=tf.to_float(ubresh)
+        
+        V=tf.reshape(logits,[batch_size,-1,emb_dim],name='V')
+        Vnorm=tf.nn.l2_normalize(V, axis=2, epsilon=1e-12, name='Vnorm')
+        Vnorm=tf.multiply(Vnorm,ubresh)
+        Y=tf.reshape(targets,[batch_size,-1,nrS],name='Y')
+	Y=tf.to_float(Y)
+	Y=tf.multiply(Y,ubresh)
+	
+	prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, name='VTV')
+        prod2=tf.matmul(Vnorm,Y,transpose_a=True, transpose_b=False, name='VTY')
+        prod3=tf.matmul(Y,Y,transpose_a=True, transpose_b=False, name='YTY')
+        term1=tf.reduce_sum(tf.square(prod1),name='frob_1')
+	term2=tf.reduce_sum(tf.square(prod2),name='frob_2')
+	term3=tf.reduce_sum(tf.square(prod3),name='frob_3')
+	
+	term1and2=tf.add(term1,-2*term2,name='term1and2')
+	loss=tf.add(term1and2,term3,name='term1and2and3')
+	norm= tf.reduce_sum(tf.square(tf.to_float(tf.reduce_sum(usedbins,[1,2]))))
+
+    
+    return loss , norm  
+  
+def deepclustering_flat_loss(targets, logits, usedbins, seq_length, batch_size):
+    '''
+    Compute the deep clustering loss
+    cost function based on Hershey et al. 2016
+
+    Args:
+        targets: a [batch_size x time x (feat_dim*nrS)] tensor containing the binary targets
+        logits: a [batch_size x time x feat_dim x emb_dim] tensor containing the logits
+        usedbins: a [batch_size x time x feat_dim] tensor indicating the bins to use in the loss function
+        seq_length: a [batch_size] vector containing the
+            sequence lengths
+        batch_size: the batch size
+
+    Returns:
+        a scalar value containing the loss
+    '''
+    
+    with tf.name_scope('deepclustering_flat_loss'):
+	feat_dim = usedbins.get_shape()[2]
+        emb_dim = logits.get_shape()[3]
         target_dim = targets.get_shape()[2]
         nrS = target_dim/feat_dim
                 
