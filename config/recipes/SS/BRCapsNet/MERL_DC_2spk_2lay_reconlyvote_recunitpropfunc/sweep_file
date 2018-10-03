@@ -1,0 +1,17 @@
+3lr
+trainer.cfg trainer initial_learning_rate 3e-3 1.5e-3
+
+2lr
+trainer.cfg trainer initial_learning_rate 2e-3 1e-3
+
+1lr
+trainer.cfg trainer initial_learning_rate 1e-3 5e-4
+
+05lr
+trainer.cfg trainer initial_learning_rate 5e-4 2.5e-4
+
+025lr
+trainer.cfg trainer initial_learning_rate 2.5e-4 1.25e-4
+
+01lr
+trainer.cfg trainer initial_learning_rate 1e-4 5e-5

@@ -1,0 +1,55 @@
+arch_1x3
+model.cfg main filters 1 3
+model.cfg main num_filters_1st_layer 49
+
+arch_2x3
+model.cfg main filters 2 3
+model.cfg main num_filters_1st_layer 34
+
+arch_3x3
+model.cfg main filters 3 3
+model.cfg main num_filters_1st_layer 28
+
+arch_2x4
+model.cfg main filters 2 4
+model.cfg main num_filters_1st_layer 30
+
+arch_3x4
+model.cfg main filters 3 4
+model.cfg main num_filters_1st_layer 24
+
+arch_4x4
+model.cfg main filters 4 4
+model.cfg main num_filters_1st_layer 21
+
+arch_3x5
+model.cfg main filters 3 5
+model.cfg main num_filters_1st_layer 22
+
+arch_4x5
+model.cfg main filters 4 5
+model.cfg main num_filters_1st_layer 19
+
+arch_5x4
+model.cfg main filters 5 4
+model.cfg main num_filters_1st_layer 19
+
+arch_3x10
+model.cfg main filters 3 10
+model.cfg main num_filters_1st_layer 16
+
+arch_3x15
+model.cfg main filters 3 15
+model.cfg main num_filters_1st_layer 12
+
+arch_6x10
+model.cfg main filters 6 10
+model.cfg main num_filters_1st_layer 11
+
+arch_10x15
+model.cfg main filters 10 15
+model.cfg main num_filters_1st_layer 6
+
+arch_6x20
+model.cfg main filters 6 20
+model.cfg main num_filters_1st_layer 7

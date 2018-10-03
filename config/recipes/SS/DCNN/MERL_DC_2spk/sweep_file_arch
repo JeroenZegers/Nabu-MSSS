@@ -1,0 +1,20 @@
+arch_2L_tocenter
+model.cfg main num_encoder_layers 2
+model.cfg main num_filters_1st_layer 128
+
+arch_3L_tocenter
+model.cfg main num_encoder_layers 3
+model.cfg main num_filters_1st_layer 64
+
+arch_4L_tocenter
+model.cfg main num_encoder_layers 4
+model.cfg main num_filters_1st_layer 32
+
+arch_6L_tocenter
+model.cfg main num_encoder_layers 6
+model.cfg main num_filters_1st_layer 8
+
+arch_7L_tocenter
+model.cfg main num_encoder_layers 7
+model.cfg main num_filters_1st_layer 4
+

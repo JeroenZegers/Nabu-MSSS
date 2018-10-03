@@ -1,0 +1,37 @@
+input_noise_01
+model.cfg main input_noise 0.1
+
+input_noise_01_layernorm
+model.cfg main input_noise 0.1
+model.cfg main layer_norm True
+
+input_noise_02
+model.cfg main input_noise 0.2
+
+input_noise_02_layernorm
+model.cfg main input_noise 0.2
+model.cfg main layer_norm True
+
+input_noise_04
+model.cfg main input_noise 0.4
+
+input_noise_04_layernorm
+model.cfg main input_noise 0.4
+model.cfg main layer_norm True
+
+input_noise_06
+model.cfg main input_noise 0.6
+
+input_noise_06_layernorm
+model.cfg main input_noise 0.6
+model.cfg main layer_norm True
+
+input_noise_08
+model.cfg main input_noise 0.8
+
+input_noise_08_layernorm
+model.cfg main input_noise 0.8
+model.cfg main layer_norm True
+
+
+
