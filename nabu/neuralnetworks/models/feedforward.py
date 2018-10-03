@@ -29,8 +29,10 @@ class Feedforward(model.Model):
 		activation_fn = tf.nn.tanh
 	    elif self.conf['activation_func']=='sigmoid':
 		activation_fn = tf.nn.sigmoid
+	    elif self.conf['activation_func']=='relu':
+		activation_fn = tf.nn.relu
 	    else:
-		raise 'Activation function %s not found' %(self.conf['activation_func'])
+	      raise Exception('Undefined activation function: %s' % self.conf['activation_func'])
 	else:
 	    activation_fn = tf.nn.tanh
 	
