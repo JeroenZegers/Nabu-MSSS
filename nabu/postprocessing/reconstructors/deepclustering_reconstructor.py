@@ -38,6 +38,12 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
         self.center_store_dir = os.path.join(rec_dir,'cluster_centers')
         if not os.path.isdir(self.center_store_dir):
 	      os.makedirs(self.center_store_dir)
+	      
+	# whether output will be in [time x freq_dim*emb_dim] or 
+	# [time x freq_dim x emb_dim]
+	self.flat = False
+	if 'flat' in conf['reconstruct_type']:
+	    self.flat = True
         
 
     def _get_masks(self, output, utt_info):
@@ -55,7 +61,10 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 	usedbins, _ = self.usedbins_reader(self.pos)
 	
 	[T,F] = np.shape(usedbins)
-	emb_dim = np.shape(embeddings)[1]/F
+	if self.flat:
+	    emb_dim = np.shape(embeddings)[-1]
+	else:
+	    emb_dim = np.shape(embeddings)[-1]/F
 	
 	if np.shape(embeddings)[0] != T:
 	    raise 'Number of frames in usedbins does not match the sequence length'

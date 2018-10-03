@@ -16,7 +16,7 @@ def factory(reconstructor):
         a reconstructor class
     '''
 
-    if reconstructor == 'deepclustering':
+    if reconstructor == 'deepclustering' or reconstructor == 'deepclustering_flat':
         return deepclustering_reconstructor.DeepclusteringReconstructor
     elif reconstructor == 'deepclusteringtf':
         return deepclustering_tf_reconstructor.DeepclusteringTFReconstructor

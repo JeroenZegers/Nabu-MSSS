@@ -9,7 +9,7 @@ from . import deepclustering_loss, pit_loss, l41_loss, pit_l41_loss,\
   dc_pit_loss, crossentropy_multi_loss_reshapelogits,\
   crossentropy_multi_loss_reshapelogits_avtime,\
   deepclustering_full_crossentropy_multi_reshapedlogits_avtime_loss,\
-  deepclustering_2and3spk_loss
+  deepclustering_2and3spk_loss, deepclustering_flat_loss
 
 def factory(loss_type):
     '''gets a Loss computer class
@@ -22,6 +22,8 @@ def factory(loss_type):
 
     if loss_type == 'deepclustering':
         return deepclustering_loss.DeepclusteringLoss
+    elif loss_type == 'deepclustering_flat':
+        return deepclustering_flat_loss.DeepclusteringFlatLoss
     elif loss_type == 'deepclustering_2and3spk':
         return deepclustering_2and3spk_loss.Deepclustering2and3SpkLoss
     elif loss_type == 'pit':
