@@ -1,0 +1,44 @@
+leaky00
+model.cfg main leak_factor 0.0
+
+leaky01
+model.cfg main leak_factor 0.1
+
+leaky05
+model.cfg main leak_factor 0.5
+
+leaky06
+model.cfg main leak_factor 0.6
+
+leaky07
+model.cfg main leak_factor 0.7
+
+leaky08
+model.cfg main leak_factor 0.8
+
+leaky09
+model.cfg main leak_factor 0.9
+
+leaky095
+model.cfg main leak_factor 0.95
+
+leaky096
+model.cfg main leak_factor 0.96
+
+leaky097
+model.cfg main leak_factor 0.97
+
+leaky098
+model.cfg main leak_factor 0.98
+
+leaky099
+model.cfg main leak_factor 0.99
+
+leaky0995
+model.cfg main leak_factor 0.995
+
+leaky0999
+model.cfg main leak_factor 0.999
+
+leaky1
+model.cfg main leak_factor 1.0
