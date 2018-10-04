@@ -1,6 +1,6 @@
 # ignore compiled code
 *.pyc
-*.conf
+*database.cfg
 cluster
 nabu/computing/condor/create_environment.sh
 # .gitignore
@@ -15,6 +15,7 @@ nabu/neuralnetworks/trainers/task_trainer.py
 nabu/neuralnetworks/evaluators/evaluator.py
 nabu/neuralnetworks/evaluators/loss_evaluator.py
 nabu/neuralnetworks/models/dblstm_linear.py
+nabu/postprocessing/reconstructors/deepclustering_tf_reconstructor.py
 usefull_tf_stuff.txt
 analyse_scripts
 nabu/scripts/prepare_train2.py
