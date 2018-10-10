@@ -31,13 +31,13 @@ class Concat(model.Model):
 	out_dim= len(inputs[0].get_shape())
 	
 	multiplicates=np.ones(out_dim,np.int).tolist()
-	multiplicates[1]=out_shape[1]
+	multiplicates[-2]=out_shape[-2]
 	multiplicates=tf.stack(multiplicates)
 	
 	for ind in range(1,nr_inputs):
 	  input_tensor=inputs[ind]
 	  if out_dim-len(input_tensor.get_shape())==1:
-	    input_tensor=tf.expand_dims(input_tensor,1)
+	    input_tensor=tf.expand_dims(input_tensor,-2)
 	    input_tensor=tf.tile(input_tensor,multiplicates)
 	    inputs[ind]=input_tensor
 	  
