@@ -122,10 +122,51 @@ class Capsule(tf.layers.Layer):
             #number of shared dimensions
             rank = len(inputs.shape)
             shared = rank-2
+
+            #put the input capsules as the first dimension
+            inputs = tf.transpose(inputs, [shared] + range(shared) + [rank-1])
+
+            #compute the predictins
+            predictions = tf.map_fn(
+                fn=lambda x: tf.tensordot(x[0], x[1], [[shared], [0]]),
+                elems=(inputs, self.kernel),
+                dtype=self.dtype or tf.float32)
+
+            #transpose back
+            predictions = tf.transpose(
+                predictions, range(1, shared+1)+[0]+[rank-1, rank])
+
+            logits = self.logits
+            for i in range(shared):
+                if predictions.shape[shared-i-1].value is None:
+                    shape = tf.shape(predictions)[shared-i-1]
+                else:
+                    shape = predictions.shape[shared-i-1].value
+                tile = [shape] + [1]*len(logits.shape)
+                logits = tf.tile(tf.expand_dims(logits, 0), tile)
+
+        return predictions, logits
+
+    def predict_slow(self, inputs):
+        '''
+        compute the predictions for the output capsules and initialize the
+        routing logits
+        args:
+            inputs: the inputs to the layer. the final two dimensions are
+                num_capsules_in and capsule_dim_in
+        returns: the output capsule predictions
+        '''
+
+        with tf.name_scope('predict'):
+
+            #number of shared dimensions
+            rank = len(inputs.shape)
+            shared = rank-2
 	  
 	    if shared > 26-4:
 	      raise 'Not enough letters in the alphabet to use Einstein notation'
-
+	    #input_shape = [shared (typicaly batch_size,time),Nin,Din], kernel_shape = [Nin, Din, Nout, Dout],
+	    #predictions_shape = [shared,Nin,Nout,Dout]
 	    shared_shape_str=_alphabet_str[0:shared]
 	    input_shape_str=shared_shape_str+'wx'
 	    kernel_shape_str='wxyz'
