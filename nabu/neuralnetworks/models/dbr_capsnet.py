@@ -60,7 +60,7 @@ class DBRCapsNet(model.Model):
 		#bidirectional. Double the number of capsules to compensate
 		num_primary_capsules = num_capsules*2
 		primary_output_dim = num_primary_capsules*capsule_dim
-
+		
 		primary_capsules = tf.layers.dense(
 		    output,
 		    primary_output_dim,

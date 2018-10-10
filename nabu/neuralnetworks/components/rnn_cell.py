@@ -125,36 +125,28 @@ class RecCapsuleCell(rnn_cell_impl.LayerRNNCell):
 	      num_capsules and capsule_dim
       returns: the output capsule predictions
       '''
-
+      
       with tf.name_scope('predict'):
 
 	  #number of shared dimensions. Assuming this is equal for inputs and state
 	  rank = len(inputs.shape)
 	  shared = rank-2
-
-	  #put the input capsules as the first dimension
-	  inputs = tf.transpose(inputs, [shared] + range(shared) + [rank-1])
-	  state = tf.transpose(state, [shared] + range(shared) + [rank-1])
-
-	  #compute the predictions from the input
-	  input_predictions = tf.map_fn(
-	      fn=lambda x: tf.tensordot(x[0], x[1], [[shared], [0]]),
-	      elems=(inputs, self.input_kernel),
-	      dtype=self.dtype or tf.float32)
-
-	  #transpose back
-	  input_predictions = tf.transpose(
-	      input_predictions, range(1, shared+1)+[0]+[rank-1, rank])
-
-	  #compute the predictions from the state
-	  state_predictions = tf.map_fn(
-	      fn=lambda x: tf.tensordot(x[0], x[1], [[shared], [0]]),
-	      elems=(state, self.state_kernel),
-	      dtype=self.dtype or tf.float32)
-
-	  #transpose back
-	  state_predictions = tf.transpose(
-	      state_predictions, range(1, shared+1)+[0]+[rank-1, rank])
+	  
+	  #input_shape = [shared (typicaly batch size),Nin,Din], kernel_shape = [Nin, Din, Nout, Dout],
+	  #input_predictions_shape = [shared,Nin,Nout,Dout]
+	  expanded_input = tf.expand_dims(tf.expand_dims(inputs,-1),-1)
+	  expanded_input_kernel = self.input_kernel
+	  for i in range(shared):
+	    expanded_input_kernel = tf.expand_dims(expanded_input_kernel, 0)
+	    
+	  input_predictions = tf.reduce_sum(expanded_input*expanded_input_kernel, shared+1)
+	  
+	  expanded_state = tf.expand_dims(tf.expand_dims(state,-1),-1)
+	  expanded_state_kernel = self.state_kernel
+	  for i in range(shared):
+	    expanded_state_kernel = tf.expand_dims(expanded_state_kernel, 0)
+	    
+	  state_predictions = tf.reduce_sum(expanded_state*expanded_state_kernel, shared+1)
 
 	  #compute the logits for the inputs
 	  input_logits = self.input_logits
