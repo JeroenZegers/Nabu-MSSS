@@ -1,12 +1,15 @@
 '''@file layer.py
 Neural network layers '''
 
+import string
+
 import tensorflow as tf
 from tensorflow.python.ops.rnn import bidirectional_dynamic_rnn, dynamic_rnn
 from nabu.neuralnetworks.components import ops, rnn_cell, rnn
 from ops import capsule_initializer
 import pdb
 
+_alphabet_str=string.ascii_lowercase
 class Capsule(tf.layers.Layer):
     '''a capsule layer'''
 
@@ -119,19 +122,17 @@ class Capsule(tf.layers.Layer):
             #number of shared dimensions
             rank = len(inputs.shape)
             shared = rank-2
+	  
+	    if shared > 26-4:
+	      raise 'Not enough letters in the alphabet to use Einstein notation'
 
-            #put the input capsules as the first dimension
-            inputs = tf.transpose(inputs, [shared] + range(shared) + [rank-1])
-
-            #compute the predictins
-            predictions = tf.map_fn(
-                fn=lambda x: tf.tensordot(x[0], x[1], [[shared], [0]]),
-                elems=(inputs, self.kernel),
-                dtype=self.dtype or tf.float32)
-
-            #transpose back
-            predictions = tf.transpose(
-                predictions, range(1, shared+1)+[0]+[rank-1, rank])
+	    shared_shape_str=_alphabet_str[0:shared]
+	    input_shape_str=shared_shape_str+'wx'
+	    kernel_shape_str='wxyz'
+	    output_shape_str=shared_shape_str+'wyz'
+	    ein_not='%s,%s->%s'%(input_shape_str, kernel_shape_str, output_shape_str)
+	    
+	    predictions = tf.einsum(ein_not, inputs, self.kernel)
 
             logits = self.logits
             for i in range(shared):

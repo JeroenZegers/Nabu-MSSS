@@ -1,6 +1,8 @@
 '''@file rnn_cell.py
 contains some customized rnn cells'''
 
+import string
+
 import tensorflow as tf
 from tensorflow.contrib.layers.python.layers import layers
 from tensorflow.python.layers import base as base_layer
@@ -21,6 +23,7 @@ from ops import capsule_initializer
 
 import pdb
 
+_alphabet_str=string.ascii_lowercase
 class RecCapsuleCell(rnn_cell_impl.LayerRNNCell):
   """ Combination of RNN cell with capsule cell
   
@@ -113,7 +116,7 @@ class RecCapsuleCell(rnn_cell_impl.LayerRNNCell):
       outputs = self.cluster(input_predictions, state_predictions, input_logits, state_logits)
 
       return outputs, outputs
-      
+  
   def predict(self, inputs, state):
       '''
       compute the predictions for the output capsules and initialize the
@@ -132,22 +135,18 @@ class RecCapsuleCell(rnn_cell_impl.LayerRNNCell):
 	  rank = len(inputs.shape)
 	  shared = rank-2
 	  
-	  #input_shape = [shared (typicaly batch size),Nin,Din], kernel_shape = [Nin, Din, Nout, Dout],
-	  #input_predictions_shape = [shared,Nin,Nout,Dout]
-	  expanded_input = tf.expand_dims(tf.expand_dims(inputs,-1),-1)
-	  expanded_input_kernel = self.input_kernel
-	  for i in range(shared):
-	    expanded_input_kernel = tf.expand_dims(expanded_input_kernel, 0)
-	    
-	  input_predictions = tf.reduce_sum(expanded_input*expanded_input_kernel, shared+1)
-	  
-	  expanded_state = tf.expand_dims(tf.expand_dims(state,-1),-1)
-	  expanded_state_kernel = self.state_kernel
-	  for i in range(shared):
-	    expanded_state_kernel = tf.expand_dims(expanded_state_kernel, 0)
-	    
-	  state_predictions = tf.reduce_sum(expanded_state*expanded_state_kernel, shared+1)
+	  if shared > 26-4:
+	    raise 'Not enough letters in the alphabet to use Einstein notation'
 
+	  shared_shape_str=_alphabet_str[0:shared]
+	  input_shape_str=shared_shape_str+'wx'
+	  kernel_shape_str='wxyz'
+	  output_shape_str=shared_shape_str+'wyz'
+	  ein_not='%s,%s->%s'%(input_shape_str, kernel_shape_str, output_shape_str)
+	  
+	  input_predictions = tf.einsum(ein_not, inputs, self.input_kernel)
+	  state_predictions = tf.einsum(ein_not, state, self.state_kernel)
+	  
 	  #compute the logits for the inputs
 	  input_logits = self.input_logits
 	  for i in range(shared):
