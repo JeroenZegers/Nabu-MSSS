@@ -38,6 +38,7 @@ class DBRCapsNet(model.Model):
 	    recurrent_probability_fn = ops.unit_activation
 	else:
 	    recurrent_probability_fn = None
+	    
 	
 	#code not available for multiple inputs!!
 	if len(inputs) > 1:
@@ -55,29 +56,23 @@ class DBRCapsNet(model.Model):
 	    with tf.variable_scope('primary_capsule'):
 		output = tf.identity(inputs, 'inputs')
 		input_seq_length = tf.identity(input_seq_length, 'input_seq_length')
-
-		#For the moment the primary capsule is not recurrent and thus also not
-		#bidirectional. Double the number of capsules to compensate
-		num_primary_capsules = num_capsules*2
-		primary_output_dim = num_primary_capsules*capsule_dim
 		
-		primary_capsules = tf.layers.dense(
-		    output,
-		    primary_output_dim,
-		    use_bias=False
-		)
+		#First layer is simple bidirectional rnn layer, without activation (squash activation
+		#will be applied later)
+		primary_output_dim = num_capsules*capsule_dim
+		primary_capsules_layer = layer.BRNNLayer(num_units=primary_output_dim, activation_fn=tf.identity)
+		
+		primary_capsules = primary_capsules_layer(output, input_seq_length)
 		primary_capsules = tf.reshape(
 		    primary_capsules,
 		    [output.shape[0].value,
 		    tf.shape(output)[1],
-		    num_primary_capsules,
+		    num_capsules*2,
 		    capsule_dim]
 		)
 
 		primary_capsules = ops.squash(primary_capsules)
-		#prim_norm = ops.safe_norm(primary_capsules)
 
-		#tf.add_to_collection('image', tf.expand_dims(prim_norm, 3))
 		output = tf.identity(primary_capsules, 'primary_capsules')
 	      
 	    # non-primary capsules

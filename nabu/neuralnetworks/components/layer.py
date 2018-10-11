@@ -329,17 +329,17 @@ class BRCapsuleLayer(object):
 class BRNNLayer(object):
     '''a BRNN layer'''
 
-    def __init__(self, num_units):
+    def __init__(self, num_units, activation_fn=tf.nn.tanh):
         '''
         BRNNLayer constructor
 
         Args:
             num_units: The number of units in the one directon
-            layer_norm: whether layer normalization should be applied
-            recurrent_dropout: the recurrent dropout keep probability
+            activation_fn: activation function
         '''
 
         self.num_units = num_units
+        self.activation_fn = activation_fn
 
     def __call__(self, inputs, sequence_length, scope=None):
         '''
@@ -363,9 +363,11 @@ class BRNNLayer(object):
             #pass
             rnn_cell_fw = tf.contrib.rnn.BasicRNNCell(
                 num_units=self.num_units,
+                activation=self.activation_fn,
                 reuse=tf.get_variable_scope().reuse)
             rnn_cell_bw = tf.contrib.rnn.BasicRNNCell(
-                self.num_units,
+                num_units=self.num_units,
+                activation=self.activation_fn,
                 reuse=tf.get_variable_scope().reuse)
                 	    
             #do the forward computation
@@ -388,6 +390,7 @@ class LSTMLayer(object):
             num_units: The number of units in the one directon
             layer_norm: whether layer normalization should be applied
             recurrent_dropout: the recurrent dropout keep probability
+            activation_fn: activation function
         '''
 
         self.num_units = num_units
