@@ -250,7 +250,7 @@ class Capsule(tf.layers.Layer):
 
 
 class BRCapsuleLayer(object):
-    '''a BRNN layer'''
+    '''a Bidirectional recurrent capsule layer'''
 
     def __init__(self, num_capsules, capsule_dim, routing_iters=3, 
 		 activation=None, input_probability_fn=None, 
@@ -324,22 +324,23 @@ class BRCapsuleLayer(object):
             return outputs
 
 
-
-
 class BRNNLayer(object):
     '''a BRNN layer'''
 
-    def __init__(self, num_units, activation_fn=tf.nn.tanh):
+    def __init__(self, num_units, activation_fn=tf.nn.tanh, linear_out_flag=False):
         '''
         BRNNLayer constructor
 
         Args:
             num_units: The number of units in the one directon
             activation_fn: activation function
+            linear_out_flag: if set to True, activation function will only be applied
+            to the recurrent output.
         '''
 
         self.num_units = num_units
         self.activation_fn = activation_fn
+        self.linear_out_flag = linear_out_flag
 
     def __call__(self, inputs, sequence_length, scope=None):
         '''
@@ -361,11 +362,16 @@ class BRNNLayer(object):
 
             #create the rnn cell that will be used for the forward and backward
             #pass
-            rnn_cell_fw = tf.contrib.rnn.BasicRNNCell(
+            if self.linear_out_flag:
+		rnn_cell_type = rnn_cell.RNNCellLinearOut
+	    else:
+		rnn_cell_type = tf.contrib.rnn.BasicRNNCell
+		
+            rnn_cell_fw = rnn_cell_type(
                 num_units=self.num_units,
                 activation=self.activation_fn,
                 reuse=tf.get_variable_scope().reuse)
-            rnn_cell_bw = tf.contrib.rnn.BasicRNNCell(
+            rnn_cell_bw = rnn_cell_type(
                 num_units=self.num_units,
                 activation=self.activation_fn,
                 reuse=tf.get_variable_scope().reuse)

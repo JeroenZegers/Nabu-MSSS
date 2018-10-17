@@ -60,7 +60,8 @@ class DBRCapsNet(model.Model):
 		#First layer is simple bidirectional rnn layer, without activation (squash activation
 		#will be applied later)
 		primary_output_dim = num_capsules*capsule_dim
-		primary_capsules_layer = layer.BRNNLayer(num_units=primary_output_dim, activation_fn=tf.identity)
+		primary_capsules_layer = layer.BRNNLayer(num_units=primary_output_dim, 
+					   linear_out_flag=True)
 		
 		primary_capsules = primary_capsules_layer(output, input_seq_length)
 		primary_capsules = tf.reshape(

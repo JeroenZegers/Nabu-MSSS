@@ -138,6 +138,8 @@ class RecCapsuleCell(rnn_cell_impl.LayerRNNCell):
 	  if shared > 26-4:
 	    raise 'Not enough letters in the alphabet to use Einstein notation'
 
+	  #input_shape = [shared (typicaly batch size),Nin,Din], kernel_shape = [Nin, Din, Nout, Dout],
+	  #input_predictions_shape = [shared,Nin,Nout,Dout]
 	  shared_shape_str=_alphabet_str[0:shared]
 	  input_shape_str=shared_shape_str+'wx'
 	  kernel_shape_str='wxyz'
@@ -300,6 +302,20 @@ class RecCapsuleCell_RecOnlyVote(RecCapsuleCell):
 	  capsules = self._activation(capsules)
 	  
       return capsules
+    
+class RNNCellLinearOut(rnn_cell_impl.BasicRNNCell):
+    """Same cell as rnn_cell_impl.BasicRNNCell, except that the activation function will
+    only be applied to the recurrent output and not the feedforward output
+    """
+    
+    def call(self, inputs, state):
+	gate_inputs = math_ops.matmul(
+	    array_ops.concat([inputs, state], 1), self._kernel)
+	gate_inputs = nn_ops.bias_add(gate_inputs, self._bias)
+	output = self._activation(gate_inputs)
+	
+	return gate_inputs, output
+    
     
 _BIAS_VARIABLE_NAME = "bias"
 _WEIGHTS_VARIABLE_NAME = "kernel"  
