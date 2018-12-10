@@ -39,6 +39,16 @@ class DBRCapsNet(model.Model):
 	else:
 	    recurrent_probability_fn = None
 	    
+        if 'accumulate_input_logits' in self.conf and self.conf['accumulate_input_logits']=='False':
+	    accumulate_input_logits = False
+	else:
+	    accumulate_input_logits = True
+	    
+        if 'accumulate_state_logits' in self.conf and self.conf['accumulate_state_logits']=='False':
+	    accumulate_state_logits = False
+	else:
+	    accumulate_state_logits = True
+	    
 	
 	#code not available for multiple inputs!!
 	if len(inputs) > 1:
@@ -84,7 +94,9 @@ class DBRCapsNet(model.Model):
 					      capsule_dim=capsule_dim,
 					      routing_iters=routing_iters,
 					      recurrent_probability_fn=recurrent_probability_fn,
-					      rec_only_vote=rec_only_vote)
+					      rec_only_vote=rec_only_vote,
+					      accumulate_input_logits=accumulate_input_logits,
+					      accumulate_state_logits=accumulate_state_logits)
 		    
 		    output = caps_brnn_layer(output, input_seq_length)
 

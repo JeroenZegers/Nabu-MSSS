@@ -254,7 +254,8 @@ class BRCapsuleLayer(object):
 
     def __init__(self, num_capsules, capsule_dim, routing_iters=3, 
 		 activation=None, input_probability_fn=None, 
-		 recurrent_probability_fn=None, rec_only_vote=False):
+		 recurrent_probability_fn=None, rec_only_vote=False,
+		 accumulate_input_logits=True, accumulate_state_logits=True):
         '''
         BRCapsuleLayer constructor
 
@@ -269,6 +270,9 @@ class BRCapsuleLayer(object):
 	self.input_probability_fn = input_probability_fn
 	self.recurrent_probability_fn = recurrent_probability_fn
 	self.rec_only_vote = rec_only_vote
+	self.accumulate_input_logits = accumulate_input_logits
+	self.accumulate_state_logits = accumulate_state_logits
+	
 
     def __call__(self, inputs, sequence_length, scope=None):
         '''
@@ -292,27 +296,45 @@ class BRCapsuleLayer(object):
             #pass
             
             if self.rec_only_vote:
-		CapsuleCellType = rnn_cell.RecCapsuleCell_RecOnlyVote
+		rnn_cell_fw = rnn_cell.RecCapsuleCell_RecOnlyVote(
+		    num_capsules=self.num_capsules,
+		    capsule_dim=self.capsule_dim,
+		    routing_iters=self.routing_iters,
+		    activation=self._activation,
+		    input_probability_fn=self.input_probability_fn,
+		    recurrent_probability_fn=self.recurrent_probability_fn,
+		    accumulate_input_logits=self.accumulate_input_logits,
+		    accumulate_state_logits=self.accumulate_state_logits,
+		    reuse=tf.get_variable_scope().reuse)
+		
+		rnn_cell_bw = rnn_cell.RecCapsuleCell_RecOnlyVote(
+		    num_capsules=self.num_capsules,
+		    capsule_dim=self.capsule_dim,
+		    routing_iters=self.routing_iters,
+		    activation=self._activation,
+		    input_probability_fn=self.input_probability_fn,
+		    recurrent_probability_fn=self.recurrent_probability_fn,
+		    accumulate_input_logits=self.accumulate_input_logits,
+		    accumulate_state_logits=self.accumulate_state_logits,
+		    reuse=tf.get_variable_scope().reuse)
 	    else:
-		CapsuleCellType = rnn_cell.RecCapsuleCell
-            
-            rnn_cell_fw = CapsuleCellType(
-                num_capsules=self.num_capsules,
-                capsule_dim=self.capsule_dim,
-                routing_iters=self.routing_iters,
-                activation=self._activation,
-                input_probability_fn=self.input_probability_fn,
-                recurrent_probability_fn=self.recurrent_probability_fn,
-                reuse=tf.get_variable_scope().reuse)
-	    
-            rnn_cell_bw = CapsuleCellType(
-                num_capsules=self.num_capsules,
-                capsule_dim=self.capsule_dim,
-                routing_iters=self.routing_iters,
-                activation=self._activation,
-                input_probability_fn=self.input_probability_fn,
-                recurrent_probability_fn=self.recurrent_probability_fn,
-                reuse=tf.get_variable_scope().reuse)
+		rnn_cell_fw = rnn_cell.RecCapsuleCell(
+		    num_capsules=self.num_capsules,
+		    capsule_dim=self.capsule_dim,
+		    routing_iters=self.routing_iters,
+		    activation=self._activation,
+		    input_probability_fn=self.input_probability_fn,
+		    recurrent_probability_fn=self.recurrent_probability_fn,
+		    reuse=tf.get_variable_scope().reuse)
+		
+		rnn_cell_bw = rnn_cell.RecCapsuleCell(
+		    num_capsules=self.num_capsules,
+		    capsule_dim=self.capsule_dim,
+		    routing_iters=self.routing_iters,
+		    activation=self._activation,
+		    input_probability_fn=self.input_probability_fn,
+		    recurrent_probability_fn=self.recurrent_probability_fn,
+		    reuse=tf.get_variable_scope().reuse)
                 	    
             #do the forward computation
             outputs_tupple, _ = bidirectional_dynamic_rnn(
@@ -441,7 +463,8 @@ class LSTMLayer(object):
 class BLSTMLayer(object):
     '''a BLSTM layer'''
 
-    def __init__(self, num_units, layer_norm=False, recurrent_dropout=1.0, activation_fn=tf.nn.tanh):
+    def __init__(self, num_units, layer_norm=False, recurrent_dropout=1.0, activation_fn=tf.nn.tanh,
+		 separate_directions=False, fast_version=False):
         '''
         BLSTMLayer constructor
 
@@ -449,12 +472,20 @@ class BLSTMLayer(object):
             num_units: The number of units in the one directon
             layer_norm: whether layer normalization should be applied
             recurrent_dropout: the recurrent dropout keep probability
+            separate_directions: wether the forward and backward directions should
+            be separated for deep networks.
+            fast_version: wheter a fast version of the LSTM cell should be used. Not compatible 
+            with layer normalization or recurrent_dropout.
         '''
 
         self.num_units = num_units
         self.layer_norm = layer_norm
         self.recurrent_dropout = recurrent_dropout
         self.activation_fn = activation_fn
+        self.separate_directions = separate_directions
+        self.fast_version = fast_version
+        if self.fast_version and (self.recurrent_dropout<1.0 or self.layer_norm):
+	    raise 'Fast version of lstm cell is not compatible with layer normalization or recurrent_dropout'
 
     def __call__(self, inputs, sequence_length, scope=None):
         '''
@@ -476,6 +507,31 @@ class BLSTMLayer(object):
 
             #create the lstm cell that will be used for the forward and backward
             #pass
+            #if self.fast_version:
+		## make input time major
+		#inputs = tf.transpose(inputs, [1, 0] + range(2,len(inputs.get_shape())))
+
+		#forward_rnn = tf.contrib.rnn.LSTMBlockFusedCell(
+		    #num_units=self.num_units,
+		    #reuse=tf.get_variable_scope().reuse)
+		#backward_rnn = tf.contrib.rnn.LSTMBlockFusedCell(
+		    #num_units=self.num_units,
+		    #reuse=tf.get_variable_scope().reuse)
+		
+		#forward_output, _ = forward_rnn(inputs, dtype=tf.float32,
+		    #sequence_length=sequence_length)
+		#reverse_input=array_ops.reverse_sequence(
+		    #input=inputs, seq_lengths=sequence_length,
+		    #seq_dim=0, batch_dim=1)
+		#backward_output, _ = forward_rnn(reverse_input, dtype=tf.float32,
+		    #sequence_length=sequence_length)
+		#reverse_backward_output=array_ops.reverse_sequence(
+		    #input=backward_output, seq_lengths=sequence_length,
+		    #seq_dim=0, batch_dim=1)
+		
+		#outputs = tf.concat((forward_output, backward_output), 2)
+		#outputs = tf.transpose(outputs, [1, 0] + range(2,len(outputs.get_shape())))
+	    #else:
             lstm_cell_fw = tf.contrib.rnn.LayerNormBasicLSTMCell(
                 num_units=self.num_units,
                 activation=self.activation_fn,
@@ -490,11 +546,16 @@ class BLSTMLayer(object):
                 reuse=tf.get_variable_scope().reuse)
                 	    
             #do the forward computation
-            outputs_tupple, _ = bidirectional_dynamic_rnn(
-                lstm_cell_fw, lstm_cell_bw, inputs, dtype=tf.float32,
-                sequence_length=sequence_length)
+            if not self.separate_directions:
+		outputs_tupple, _ = bidirectional_dynamic_rnn(
+		    lstm_cell_fw, lstm_cell_bw, inputs, dtype=tf.float32,
+		    sequence_length=sequence_length)
 
-            outputs = tf.concat(outputs_tupple, 2)
+		outputs = tf.concat(outputs_tupple, 2)
+            else:
+		outputs, _ = rnn.bidirectional_dynamic_rnn_2inputs(
+		    lstm_cell_fw, lstm_cell_bw, inputs[0], inputs[1], dtype=tf.float32,
+		    sequence_length=sequence_length)
 
             return outputs
 
@@ -855,13 +916,15 @@ class ResetLSTMLayer(object):
 class BResetLSTMLayer(object):
     '''a BResetLSTM layer'''
 
-    def __init__(self, num_units, t_reset=1, group_size=1, layer_norm=False, recurrent_dropout=1.0, activation_fn=tf.nn.tanh):
+    def __init__(self, num_units, t_reset=1, group_size=1, symmetric_context=False, layer_norm=False, recurrent_dropout=1.0, activation_fn=tf.nn.tanh):
         '''
         BResetLSTM constructor
 
         Args:
             num_units: The number of units in the one directon
             group_size: units in the same group share a state replicate
+            symmetric_context: if True, input to next layer should have same amount of context
+            in both directions. If False, reversed input to next layers has full (t_reset) context.
             layer_norm: whether layer normalization should be applied
             recurrent_dropout: the recurrent dropout keep probability
         '''
@@ -872,6 +935,7 @@ class BResetLSTMLayer(object):
         self.num_replicates = float(self.t_reset)/float(self.group_size)
         if int(self.num_replicates) != self.num_replicates:
 	    raise ValueError('t_reset should be a multiple of group_size')
+	self.symmetric_context = symmetric_context
 	self.num_replicates = int(self.num_replicates)
         self.layer_norm = layer_norm
         self.recurrent_dropout = recurrent_dropout
@@ -898,6 +962,7 @@ class BResetLSTMLayer(object):
 	    inputs_for_backward = inputs_for_forward
 	
 	batch_size = inputs_for_forward.get_shape()[0]
+	max_length = tf.shape(inputs_for_forward)[1]
 
         with tf.variable_scope(scope or type(self).__name__):
             #create the lstm cell that will be used for the forward and backward
@@ -917,6 +982,8 @@ class BResetLSTMLayer(object):
 		    layer_norm=self.layer_norm,
 		    dropout_keep_prob=self.recurrent_dropout,
 		    reuse=tf.get_variable_scope().reuse)
+		
+		tile_shape = [1,1,self.t_reset,1]
 	    else:
 		lstm_cell_fw = rnn_cell.LayerNormGroupResetLSTMCell(
 		    num_units=self.num_units,
@@ -935,54 +1002,84 @@ class BResetLSTMLayer(object):
 		    dropout_keep_prob=self.recurrent_dropout,
 		    reuse=tf.get_variable_scope().reuse)
 		
+		tile_shape = [1,1,lstm_cell_fw._num_replicates,1]
 
             #do the forward computation
             outputs_tupple, _ = rnn.bidirectional_dynamic_rnn_2inputs_time_input(
                 lstm_cell_fw, lstm_cell_bw, inputs_for_forward, inputs_for_backward, 
                 dtype=tf.float32, sequence_length=sequence_length)
 	    
-	    actual_outputs = tf.concat((outputs_tupple[0][0], outputs_tupple[1][0]), -1)
-
-	    #the output replicas need to be permutated correclty such that the next layer receives
-	    #the replicas in the correct order
-	    T = tf.to_int32(tf.ceil(tf.to_float(sequence_length)/tf.to_float(self.group_size))) - 1 
-	    T = tf.expand_dims(T, -1)
-	    t = tf.expand_dims(range(0, self.num_replicates), 0)
-	    backward_indices = tf.mod(T-t, self.num_replicates)
-	    permuters = [tf.contrib.distributions.bijectors.Permute(permutation=backward_indices[utt_ind])
-		  for utt_ind in range(batch_size)]
+	    actual_outputs_forward = outputs_tupple[0][0]
+	    actual_outputs_backward = outputs_tupple[1][0]
+	    actual_outputs = tf.concat((actual_outputs_forward,actual_outputs_backward), -1)
+	    
 	    forward_replicas = outputs_tupple[0][1]
 	    backward_replicas = outputs_tupple[1][1]
-	    
-	    forward_replicas_permute = tf.transpose(forward_replicas, perm=[0,1,3,2])
-	    forward_replicas_for_backward_permute = [permuters[utt_ind].forward(forward_replicas_permute[utt_ind])
-					      for utt_ind in range(batch_size)]
-	    forward_replicas_for_backward_permute = tf.stack(forward_replicas_for_backward_permute, 0)
-	    forward_replicas_for_backward = tf.transpose(forward_replicas_for_backward_permute, perm=[0,1,3,2])
-	    
-	    backward_replicas_permute = tf.transpose(backward_replicas, perm=[0,1,3,2])
-	    backward_replicas_for_forward_permute = [permuters[utt_ind].forward(backward_replicas_permute[utt_ind])
-					      for utt_ind in range(batch_size)]
-	    backward_replicas_for_forward_permute = tf.stack(backward_replicas_for_forward_permute, 0)
-	    backward_replicas_for_forward = tf.transpose(backward_replicas_for_forward_permute, perm=[0,1,3,2])
-	    	    
-	    #old and wrong implementation (did not concider correctly the array_ops.reverse which is called in 
-	    #rnn.bidirectional_dynamic_rnn_2inputs_time_input)
-	    #T = tf.shape(inputs_for_forward)[1]-1
-	    #backward_indices = tf.mod(T - range(0, self.t_reset), self.t_reset)
-	    #permuter = tf.contrib.distributions.bijectors.Permute(permutation=backward_indices)
+
+	    if not self.symmetric_context:
+		forward_for_backward = tf.expand_dims(actual_outputs_forward,-2)
+		forward_for_backward = tf.tile(forward_for_backward, tile_shape)
+		
+		backward_for_forward = tf.expand_dims(actual_outputs_backward,-2)
+		backward_for_forward = tf.tile(backward_for_forward, tile_shape)
+		
+		outputs_for_forward = tf.concat((forward_replicas, backward_for_forward), -1)
+		outputs_for_backward = tf.concat((forward_for_backward, backward_replicas), -1)
+
+	    else:
+		##the output replicas need to be permutated correclty such that the next layer receives
+		##the replicas in the correct order
+		T = tf.to_int32(tf.ceil(tf.to_float(sequence_length)/tf.to_float(self.group_size))) 
+	    	T_min_1 = tf.expand_dims(T - 1, -1)
+	    	
+	    	numbers_to_maxT = tf.range(0, max_length)
+	    	numbers_to_maxT = tf.expand_dims(tf.expand_dims(numbers_to_maxT,0),-1)
+	    	
+	    	numbers_to_k = tf.expand_dims(range(0, self.num_replicates), 0)
+	    	
+	    	backward_indices_for_forward_t_0 = numbers_to_k+T_min_1
+	    	#backward_indices_for_forward_t_0 = tf.mod(backward_indices_for_forward_t_0, self.num_replicates) #unnecessary since mod will be applied again further on
+	    	backward_indices_for_forward_t_0 = tf.expand_dims(backward_indices_for_forward_t_0,1)
+	    	backward_indices_for_forward_t = tf.mod(backward_indices_for_forward_t_0 + numbers_to_maxT, self.num_replicates)
+	    	
+	    	forward_indices_for_backward_t_0 = numbers_to_k-T_min_1
+	    	#forward_indices_for_backward_t_0 = tf.mod(forward_indices_for_backward_t_0, self.num_replicates) #unnecessary since mod will be applied again further on
+	    	forward_indices_for_backward_t_0 = tf.expand_dims(forward_indices_for_backward_t_0,1)
+	    	forward_indices_for_backward_t = tf.mod(forward_indices_for_backward_t_0 - numbers_to_maxT, self.num_replicates)
+	    	
+	    	ra1=tf.range(batch_size)
+	    	ra1=tf.expand_dims(tf.expand_dims(ra1,-1),-1)
+	    	ra1=tf.tile(ra1,[1,max_length,self.num_replicates])
+	    	ra2=tf.range(max_length)
+	    	ra2=tf.expand_dims(tf.expand_dims(ra2,0),-1)
+	    	ra2=tf.tile(ra2,[batch_size,1,self.num_replicates])
+	    	stacked_backward_indices_for_forward_t = tf.stack([ra1,ra2,backward_indices_for_forward_t],axis=-1)
+	    	backward_for_forward = tf.gather_nd(backward_replicas, stacked_backward_indices_for_forward_t)
+	    	stacked_forward_indices_for_backward_t = tf.stack([ra1,ra2,forward_indices_for_backward_t],axis=-1)
+	    	forward_for_backward = tf.gather_nd(forward_replicas, stacked_forward_indices_for_backward_t)
+	    	
+		outputs_for_forward = tf.concat((forward_replicas, backward_for_forward), -1)
+		outputs_for_backward = tf.concat((forward_for_backward, backward_replicas), -1)
+	    	
+	    #permuters = [tf.contrib.distributions.bijectors.Permute(permutation=backward_indices[utt_ind])
+		  #for utt_ind in range(batch_size)]
 	    #forward_replicas = outputs_tupple[0][1]
 	    #backward_replicas = outputs_tupple[1][1]
 	    
 	    #forward_replicas_permute = tf.transpose(forward_replicas, perm=[0,1,3,2])
-	    #forward_replicas_for_backward_permute = permuter.forward(forward_replicas_permute)
+	    #forward_replicas_for_backward_permute = [permuters[utt_ind].forward(forward_replicas_permute[utt_ind])
+					      #for utt_ind in range(batch_size)]
+	    #forward_replicas_for_backward_permute = tf.stack(forward_replicas_for_backward_permute, 0)
 	    #forward_replicas_for_backward = tf.transpose(forward_replicas_for_backward_permute, perm=[0,1,3,2])
+	    
 	    #backward_replicas_permute = tf.transpose(backward_replicas, perm=[0,1,3,2])
-	    #backward_replicas_for_forward_permute = permuter.forward(backward_replicas_permute)
+	    #backward_replicas_for_forward_permute = [permuters[utt_ind].forward(backward_replicas_permute[utt_ind])
+					      #for utt_ind in range(batch_size)]
+	    #backward_replicas_for_forward_permute = tf.stack(backward_replicas_for_forward_permute, 0)
 	    #backward_replicas_for_forward = tf.transpose(backward_replicas_for_forward_permute, perm=[0,1,3,2])
 	    
-	    outputs_for_forward = tf.concat((forward_replicas, backward_replicas_for_forward), -1)
-	    outputs_for_backward = tf.concat((forward_replicas_for_backward, backward_replicas), -1)
+	    #outputs_for_forward = tf.concat((forward_replicas, backward_replicas_for_forward), -1)
+	    #outputs_for_backward = tf.concat((forward_replicas_for_backward, backward_replicas), -1)
 
             outputs = (actual_outputs,
 		       outputs_for_forward,

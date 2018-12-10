@@ -238,12 +238,16 @@ class RecCapsuleCell_RecOnlyVote(RecCapsuleCell):
   
   def __init__(self, num_capsules, capsule_dim, routing_iters,activation=None, 
 	       input_probability_fn=None, recurrent_probability_fn=None, 
-	       kernel_initializer=None, logits_initializer=None, reuse=None, 
+	       kernel_initializer=None, logits_initializer=None, 
+	       accumulate_input_logits=True, accumulate_state_logits=True, reuse=None, 
 	       name=None):
     super(RecCapsuleCell_RecOnlyVote, self).__init__(num_capsules, capsule_dim, 
 	       routing_iters,activation, 
 	       input_probability_fn, recurrent_probability_fn, 
 	       kernel_initializer, logits_initializer,reuse=reuse, name=name)
+    
+    self.accumulate_input_logits = accumulate_input_logits
+    self.accumulate_state_logits = accumulate_state_logits
     
   def cluster(self, input_predictions, state_predictions, input_logits, state_logits):
       '''cluster the predictions into output capsules
@@ -288,8 +292,19 @@ class RecCapsuleCell_RecOnlyVote(RecCapsuleCell):
 		  input_predictions*tf.expand_dims(caps, -3), -1)
 	      state_similarity = tf.reduce_sum(
 		  state_predictions*tf.expand_dims(caps, -3), -1)
+	      
+	      if self.accumulate_input_logits:
+		  in_l += in_similarity
+	      else:
+		  in_l = in_similarity
+	      
+	      if self.accumulate_state_logits:
+		  state_l += state_similarity
+	      else:
+		  state_l = state_similarity
+		  
 
-	      return [in_l + in_similarity, state_l + state_similarity]
+	      return [in_l, state_l]
 
 	  #get the final logits with the while loop
 	  [in_lo, state_lo] = tf.while_loop(
