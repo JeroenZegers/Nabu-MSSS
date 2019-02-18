@@ -7,7 +7,9 @@ RequestMemory    = 4G
 #request a week of wall time
 +RequestWalltime = 604800
 Requirements = (machine =!= LastRemoteHost)\
-  && (machine != "andromeda.esat.kuleuven.be") 
+  && has_avx\
+  && (machine != "andromeda.esat.kuleuven.be")\
+  && (machine != "zulte.esat.kuleuven.be") 
 
 #Specfy nice user behavior
 NiceUser = true

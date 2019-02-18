@@ -1,7 +1,7 @@
 '''@file trainer_factory.py
 contains the Trainer factory'''
 
-from . import    multi_task_trainer
+from . import multi_task_trainer, multi_task_trainer_old
 
 def factory(train_type='single_task'):
     '''
@@ -16,5 +16,7 @@ def factory(train_type='single_task'):
 
     if train_type == 'multi_task':
         return multi_task_trainer.MultiTaskTrainer
+    elif train_type == 'multi_task_old':
+        return multi_task_trainer_old.MultiTaskTrainer
     else:
         raise Exception('Undefined trainer type: %s' % train_type)
