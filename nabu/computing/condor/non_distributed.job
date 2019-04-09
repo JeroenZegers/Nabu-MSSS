@@ -35,12 +35,12 @@ Requirements = (CUDACapability >= 3.0)\
   && (machine != "tiger.esat.kuleuven.be")\
 #\
 && (machine != "molder.esat.kuleuven.be")
+# && (machine != "spchcl21.esat.kuleuven.be")
 
 #Specfy nice user behavior
-NiceUser = false
+NiceUser = true
 #Send an email in case of an error
-notify_user = pieter.appeltans@student.kuleuven.be
-Notification = Complete
+Notification = Error
 
 initialdir = .
 
