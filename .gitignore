@@ -10,6 +10,7 @@ sweeps
 *kate-swp*
 config/recipes_Jeroen*/*
 config/recipes_Pieter
+config/templates_Pieter
 nabu/postprocessing/scorers/pesq
 nabu/neuralnetworks/trainers/task_trainer.py
 nabu/neuralnetworks/evaluators/evaluator.py
