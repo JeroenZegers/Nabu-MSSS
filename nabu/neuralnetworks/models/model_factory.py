@@ -1,19 +1,20 @@
-'''@file model_factory.py
-contains the model factory'''
+"""@file model_factory.py
+contains the model factory"""
 
-from . import dblstm, plain_variables, linear, concat, leaky_dblstm,\
+from . import dblstm, plain_variables, linear, concat, leaky_dblstm, sigmoid,relu, reconstruction_layer, \
   multi_averager, feedforward, leaky_dblstm_iznotrec, leaky_dblstm_notrec, dbrnn,\
   capsnet, dbr_capsnet, dblstm_capsnet, dbgru, leaky_dbgru, dbresetgru, dbresetlstm, dlstm, dresetlstm,\
   leaky_dlstm, encoder_decoder_cnn, regular_cnn, framer
 
+
 def factory(architecture):
-    '''get a model class
+    """get a model class
 
     Args:
         conf: the model conf
 
     Returns:
-        a model class'''
+        a model class"""
 
     if architecture == 'dblstm':
         return dblstm.DBLSTM
@@ -63,5 +64,11 @@ def factory(architecture):
         return framer.Framer
     elif architecture == 'deframer_select':
         return framer.DeframerSelect
+    elif architecture == 'sigmoid':
+        return sigmoid.Sigmoid
+    elif architecture == 'RELU':
+        return relu.RELU
+    elif architecture == 'reconstruction_layer':
+        return reconstruction_layer.Reconstruction_Layer
     else:
         raise Exception('undefined architecture type: %s' % architecture)

@@ -1,21 +1,21 @@
-'''@file processor_factory.py
-contains the Processor factory method'''
+"""@file processor_factory.py
+contains the Processor factory method"""
 
 from . import audio_feat_processor, onehotperfeature_target_processor, scorelabelperfeature_processor, \
 audio_multi_signal_processor, audio_signal_processor, multi_target_processor, strlabel2index_processor, \
 matrix2vector_processor, fracscorelabelperfeature_processor, onehotperfeature_target_dummy_processor,\
 multi_target_dummy_processor, scorelabelperfeatureinmixture_processor, audio_feat_conc_processor,\
-scorelabelperfeature_multimic_processor
-  
+scorelabelperfeature_multimic_processor, matrix2vector_processor, ideal_ratio_processor, zero_processor
+
 
 def factory(processor):
-    '''gets a Processor class
+    """gets a Processor class
 
     Args:
         processor: the processor type
 
     Returns:
-        a Processor class'''
+        a Processor class"""
 
     if processor == 'audio_feat_processor':
         return audio_feat_processor.AudioFeatProcessor

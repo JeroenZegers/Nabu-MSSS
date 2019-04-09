@@ -48,11 +48,25 @@ Requirements = (CUDACapability >= 3.0)\
 #  && (machine != "cancer.esat.kuleuven.be")\
 #  && (machine != "libra.esat.kuleuven.be")\
 #  && (machine != "virgo.esat.kuleuven.be")\
+  && (machine != "malachite.esat.kuleuven.be")\
+  && (machine != "fluorite.esat.kuleuven.be")\
+#  && (machine != "hematite.esat.kuleuven.be")\
+#  && (machine != "leo.esat.kuleuven.be")\
+#  && (machine != "nickeline.esat.kuleuven.be")\
+#  && (machine != "ricotta.esat.kuleuven.be") \
+#  && (machine != "jabbah.esat.kuleuven.be") \
+  && (machine != "vega.esat.kuleuven.be")\ 
+  && (machine != "spchcl17.esat.kuleuven.be") \
+  && (machine != "spchcl18.esat.kuleuven.be") \
+  && (machine != "spchcl24.esat.kuleuven.be") \
+  && (machine != "spchcl23.esat.kuleuven.be") 
+#  && (CUDARuntimeVersion == 8.0)
 
 #Specfy nice user behavior
-NiceUser = true
+NiceUser = false
 #Send an email in case of an error
-Notification = Error
+notify_user = pieter.appeltans@student.kuleuven.be
+Notification = Complete
 
 initialdir = .
 
