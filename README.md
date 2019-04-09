@@ -144,7 +144,7 @@ run sweep --command=<command> --recipe=/path/to/recipe --sweep=/path/to/sweepfil
 
 where command can be any of the commands discussed above.
 
-## Parameter search
+### Parameter search
 Under development.
 
 Alternative to manual parameter sweep. Use Gaussian Processes and acquisition functions to find
