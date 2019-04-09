@@ -9,6 +9,7 @@ import scipy.io.wavfile as wav
 import numpy as np
 import processor
 from nabu.processing.feature_computers import feature_computer_factory
+import pdb
 
 class AudioMultiSignalProcessor(processor.Processor):
     '''a processor for multiple audio signals'''
@@ -59,9 +60,14 @@ class AudioMultiSignalProcessor(processor.Processor):
 	    features = self.comp(utt, rate)
 	
 	    multi_signal.append(features)
-	    
+	
+	multi_signal=np.array(multi_signal)    
 	# split the data for all desired segment lengths
-	segmented_data = self.segment_data(multi_signal)
+	winlen_sample=int(rate*float(self.conf['winlen']))
+	winstep_sample=int(rate*float(self.conf['winstep']))
+	segmented_data = self.segment_data(multi_signal, time_dim=1, 
+				    winlen_sample=winlen_sample,
+				    winstep_sample=winstep_sample)
 
 	utt_info['rate'] = rate
 	utt_info['nrSig'] = len(splitdatalines)

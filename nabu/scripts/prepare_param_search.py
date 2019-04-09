@@ -1,71 +1,62 @@
-"""@file with sweep you can try different parameter sets"""
+"""@file with hyper parameter search. You can try to find the optimal parameter set"""
 
 import os
 import shutil
-from six.moves import configparser
+import cPickle as pickle
 import tensorflow as tf
 
+from nabu.hyperparameteroptimization.hyper_param_optimizer import HyperParamOptimizer
 
-def main(sweep, command, expdir, recipe, computing, resume, duplicates):
+
+def main(hyper_param_conf, command, expdir, recipe, computing, resume):
 	"""main function"""
-	# read the sweep file
-	with open(sweep) as fid:
-		sweeptext = fid.read()
+	if 'train' not in command:
+		raise ValueError('Command should be "train" and not %s' % command)
 
-	experiments = [exp.split('\n') for exp in sweeptext.strip().split('\n\n')]
-	params = [[param.split() for param in exp[1:]] for exp in experiments]
-	expnames = [exp[0] for exp in experiments]
+	exp_recipe_dir = os.path.join(expdir, 'recipes')
+	exp_proposal_watch_dir = os.path.join(expdir, 'proposal_watch_dir')
+	# optimizer_pickle_file = os.path.join(expdir, 'optimizer_only_valid_losses.pkl')
+	optimizer_pickle_file = os.path.join(expdir, 'optimizer.pkl')
 
-	if not os.path.isdir(expdir):
+	if resume:
+		if not os.path.isdir(expdir) or not os.path.isdir(exp_recipe_dir) or not os.path.isfile(optimizer_pickle_file):
+			raise ValueError('Cannot resume as no optimizer was found in %s' % expdir)
+
+		with open(optimizer_pickle_file, 'r') as fid:
+			optimizer = pickle.load(fid)
+		optimizer.start_new_run_flag = False
+		# optimizer.resume = True
+
+	else:
+		if os.path.isdir(expdir):
+			shutil.rmtree(expdir)
 		os.makedirs(expdir)
+		if os.path.isdir(exp_recipe_dir):
+			shutil.rmtree(exp_recipe_dir)
+		os.makedirs(exp_recipe_dir)
+		if os.path.isdir(exp_proposal_watch_dir):
+			shutil.rmtree(exp_proposal_watch_dir)
+		os.makedirs(exp_proposal_watch_dir)
 
-	for i, expname in enumerate(expnames):
-		# copy the recipe dir to the expdir
-		if os.path.isdir(os.path.join(expdir, 'recipes', expname)):
-			shutil.rmtree(os.path.join(expdir, 'recipes', expname))
-		shutil.copytree(recipe, os.path.join(expdir, 'recipes', expname))
+		optimizer = HyperParamOptimizer(
+			hyper_param_conf, command, expdir, exp_recipe_dir, recipe, computing, exp_proposal_watch_dir)
+		print 'The following hyper parameters will be optimized: '
+		print optimizer.hyper_param_names
 
-		for param in params[i]:
-			# read the config
-			conf = configparser.ConfigParser()
-			conf.read(os.path.join(expdir, 'recipes', expname, param[0]))
-
-			# create the new configuration
-			conf.set(param[1], param[2], ' '.join(param[3:]))
-			with open(os.path.join(expdir, 'recipes', expname, param[0]), 'w') as fid:
-				conf.write(fid)
-
-		# run the new recipe
-		if int(duplicates) == 1:
-			os.system('run %s --expdir=%s --recipe=%s --computing=%s --resume=%s --sweep_flag=%s' % (
-				command,
-				os.path.join(expdir, expname),
-				os.path.join(expdir, 'recipes', expname),
-				computing,
-				resume,
-				True
-				))
-		else:
-			os.system('run %s --expdir=%s --recipe=%s --computing=%s --resume=%s --duplicates=%s --sweep_flag=%s' % (
-				command,
-				os.path.join(expdir, expname),
-				os.path.join(expdir, 'recipes', expname),
-				computing,
-				resume,
-				duplicates,
-				True
-				))
+	optimizer()
 
 
 if __name__ == '__main__':
+	print 'Have to check if all flags make sense for hyper paramter search'
 	tf.app.flags.DEFINE_string('expdir', None, 'the exeriments directory')
 	tf.app.flags.DEFINE_string('recipe', None, 'The directory containing the recipe')
 	tf.app.flags.DEFINE_string('computing', 'standard', 'the distributed computing system one of standard or condor')
-	tf.app.flags.DEFINE_string('sweep', 'sweep', 'the file containing the sweep parameters')
-	tf.app.flags.DEFINE_string('command', 'train', 'the command to run')
-	tf.app.flags.DEFINE_string('resume', 'False', 'whether the experiment in expdir, if available, has to be resumed')
-	tf.app.flags.DEFINE_string('duplicates', '1', 'How many duplicates of the same experiment should be run')
+	tf.app.flags.DEFINE_string(
+		'hyper_param_conf', 'hyper_param_conf', 'the file containing the hyper paramaters to optimize')
+	tf.app.flags.DEFINE_string('command', 'train', 'the command to run, should be train')
+	tf.app.flags.DEFINE_string('resume', 'True', 'whether the optimizer in expdir has to be resumed')
 
 	FLAGS = tf.app.flags.FLAGS
 
-	main(FLAGS.sweep, FLAGS.command, FLAGS.expdir, FLAGS.recipe, FLAGS.computing, FLAGS.resume, FLAGS.duplicates)
+	main(
+		FLAGS.hyper_param_conf, FLAGS.command, FLAGS.expdir, FLAGS.recipe, FLAGS.computing, FLAGS.resume == 'True')

@@ -1,5 +1,5 @@
-'''@file ops.py
-some operations'''
+"""@file ops.py
+some operations"""
 
 import tensorflow as tf
 import itertools
@@ -14,7 +14,7 @@ def unit_activation(x, name=None):
     return tf.ones(tf.shape(x))
   
 def squash(s, axis=-1, epsilon=1e-7, name=None):
-    '''squash function'''
+    """squash function"""
     with tf.name_scope(name, default_name="squash"):
         squared_norm = tf.reduce_sum(tf.square(s), axis=axis,
                                      keepdims=True)
@@ -25,14 +25,14 @@ def squash(s, axis=-1, epsilon=1e-7, name=None):
         return squash_factor * s
       
 def safe_norm(s, axis=-1, keepdims=False, epsilon=1e-7, name=None):
-    '''compute a safe norm'''
+    """compute a safe norm"""
 
     with tf.name_scope(name, default_name='safe_norm'):
         x = tf.reduce_sum(tf.square(s), axis=axis, keepdims=keepdims)
         return tf.sqrt(x + epsilon)
       
 class VoteTranformInitializer(tf.keras.initializers.Initializer):
-    '''An Initializer for the voting transormation matrix in a capsule layer'''
+    """An Initializer for the voting transormation matrix in a capsule layer"""
 
     def __init__(self,
                  scale=1.0,
@@ -40,7 +40,7 @@ class VoteTranformInitializer(tf.keras.initializers.Initializer):
                  distribution='normal',
                  seed=None,
                  dtype=tf.float32):
-        '''
+        """
         Constructor
         args:
             scale: how to scale the initial values (default: 1.0)
@@ -48,7 +48,7 @@ class VoteTranformInitializer(tf.keras.initializers.Initializer):
             distribution: one of 'uniform' or 'normal' (default: normal)
             seed: A Python integer. Used to create random seeds.
             dtype: The data type. Only floating point types are supported.
-        '''
+        """
 
         if scale <= 0.:
             raise ValueError('`scale` must be positive float.')
@@ -66,7 +66,7 @@ class VoteTranformInitializer(tf.keras.initializers.Initializer):
         self.dtype = tf.as_dtype(dtype)
 
     def __call__(self, shape, dtype=None, partition_info=None):
-        '''initialize the variables
+        """initialize the variables
         args:
             shape: List of `int` representing the shape of the output `Tensor`.
                 [num_capsules_in, capsule_dim_in, num_capsules_out,
@@ -77,7 +77,7 @@ class VoteTranformInitializer(tf.keras.initializers.Initializer):
                 partitioned. May be `None` if the variable is not partitioned.
         Returns:
             A `Tensor` of type `dtype` and `shape`.
-        '''
+        """
 
         if dtype is None:
             dtype = self.dtype
@@ -110,7 +110,7 @@ class VoteTranformInitializer(tf.keras.initializers.Initializer):
                 shape, -limit, limit, dtype, seed=self.seed)
 
     def get_config(self):
-        '''get the initializer config'''
+        """get the initializer config"""
 
         return {
             'scale': self.scale,
@@ -121,7 +121,7 @@ class VoteTranformInitializer(tf.keras.initializers.Initializer):
         }
 
 def capsule_initializer(scale=1.0, seed=None, dtype=tf.float32):
-    '''a VoteTranformInitializer'''
+    """a VoteTranformInitializer"""
 
     return VoteTranformInitializer(
         scale=scale,
@@ -132,7 +132,7 @@ def capsule_initializer(scale=1.0, seed=None, dtype=tf.float32):
     )
 
 def seq2nonseq(sequential, sequence_lengths, name=None):
-    '''
+    """
     Convert sequential data to non sequential data
 
     Args:
@@ -144,7 +144,7 @@ def seq2nonseq(sequential, sequence_lengths, name=None):
     Returns:
         non sequential data, which is a TxF tensor where T is the sum of all
         sequence lengths
-    '''
+    """
 
     with tf.name_scope(name or 'seq2nonseq'):
 
@@ -157,7 +157,7 @@ def seq2nonseq(sequential, sequence_lengths, name=None):
     return tensor
 
 def dense_sequence_to_sparse(sequences, sequence_lengths):
-    '''convert sequence dense representations to sparse representations
+    """convert sequence dense representations to sparse representations
 
     Args:
         sequences: the dense sequences as a [batch_size x max_length] tensor
@@ -165,7 +165,7 @@ def dense_sequence_to_sparse(sequences, sequence_lengths):
 
     Returns:
         the sparse tensor representation of the sequences
-    '''
+    """
 
     with tf.name_scope('dense_sequence_to_sparse'):
 
@@ -183,7 +183,7 @@ def dense_sequence_to_sparse(sequences, sequence_lengths):
     return sparse
 
 def L41_loss(targets, bin_embeddings, spk_embeddings, usedbins, seq_length, batch_size):
-    '''
+    """
     Monaural Audio Speaker Separation Using Source-Contrastive Estimation
     Cory Stephenson, Patrick Callier, Abhinav Ganesh, and Karl Ni
 
@@ -199,7 +199,7 @@ def L41_loss(targets, bin_embeddings, spk_embeddings, usedbins, seq_length, batc
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
 
     with tf.name_scope('L41_loss'):
 	feat_dim = tf.shape(usedbins)[2]
@@ -245,7 +245,7 @@ def L41_loss(targets, bin_embeddings, spk_embeddings, usedbins, seq_length, batc
     return loss , norm
   
 def pit_L41_loss(targets, bin_embeddings, spk_embeddings, mix_to_mask, seq_length, batch_size):
-    '''
+    """
     Combination of L41 approach, where an attractor embedding per speaker is found and PIT 
     where the audio signals are reconstructed via mast estimation, which are used to define
     a loss in a permutation invariant way. Here the masks are estimated by evaluating the distance
@@ -263,7 +263,7 @@ def pit_L41_loss(targets, bin_embeddings, spk_embeddings, mix_to_mask, seq_lengt
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
 
     with tf.name_scope('PIT_L41_loss'):
 	feat_dim = tf.shape(targets)[2]
@@ -317,7 +317,7 @@ def pit_L41_loss(targets, bin_embeddings, spk_embeddings, mix_to_mask, seq_lengt
     return loss , norm
 
 def intravar2centervar_rat_loss(targets, logits, usedbins, seq_length, batch_size):
-    '''
+    """
     Not realy LDA. numerator is same as above (mean intra class variance), the denominator is the
     variance between the class means (e.g. for 2 classes this equals to the square of halve the distance 
     between the 2 means)
@@ -332,7 +332,7 @@ def intravar2centervar_rat_loss(targets, logits, usedbins, seq_length, batch_siz
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
     print 'Using intravar2centervar_rat_loss'
     with tf.name_scope('intravar2centervar_rat_loss'):
 	feat_dim = tf.shape(usedbins)[2]
@@ -389,7 +389,7 @@ def intravar2centervar_rat_loss(targets, logits, usedbins, seq_length, batch_siz
 
 def dist2mean_epsilon_closest_rat_loss(targets, logits, usedbins, seq_length, batch_size,rat_power=1,
 		       fracbins=None,epsilon=0.2):
-    '''
+    """
     Not realy LDA. For each embedding determine the ratio of distance to its class center to distance to
     other closest class center
 
@@ -406,7 +406,7 @@ def dist2mean_epsilon_closest_rat_loss(targets, logits, usedbins, seq_length, ba
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
     print 'Using dist2mean_closest_rat_loss'
     with tf.name_scope('dist2mean_closest_rat_loss'):
 	feat_dim = usedbins.get_shape()[2]
@@ -455,7 +455,7 @@ def dist2mean_epsilon_closest_rat_loss(targets, logits, usedbins, seq_length, ba
 
 def dist2mean_closest_rat_loss(targets, logits, usedbins, seq_length, batch_size,rat_power=1,
 		       fracbins=None):
-    '''
+    """
     Not realy LDA. For each embedding determine the ratio of distance to its class center to distance to
     other closest class center
 
@@ -472,7 +472,7 @@ def dist2mean_closest_rat_loss(targets, logits, usedbins, seq_length, batch_size
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
     print 'Using dist2mean_closest_rat_loss'
     with tf.name_scope('dist2mean_closest_rat_loss'):
 	feat_dim = usedbins.get_shape()[2]
@@ -521,7 +521,7 @@ def dist2mean_closest_rat_loss(targets, logits, usedbins, seq_length, batch_size
   
 def dist2mean_rat_loss(targets, logits, usedbins, seq_length, batch_size,rat_power=1,
 		       fracbins=None):
-    '''
+    """
     Not realy LDA. For each embedding determine the ratio of distance to its class center to distance to
     other class centers
 
@@ -538,7 +538,7 @@ def dist2mean_rat_loss(targets, logits, usedbins, seq_length, batch_size,rat_pow
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
     print 'Using dist2mean_rat_loss'
     with tf.name_scope('dist2mean_rat_loss'):
 	feat_dim = usedbins.get_shape()[2]
@@ -588,7 +588,7 @@ def dist2mean_rat_loss(targets, logits, usedbins, seq_length, batch_size,rat_pow
   
 def dist2mean_rat_loss(targets, logits, usedbins, seq_length, batch_size,rat_power=1,
 		       fracbins=None):
-    '''
+    """
     Duplicate of LdaJer3_loss. Remove LdaJer3_loss
     Not realy LDA. For each embedding determine the ratio of distance to its class center to distance to
     other class centers
@@ -606,7 +606,7 @@ def dist2mean_rat_loss(targets, logits, usedbins, seq_length, batch_size,rat_pow
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
     print 'Using dist2mean_rat_loss'
     with tf.name_scope('dist2mean_rat_loss'):
 	feat_dim = tf.shape(usedbins)[2]
@@ -672,7 +672,7 @@ def dist2mean_rat_loss(targets, logits, usedbins, seq_length, batch_size,rat_pow
     return loss , norm  
   
 def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
-    '''
+    """
     Compute the deep clustering loss
     cost function based on Hershey et al. 2016
 
@@ -686,7 +686,7 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
     
     with tf.name_scope('deepclustering_loss'):
 	feat_dim = usedbins.get_shape()[2]
@@ -720,7 +720,7 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
     return loss , norm  
   
 def deepclustering_flat_loss(targets, logits, usedbins, seq_length, batch_size):
-    '''
+    """
     Compute the deep clustering loss
     cost function based on Hershey et al. 2016
 
@@ -734,7 +734,7 @@ def deepclustering_flat_loss(targets, logits, usedbins, seq_length, batch_size):
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
     
     with tf.name_scope('deepclustering_flat_loss'):
 	feat_dim = usedbins.get_shape()[2]
@@ -767,7 +767,7 @@ def deepclustering_flat_loss(targets, logits, usedbins, seq_length, batch_size):
     return loss , norm  
   
 def dc_pit_loss(targets_dc, logits_dc, targets_pit, logits_pit, usedbins, mix_to_mask, seq_length, batch_size,alpha=1.423024812840571e-09):
-    '''
+    """
     THIS IS OBSOLETE. JUST COMBINE THE 2 LOSSES IN A LOSS COMPUTER
     Compute the joint deep clustering loss and permuation invariant loss
     cost function based on Hershey et al. 2016
@@ -786,7 +786,7 @@ def dc_pit_loss(targets_dc, logits_dc, targets_pit, logits_pit, usedbins, mix_to
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
     
     #rougly estimated loss scaling factor so PIT loss and DC loss are more or less of the same magnitude
     
@@ -847,7 +847,7 @@ def dc_pit_loss(targets_dc, logits_dc, targets_pit, logits_pit, usedbins, mix_to
 
   
 def deepclustering_L1_loss(targets, logits, usedbins, seq_length, batch_size):
-    '''
+    """
     Compute the deep clustering loss, with L1 norm (instead of frobenius)
     cost function based on Hershey et al. 2016
 
@@ -861,7 +861,7 @@ def deepclustering_L1_loss(targets, logits, usedbins, seq_length, batch_size):
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
 
     with tf.name_scope('deepclustering_loss'):
 	feat_dim = tf.shape(usedbins)[2]
@@ -934,7 +934,7 @@ def crossentropy_multi_loss(labels, logits, batch_size):
     return loss, norm
 
 def direct_loss(targets, logits, mix_to_mask, seq_length, batch_size):
-    '''
+    """
     Compute the direct reconstruction loss via masks.
 
     Args:
@@ -947,7 +947,7 @@ def direct_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
     with tf.name_scope('direct_loss'):
 	feat_dim = targets.get_shape()[2]
         output_dim = logits.get_shape()[2]
@@ -966,8 +966,8 @@ def direct_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 	        
     return loss, norm
   
-def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
-    '''
+def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size,softmax=True,rescale_recs=False):
+    """
     Compute the permutation invariant loss.
     Remark: This is implementation is different from pit_loss as the last dimension of logits is 
     still feat_dim*nrS, but the first feat_dim entries correspond to the first speaker and the
@@ -988,7 +988,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
     
     with tf.name_scope('PIT_loss'):
 	feat_dim = targets.get_shape()[2]
@@ -997,10 +997,17 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
         permutations = list(itertools.permutations(range(nrS),nrS))
       
         logits_resh = tf.transpose(tf.reshape(tf.transpose(logits,[2,0,1]),[nrS,feat_dim,batch_size,-1]),[2,3,1,0])
-        Masks = tf.nn.softmax(logits_resh, axis=3)
+        if softmax:
+	    Masks = tf.nn.softmax(logits_resh, axis=3)
+	else:
+	    Masks = tf.nn.sigmoid(logits_resh)
         
         mix_to_mask = tf.expand_dims(mix_to_mask,-1)
         recs = tf.multiply(Masks, mix_to_mask)
+        
+	if rescale_recs:
+	    recs = recs / tf.reduce_max(tf.abs(recs),axis=[1,2],keepdims=True) * \
+	      tf.reduce_max(tf.abs(targets),axis=[1,2],keepdims=True)
 	    
 	targets_resh = tf.transpose(targets,perm=[3,0,1,2])
 	recs = tf.transpose(recs,perm=[3,0,1,2])
@@ -1019,7 +1026,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size):
   
 def cross_entropy_loss_eos(targets, logits, logit_seq_length,
                            target_seq_length):
-    '''
+    """
     Compute the cross_entropy loss with an added end of sequence label
 
     Args:
@@ -1032,7 +1039,7 @@ def cross_entropy_loss_eos(targets, logits, logit_seq_length,
 
     Returns:
         a scalar value containing the loss
-    '''
+    """
 
     batch_size = tf.shape(targets)[0]
 
@@ -1071,13 +1078,13 @@ def cross_entropy_loss_eos(targets, logits, logit_seq_length,
     return loss
 
 def get_indices(sequence_length):
-    '''get the indices corresponding to sequences (and not padding)
+    """get the indices corresponding to sequences (and not padding)
 
     Args:
         sequence_length: the sequence_lengths as a N-D tensor
 
     Returns:
-        A [sum(sequence_length) x N-1] Tensor containing the indices'''
+        A [sum(sequence_length) x N-1] Tensor containing the indices"""
 
     with tf.name_scope('get_indices'):
 

@@ -1,12 +1,12 @@
 # Normal execution
 Universe         = vanilla
 # need enough RAM to store the parameters
-RequestMemory    = 23G
+RequestMemory    = 15G
 #number of GPUs equal to the number of workers
 Request_GPUs      = 1
 RequestCpus = 2
-#request a week of wall time
-+RequestWalltime = 1209600
+#request 3 days of wall time
++RequestWalltime = 263000
 #specify that the cuda capability should be at least 3.0 and set the memory
 #requirement
 Requirements = (CUDACapability >= 3.0)\
@@ -25,10 +25,9 @@ Requirements = (CUDACapability >= 3.0)\
 # machines below have connecting problems, add again when problems are solved\
   && (machine != "fluorite.esat.kuleuven.be")\
   && (machine != "kunzite.esat.kuleuven.be")\
-  && (machine != "malachite.esat.kuleuven.be")\
-  && (machine != "beryl.esat.kuleuven.be")\
-  && (machine != "larimar.esat.kuleuven.be")\
-  && (machine != "vladimir.esat.kuleuven.be")\
+  # && (machine != "malachite.esat.kuleuven.be")\
+  # && (machine != "beryl.esat.kuleuven.be")\
+  # && (machine != "larimar.esat.kuleuven.be")\
 #  && (machine != "molder.esat.kuleuven.be")\
 # machines below should be re-added \
 #  && (machine != "andromeda.esat.kuleuven.be") \

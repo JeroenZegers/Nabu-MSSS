@@ -48,7 +48,7 @@ def train(clusterfile, job_name, task_index, ssh_command, expdir):
 	# training stage
 	segment_lengths = trainer_cfg['segment_lengths'].split(' ')
 	# segment_lengths = [segment_lengths[-1]]
-	# os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+
 	val_sum = dict()
 	for seg_len_ind, segment_length in enumerate(segment_lengths):
 	
@@ -101,13 +101,13 @@ def train(clusterfile, job_name, task_index, ssh_command, expdir):
 
 			if best_val_losses is not None:
 				val_sum[segment_length] = {task: float(loss) for (loss, task) in zip(best_val_losses, all_tasks)}
-			else:
-				val_sum = None
 
-	if val_sum is not None:
+	if val_sum and 'full' in val_sum:
 		out_file = os.path.join(expdir, 'val_sum.json')
 		with open(out_file, 'w') as fid:
 			json.dump(val_sum, fid)
+	else:
+		print 'Did not find a validation loss to save'
 
 
 if __name__ == '__main__':

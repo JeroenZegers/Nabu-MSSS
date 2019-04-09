@@ -3,8 +3,8 @@ contains the model factory'''
 
 from . import dblstm, plain_variables, linear, concat, leaky_dblstm,\
   multi_averager, feedforward, leaky_dblstm_iznotrec, leaky_dblstm_notrec, dbrnn,\
-  capsnet, dbr_capsnet, dbgru, leaky_dbgru, dbresetlstm, dlstm, dresetlstm,\
-  leaky_dlstm, encoder_decoder_cnn
+  capsnet, dbr_capsnet, dblstm_capsnet, dbgru, leaky_dbgru, dbresetgru, dbresetlstm, dlstm, dresetlstm,\
+  leaky_dlstm, encoder_decoder_cnn, regular_cnn, framer
 
 def factory(architecture):
     '''get a model class
@@ -39,10 +39,14 @@ def factory(architecture):
         return capsnet.CapsNet
     elif architecture == 'dbr_capsnet':
         return dbr_capsnet.DBRCapsNet
+    elif architecture == 'dblstm_capsnet':
+        return dblstm_capsnet.DBLSTMCapsNet
     elif architecture == 'dbgru':
         return dbgru.DBGRU
     elif architecture == 'leaky_dbgru':
         return leaky_dbgru.LeakyDBGRU
+    elif architecture == 'dbresetgru':
+        return dbresetgru.DBResetGRU
     elif architecture == 'dbresetlstm':
         return dbresetlstm.DBResetLSTM
     elif architecture == 'dlstm':
@@ -53,5 +57,11 @@ def factory(architecture):
         return leaky_dlstm.LeakyDLSTM
     elif architecture == 'encoder_decoder_cnn':
         return encoder_decoder_cnn.EncoderDecoderCNN
+    elif architecture == 'regular_cnn':
+        return regular_cnn.RegularCNN
+    elif architecture == 'framer':
+        return framer.Framer
+    elif architecture == 'deframer_select':
+        return framer.DeframerSelect
     else:
         raise Exception('undefined architecture type: %s' % architecture)

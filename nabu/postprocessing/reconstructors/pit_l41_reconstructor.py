@@ -14,7 +14,7 @@ class PITL41Reconstructor(mask_reconstructor.MaskReconstructor):
     
     requested_output_names = ['bin_emb','spk_emb']
 
-    def __init__(self, conf, evalconf, dataconf, rec_dir, task):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, task, optimal_frame_permutation=False):
         '''PITL41Reconstructor constructor
 
         Args:
@@ -24,7 +24,7 @@ class PITL41Reconstructor(mask_reconstructor.MaskReconstructor):
             rec_dir: the directory where the reconstructions will be stored
         '''
         
-        super(PITL41Reconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task)
+        super(PITL41Reconstructor, self).__init__(conf, evalconf, dataconf, rec_dir, task, optimal_frame_permutation)
                 
 
     def _get_masks(self, output, utt_info):

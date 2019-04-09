@@ -2,7 +2,6 @@
 *.pyc
 *database.cfg
 cluster
-nabu/computing/condor/create_environment.sh
 # .gitignore
 sweeps
 *debug*
@@ -22,3 +21,10 @@ nabu/scripts/prepare_train2.py
 test_files_to_run
 nabu/computing/condor/non_distributed_cpu_train.job
 *jeroen*
+.idea
+~
+run_delayed
+run2
+tf
+test_files_to_run
+doc

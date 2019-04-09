@@ -34,6 +34,10 @@ class DBResetLSTM(model.Model):
 	      raise ValueError('t_reset should be a multiple of group_size')
 	else:
 	  group_size = 1
+	if 'symmetric_context' in self.conf and self.conf['symmetric_context']=='True':
+	  symmetric_context = True
+	else:
+	  symmetric_context = False
 	num_replicates = int(float(t_reset)/float(group_size))
         layer_norm=self.conf['layer_norm'] == 'True'
         recurrent_dropout=float(self.conf['recurrent_dropout'])
@@ -48,11 +52,12 @@ class DBResetLSTM(model.Model):
 	    raise Exception('Undefined activation function: %s' % activation_fn)
 	else:
 	  activation_fn = tf.nn.tanh
-
+	
         blstm = layer.BResetLSTMLayer(
             num_units=num_units,
             t_reset=t_reset,
             group_size=group_size,
+            symmetric_context=symmetric_context,
             layer_norm=layer_norm,
             recurrent_dropout=recurrent_dropout,
             activation_fn=activation_fn)

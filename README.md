@@ -2,12 +2,13 @@
 
 # Nabu-MSSS
 
-Nabu-MSSS (Multi Speaker Source Separation) is an adaptation of Nabu 
-(branch 2.0 of Aug 31, 2017, which can be found
-[here](https://github.com/vrenkens/nabu)). Nabu is an ASR framework for
+Nabu-MSSS (Multi Speaker Source Separation) is an adaptation of [Nabu](https://github.com/vrenkens/nabu)
+(branch 2.0 of Aug 31, 2017). Nabu is an ASR framework for
 end-to-end networks built on top of TensorFlow. Nabu's design focuses on
 adaptability, making it easy for the designer to adjust everything from the
 model structure to the way it is trained. 
+
+Code is in Python 2.6 using Tensorflow 1.8.0 (will upgrade soon)
 
 Because of this adaptability, many parts of the code of Nabu-MSSS were 
 originally inherited from Nabu. As a consequence, however, one may still find 
@@ -94,7 +95,7 @@ The parameters for this script are similar to the training script (see above).
 You should use the same expdir that you used for training the model.
 
 
-### Parameter search
+### Parameter sweep
 
 You can automatically do a parameter search using Nabu. To do this you should
 create a sweep file. A sweep file contain blocks of parameters, each block
@@ -138,10 +139,25 @@ model.cfg encoder num_units 2048
 The parameter sweep can then be executed as follows:
 
 ```
-run sweep --command=<command> --sweep=/path/to/sweepfile --expdir=/path/to/exdir <command option>
+run sweep --command=<command> --recipe=/path/to/recipe --sweep=/path/to/sweepfile --expdir=/path/to/exdir <command option>
 ```
 
 where command can be any of the commands discussed above.
+
+## Parameter search
+Under development.
+
+Alternative to manual parameter sweep. Use Gaussian Processes and acquisition functions to find
+the ideal parameters to evaluate.
+
+The parameter sweep can then be executed as follows:
+
+```
+run param_search --command=<command> --recipe=/path/to/recipe --hyper_param_conf=/path/to/hyper_param_conf --expdir=/path/to/exdir <command option>
+```
+
+where command can be any of the commands discussed above.
+
 
 ## Designing in Nabu
 
@@ -167,10 +183,8 @@ want to use it for.
 ## Acknowledgments
 This work is part of a research project funded by the SB PhD grant of the Research Foundation Flanders 
 (FWO) with project number 1S66217N.
-Special thanks to the Facebook AI Research Partnership Program 
-([link](https://research.fb.com/facebook-to-accelerate-global-ai-research-with-new-gpu-program-recipients/)) 
-and the Nvidia GPU Grant Program 
-([link](https://developer.nvidia.com/academic_gpu_seeding))
+Special thanks to the [Facebook AI Research Partnership Program ](https://research.fb.com/facebook-to-accelerate-global-ai-research-with-new-gpu-program-recipients/)
+and the [Nvidia GPU Grant Program](https://developer.nvidia.com/academic_gpu_seeding)
 for providing additional computational hardware (GPU's) to accelerate testing, debugging and benchmarking 
 of the code.
 

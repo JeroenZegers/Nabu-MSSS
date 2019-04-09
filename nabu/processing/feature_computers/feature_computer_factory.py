@@ -7,6 +7,7 @@ import logspec
 import magspec
 import spec
 import raw
+import frames
 
 def factory(feature):
     '''
@@ -28,5 +29,7 @@ def factory(feature):
 	return spec.Spec
     elif feature == 'raw':
 	return raw.Raw
+    elif feature == 'frames':
+	return frames.Frames
     else:
         raise Exception('Undefined feature type: %s' % feature)

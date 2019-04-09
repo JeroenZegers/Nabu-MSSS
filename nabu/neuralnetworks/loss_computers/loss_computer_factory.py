@@ -1,7 +1,8 @@
 '''@file loss_computer_factory.py
 contains the Loss computer factory mehod'''
 
-from . import deepclustering_loss, pit_loss, l41_loss, pit_l41_loss,\
+from . import deepclustering_loss, pit_loss, pit_loss_sigmoid, pit_loss_sigmoid_scaled, \
+  l41_loss, pit_l41_loss,\
   deepclustering_L1_loss, dist2mean_rat_loss,\
   dist2mean_rat_squared_loss, intravar2centervar_rat_loss,\
   dist2mean_rat_fracbins_loss, crossentropy_multi_loss,\
@@ -28,6 +29,10 @@ def factory(loss_type):
         return deepclustering_2and3spk_loss.Deepclustering2and3SpkLoss
     elif loss_type == 'pit':
         return pit_loss.PITLoss
+    elif loss_type == 'pit_sigmoid':
+        return pit_loss_sigmoid.PITLossSigmoid
+    elif loss_type == 'pit_sigmoid_scaled':
+        return pit_loss_sigmoid_scaled.PITLossSigmoidScaled
     elif loss_type == 'l41':
         return l41_loss.L41Loss
     elif loss_type == 'pit_l41':

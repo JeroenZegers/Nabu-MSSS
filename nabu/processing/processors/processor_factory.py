@@ -4,7 +4,8 @@ contains the Processor factory method'''
 from . import audio_feat_processor, onehotperfeature_target_processor, scorelabelperfeature_processor, \
 audio_multi_signal_processor, audio_signal_processor, multi_target_processor, strlabel2index_processor, \
 matrix2vector_processor, fracscorelabelperfeature_processor, onehotperfeature_target_dummy_processor,\
-multi_target_dummy_processor, scorelabelperfeatureinmixture_processor, audio_feat_conc_processor
+multi_target_dummy_processor, scorelabelperfeatureinmixture_processor, audio_feat_conc_processor,\
+scorelabelperfeature_multimic_processor
   
 
 def factory(processor):
@@ -24,6 +25,8 @@ def factory(processor):
         return multi_target_processor.MultiTargetProcessor
     elif processor == 'scorelabelperfeature_processor':
         return scorelabelperfeature_processor.ScorelabelperfeatureProcessor
+    elif processor == 'scorelabelperfeature_multimic_processor':
+        return scorelabelperfeature_multimic_processor.ScorelabelperfeatureMultimicProcessor
     elif processor == 'scorelabelperfeatureinmixture_processor':
         return scorelabelperfeatureinmixture_processor.ScorelabelperfeatureinmixtureProcessor
     elif processor == 'fracscorelabelperfeature_processor':

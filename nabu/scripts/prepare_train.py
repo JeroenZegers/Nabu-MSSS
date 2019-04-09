@@ -25,7 +25,7 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 
 	if not os.path.isdir(recipe):
 		raise Exception('cannot find recipe %s' % recipe)
-	if computing not in ['standard', 'condor', 'torque']:
+	if computing not in ['standard', 'condor', 'condor_dag', 'torque']:
 		raise Exception('unknown computing mode: %s' % computing)
 
 	duplicates = int(duplicates)
@@ -135,9 +135,6 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 
 		elif computing == 'condor':
 
-			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
-				os.makedirs(os.path.join(expdir_run, 'outputs'))
-
 			# read the computing config file
 			parsed_computing_cfg = configparser.ConfigParser()
 			parsed_computing_cfg.read(computing_cfg_file)
@@ -155,23 +152,62 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 				condor_prio = str(-10 + condor_prio_additional)
 				minmemory = computing_cfg['minmemory']
 
+			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
+				os.makedirs(os.path.join(expdir_run, 'outputs'))
+
 			subprocess.call([
 				'condor_submit', 'expdir=%s' % expdir_run, 'script=nabu/scripts/train.py', 'memory=%s' % minmemory,
 				'condor_prio=%s' % condor_prio, 'nabu/computing/condor/non_distributed.job'])
 
-		elif computing == 'torque':
-
-			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
-				os.makedirs(os.path.join(expdir_run, 'outputs'))
-
+		elif computing == 'condor_dag':
 			# read the computing config file
 			parsed_computing_cfg = configparser.ConfigParser()
 			parsed_computing_cfg.read(computing_cfg_file)
 			computing_cfg = dict(parsed_computing_cfg.items('computing'))
 
+			if dupl_ind > 0:
+				condor_prio_additional = -1-dupl_ind
+			else:
+				condor_prio_additional = 0
+
+			if sweep_flag == 'True':
+				condor_prio = str(-11 + condor_prio_additional)
+				minmemory = computing_cfg['minmemory_sweep']
+			else:
+				condor_prio = str(-10 + condor_prio_additional)
+				minmemory = computing_cfg['minmemory']
+
+			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
+				os.makedirs(os.path.join(expdir_run, 'outputs'))
+
+			dagman_files_dir = os.path.join(expdir_run, 'dagman_files')
+			if not os.path.isdir(dagman_files_dir):
+				shutil.copytree('nabu/computing/condor_dag', dagman_files_dir)
+				with open(os.path.join(dagman_files_dir, 'non_distributed.dag'), 'a') as fid:
+					fid.write(
+						'VARS  A  script="nabu/scripts/train.py" expdir="%s" memory="%s" condor_prio="%s"\n' %
+						(expdir_run, minmemory, condor_prio))
+					fid.write("SCRIPT POST  A  copy_outputs_retry.sh %s $RETRY" % expdir_run)
+
+			subprocess.call(['condor_submit_dag', '-usedagdir', '%s/non_distributed.dag' % dagman_files_dir])
+
+		elif computing == 'torque':
+			# read the computing config file
+			parsed_computing_cfg = configparser.ConfigParser()
+			parsed_computing_cfg.read(computing_cfg_file)
+			computing_cfg = dict(parsed_computing_cfg.items('computing'))
+
+			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
+				os.makedirs(os.path.join(expdir_run, 'outputs'))
+
+			if resume == 'True':
+				job_file = 'non_distributed_short.pbs'
+			else:
+				job_file = 'non_distributed_long.pbs'
+
 			call_str = \
 				'qsub -v expdir=%s,script=nabu/scripts/train.py -e %s/outputs/main.err -o %s/outputs/main.out ' \
-				'nabu/computing/torque/non_distributed.pbs' % (expdir_run, expdir_run, expdir_run)
+				'nabu/computing/torque/%s' % (expdir_run, expdir_run, expdir_run, job_file)
 			# call_str = \
 			# 	'export expdir=%s; export script=nabu/scripts/train.py; ' \
 			# 	'qsub nabu/computing/torque/non_distributed.pbs' % expdir_run

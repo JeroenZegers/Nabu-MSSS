@@ -270,7 +270,7 @@ class TaskTrainer(object):
 			reset_loss_norm = loss_norm.assign(0.0)
 
 			# evaluate a validation batch
-			val_batch_loss, val_batch_norm, valbatches, _, _ = self.evaluator.evaluate()
+			val_batch_loss, val_batch_norm, valbatches, _, _, _ = self.evaluator.evaluate()
 
 			acc_loss = loss.assign_add(val_batch_loss)
 			acc_loss_norm = loss_norm.assign_add(val_batch_norm)

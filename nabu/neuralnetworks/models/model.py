@@ -1,28 +1,28 @@
-'''@file model.py
-contains de Model class'''
+"""@file model.py
+contains de Model class"""
 from abc import ABCMeta, abstractmethod
 import tensorflow as tf
 import pdb
 
+
 class Model(object):
-    '''a general class for a deep learning model'''
+    """a general class for a deep learning model"""
     __metaclass__ = ABCMeta
     
     def __init__(self, conf, name=None):
-        '''Model constructor
+        """Model constructor
 
         Args:
             conf: The model configuration as a configparser object
-        '''
+        """
         
         self.conf = conf
         
         self.scope = tf.VariableScope(False, name or type(self).__name__)
 
-
     def __call__(self, inputs, input_seq_length, is_training):
 
-        '''
+        """
         Add the neural net variables and operations to the graph.
         The model scope attribute reuse is initialized to False. After it has
         been called for the first time, it is set to True, so that the weights
@@ -40,7 +40,7 @@ class Model(object):
                 tensors
             - the output logits sequence lengths which is a dictionary of
                 [batch_size] vectors
-        '''
+        """
 
         #compute the output logits
         logits = self._get_outputs(
@@ -54,7 +54,7 @@ class Model(object):
 
     @property
     def variables(self):
-        '''get a list of the models's variables'''
+        """get a list of the models's variables"""
 
         return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
                                  scope=self.scope.name)
@@ -62,7 +62,7 @@ class Model(object):
     @abstractmethod
     def _get_outputs(self, inputs, input_seq_length, is_training):
 
-        '''
+        """
         Add the neural net variables and operations to the graph
 
         Args:
@@ -75,6 +75,6 @@ class Model(object):
         Returns:
             - output logits, which is a dictionary of [batch_size x time x ...]
                 tensors
-        '''
+        """
 
         

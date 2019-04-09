@@ -2,10 +2,10 @@
 # request 1 gpu with 9 cpu:
 #PBS -l nodes=1:ppn=9:gpus=1
 # gpu will be in shared node
-#PBC -l partition=gpu
-# request it for 1 minute:
+#PBS -l partition=gpu
+# request it for 1 week
 #PBS -l walltime=167:00:00
-#PBS -A default_project
+#PBS -A lp_fwo_sb_1s66217n
 #PBS -m ae
 #PBS -M jeroen.zegers@esat.kuleuven.be
 
@@ -15,7 +15,5 @@ cd $PBS_O_WORKDIR
 #setting miniconda environment
 source ~/.bashrc
 conda activate my_gpu_env
-
-
 
 nabu/computing/torque/create_environment.sh python -u  ${script} --expdir=${expdir}

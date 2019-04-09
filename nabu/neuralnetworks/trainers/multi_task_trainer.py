@@ -301,6 +301,25 @@ class MultiTaskTrainer(object):
 						tf.assign(rel_val_task, all_rel_imprs[ind])
 						for ind, rel_val_task in enumerate(self.rel_validation_all_tasks)]
 
+					# variable to hold the number of times validation performance was worse
+					self.num_tries_all_tasks = [tf.get_variable(
+						name='num_tries_task_%i' % ind,
+						shape=[],
+						dtype=tf.int32,
+						initializer=tf.constant_initializer(0),
+						trainable=False)
+						for ind in range(len(self.val_task_trainers))]
+
+					# op to increment the number of times validation performance was worse
+					self.incr_num_tries_all_tasks = [
+						num_tries.assign(num_tries+1)
+						for ind, num_tries in enumerate(self.num_tries_all_tasks)]
+
+					# op to reset the number of times validation performance was worse
+					self.reset_num_tries_all_tasks = [
+						num_tries.assign(0)
+						for ind, num_tries in enumerate(self.num_tries_all_tasks)]
+
 					# a variable that holds the amount of workers at the
 					# validation point
 					waiting_workers = tf.get_variable(
@@ -363,9 +382,6 @@ class MultiTaskTrainer(object):
 
 		stop_hook = hooks.StopHook(self.done)
 		chief_only_hooks.append(stop_hook)
-
-		# number of times validation performance was worse
-		num_tries = np.zeros(len(self.val_task_trainers))
 
 		# determine all parameters
 		all_params = []
@@ -464,9 +480,10 @@ class MultiTaskTrainer(object):
 
 									# check how many times validation performance was
 									# worse
-									num_tries[task_ind] += 1
+									sess.run(self.incr_num_tries_all_tasks[task_ind])
 									if self.conf['num_tries'] != 'None':
-										if num_tries[task_ind] == int(self.conf['num_tries']):
+										num_tries = sess.run(self.num_tries_all_tasks[task_ind])
+										if num_tries == int(self.conf['num_tries']):
 											terminate_train = True
 									global_step = sess.run(self.global_step)
 									if global_step > 1000 and np.sum(np.abs(rel_val_loss_all_tasks[task_ind])) < 0.004:
@@ -488,7 +505,7 @@ class MultiTaskTrainer(object):
 									sess.run(self.update_best_all_tasks[task_ind])
 									prev_best_val_loss_all_tasks[task_ind] = val_loss_all_tasks[task_ind]
 									if self.conf['reset_tries'] == 'True':
-										num_tries[task_ind] = 0
+										sess.run(self.reset_num_tries_all_tasks[task_ind])
 
 							sess.run(self.update_prev_all_tasks)
 
@@ -520,15 +537,15 @@ class MultiTaskTrainer(object):
 								self.half_lr.run(session=sess)
 								validation_hook.save()
 
-							# 
-							if np.sum(num_tries) == 0:
+							#
+							if np.sum(sess.run(self.num_tries_all_tasks)) == 0:
 								self.reset_waiting.run(session=sess)
 
 								# store the validated model
 								validation_hook.save()
 
 						else:
-							if (self.conf['go_back'] == 'True' and self.process_val_batch is not None):
+							if self.conf['go_back'] == 'True' and self.process_val_batch is not None:
 								self.waiting.run(session=sess)
 								while (
 										self.should_validate.eval(session=sess) and

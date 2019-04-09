@@ -11,11 +11,6 @@ requestCpus      = 8
 #Requirements = (CUDACapability >= 3.0)
 Requirements =  has_avx\
   && (machine =!= LastRemoteHost)\
-  && (machine != "spchcl21.esat.kuleuven.be")\
-  && (machine != "spchcl23.esat.kuleuven.be")\
-  && (machine != "vladimir.esat.kuleuven.be")\
-  && (machine != "estragon.esat.kuleuven.be")\
-  && (machine != "andromeda.esat.kuleuven.be")\
   && (machine != "zulte.esat.kuleuven.be") \
   && (machine != "bandai.esat.kuleuven.be") \
   # I removed the following machines because I think cosic members kill them manually (not confirmed) \

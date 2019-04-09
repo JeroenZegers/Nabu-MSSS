@@ -1,5 +1,5 @@
-'''@file capsnet.py
-contains the CapsNet class'''
+'''@file dbr_capsnet.py
+contains the DBRCapsNet class'''
 
 import tensorflow as tf
 import model
@@ -49,6 +49,11 @@ class DBRCapsNet(model.Model):
 	else:
 	    accumulate_state_logits = True
 	    
+        if 'logits_prior' in self.conf and self.conf['logits_prior']=='True':
+	    logits_prior = True
+	else:
+	    logits_prior = False
+	    
 	
 	#code not available for multiple inputs!!
 	if len(inputs) > 1:
@@ -62,7 +67,7 @@ class DBRCapsNet(model.Model):
 		    tf.shape(inputs),
 		    stddev=float(self.conf['input_noise']))
 	    
-	    #Primary capsule. For the moment this is not recurrent
+	    #Primary capsule.
 	    with tf.variable_scope('primary_capsule'):
 		output = tf.identity(inputs, 'inputs')
 		input_seq_length = tf.identity(input_seq_length, 'input_seq_length')
@@ -95,6 +100,7 @@ class DBRCapsNet(model.Model):
 					      routing_iters=routing_iters,
 					      recurrent_probability_fn=recurrent_probability_fn,
 					      rec_only_vote=rec_only_vote,
+					      logits_prior=logits_prior,
 					      accumulate_input_logits=accumulate_input_logits,
 					      accumulate_state_logits=accumulate_state_logits)
 		    

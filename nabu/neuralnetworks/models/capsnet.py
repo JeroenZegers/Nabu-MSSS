@@ -26,7 +26,11 @@ class CapsNet(model.Model):
 
         num_capsules = int(self.conf['num_capsules'])
         capsule_dim=int(self.conf['capsule_dim'])
-        routing_iters=int(self.conf['routing_iters'])
+        routing_iters=int(self.conf['routing_iters'])    
+        if 'logits_prior' in self.conf and self.conf['logits_prior']=='True':
+	    logits_prior = True
+	else:
+	    logits_prior = False
 	
 	#code not available for multiple inputs!!
 	if len(inputs) > 1:
@@ -71,6 +75,7 @@ class CapsNet(model.Model):
 		    #a capsule layer
 		    caps_layer = layer.Capsule(num_capsules=num_capsules, 
 					      capsule_dim=capsule_dim,
+					      logits_prior=logits_prior,
 					      routing_iters=routing_iters)
 		    
 		    output = caps_layer(output)

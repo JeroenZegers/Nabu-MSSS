@@ -110,6 +110,31 @@ def spec2time(spec, samplerate, siglen, conf):
     return signal 
     
   
+def frames(signal, samplerate, conf):
+    '''
+    Compute frames from an audio signal.
+
+    Args:
+        signal: the audio signal from which to compute features. Should be an
+            N*1 array
+        samplerate: the samplerate of the signal we are working with.
+        conf: feature configuration
+
+    Returns:
+        A numpy array of size (NUMFRAMES by winlen) containing features. Each
+        row holds 1 feature vector
+    '''
+    signal = sigproc.preemphasis(signal, float(conf['preemph']))
+    
+    winfunc = _get_winfunc(conf['winfunc'])
+    
+    frames = sigproc.framesig(signal, float(conf['winlen'])*samplerate,
+                              float(conf['winstep'])*samplerate,
+                              winfunc)
+    
+    return frames
+    
+  
 def magspec(signal, samplerate, conf):
     '''
     Compute magnitude spectrogram features from an audio signal.
@@ -179,10 +204,10 @@ def _get_winfunc(str_winfunc):
 	winfunc=lambda x: scipy.hanning(x)
     elif str_winfunc=='hamming':
 	winfunc=lambda x: scipy.signal.hamming(x)
-    elif str_winfunc=='none': 
+    elif str_winfunc=='none' or str_winfunc=='None': 
 	winfunc=lambda x: numpy.ones((x, ))
     else:
-	raise Exception('unknown window function: %s' % conf['winfunc'])
+	raise Exception('unknown window function: %s' % str_winfunc)
       
     return winfunc
   
