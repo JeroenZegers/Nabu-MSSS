@@ -54,4 +54,3 @@ echo 'Running command'
 echo '****'
 echo ''
 $fullinput
-

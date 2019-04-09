@@ -1,25 +1,28 @@
-'''@file loss_computer_factory.py
-contains the Loss computer factory mehod'''
+"""@file loss_computer_factory.py
+contains the Loss computer factory mehod"""
 
 from . import deepclustering_loss, pit_loss, pit_loss_sigmoid, pit_loss_sigmoid_scaled, \
-  l41_loss, pit_l41_loss,\
-  deepclustering_L1_loss, dist2mean_rat_loss,\
-  dist2mean_rat_squared_loss, intravar2centervar_rat_loss,\
-  dist2mean_rat_fracbins_loss, crossentropy_multi_loss,\
-  dist2mean_closest_rat_loss,direct_loss, dist2mean_epsilon_closest_rat_loss,\
-  dc_pit_loss, crossentropy_multi_loss_reshapelogits,\
-  crossentropy_multi_loss_reshapelogits_avtime,\
-  deepclustering_full_crossentropy_multi_reshapedlogits_avtime_loss,\
-  deepclustering_2and3spk_loss, deepclustering_flat_loss
+	l41_loss, pit_l41_loss,\
+	deepclustering_L1_loss, dist2mean_rat_loss,\
+	dist2mean_rat_squared_loss, intravar2centervar_rat_loss,\
+	dist2mean_rat_fracbins_loss, crossentropy_multi_loss,\
+	dist2mean_closest_rat_loss,direct_loss, dist2mean_epsilon_closest_rat_loss,\
+	dc_pit_loss, crossentropy_multi_loss_reshapelogits,\
+	crossentropy_multi_loss_reshapelogits_avtime,\
+	deepclustering_full_crossentropy_multi_reshapedlogits_avtime_loss,\
+	deepclustering_2and3spk_loss, deepclustering_flat_loss, deepattractornet_sigmoid_loss, deepclusteringnoise_loss, \
+	deepattractornetnoise_hard_loss, deepattractornetnoise_hard_loss, deepattractornetnoise_soft_loss, \
+	deepattractornet_softmax_loss, noisefilter_loss, deepattractornet_noisefilter_loss
+
 
 def factory(loss_type):
-    '''gets a Loss computer class
+    """gets a Loss computer class
 
     Args:
         loss_type: the loss type
 
     Returns: a Loss computer class
-    '''
+    """
 
     if loss_type == 'deepclustering':
         return deepclustering_loss.DeepclusteringLoss
@@ -33,6 +36,10 @@ def factory(loss_type):
         return pit_loss_sigmoid.PITLossSigmoid
     elif loss_type == 'pit_sigmoid_scaled':
         return pit_loss_sigmoid_scaled.PITLossSigmoidScaled
+    elif loss_type == 'deepattractornet_sigmoid':
+        return deepattractornet_sigmoid_loss.DeepattractornetSigmoidLoss
+    elif loss_type == 'deepattractornet_softmax':
+        return deepattractornet_softmax_loss.DeepattractornetSoftmaxLoss
     elif loss_type == 'l41':
         return l41_loss.L41Loss
     elif loss_type == 'pit_l41':
@@ -63,5 +70,15 @@ def factory(loss_type):
         return dc_pit_loss.DcPitLoss
     elif loss_type == 'deepclustering_full_crossentropy_multi_reshapelogits_avtime':
         return deepclustering_full_crossentropy_multi_reshapedlogits_avtime_loss.DeepclusteringFullCrossEntropyMultiReshapedLogitsAvTimeLoss
+    elif loss_type == 'deepclusteringnoise':
+        return deepclusteringnoise_loss.DeepclusteringnoiseLoss
+    elif loss_type == 'deepattractornetnoisehard':
+        return deepattractornetnoise_hard_loss.DeepattractornetnoisehardLoss
+    elif loss_type == 'deepattractornetnoisesoft':
+        return deepattractornetnoise_soft_loss.DeepattractornetnoisesoftLoss
+    elif loss_type == 'noisefilter':
+        return noisefilter_loss.NoisefilterLoss
+    elif loss_type == 'deepattractornet_noisefilter':
+        return deepattractornet_noisefilter_loss.DeepattractornetnoisefilterLoss
     else:
         raise Exception('Undefined loss type: %s' % loss_type)

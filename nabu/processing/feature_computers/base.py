@@ -1,4 +1,4 @@
-'''
+"""
 @file base.py
 Contains the functions that compute the features
 
@@ -30,7 +30,7 @@ Author: James Lyons 2012
 
 *UPDATE: def logspec added by Jeroen Zegers on 11th of September 2017*
 
-'''
+"""
 
 import numpy
 import sigproc
@@ -39,8 +39,9 @@ from scipy.ndimage import convolve1d
 import scipy.signal
 import scipy
 
+
 def raw(signal):
-    '''
+    """
     compute the raw audio signal with limited range
 
     Args:
@@ -50,13 +51,14 @@ def raw(signal):
     Returns:
         A numpy array of size (N by 1) containing the raw audio limited to a
         range between -1 and 1
-    '''
+    """
     feat = signal.astype(numpy.float32)/numpy.max(numpy.abs(signal))
 
     return feat[:, numpy.newaxis]
-  
+
+
 def spec(signal, samplerate, conf):
-    '''
+    """
     Compute complex spectrogram features from an audio signal.
 
     Args:
@@ -68,23 +70,24 @@ def spec(signal, samplerate, conf):
     Returns:
         A numpy array of size (NUMFRAMES by numfreq) containing features. Each
         row holds 1 feature vector, a numpy vector containing the complex
-        spectrum of the corresponding frame 
-    '''    
+        spectrum of the corresponding frame
+    """
     winfunc = _get_winfunc(conf['winfunc'])
-    
+
     frames = sigproc.framesig(signal, float(conf['winlen'])*samplerate,
                               float(conf['winstep'])*samplerate,
                               winfunc)
     spec = sigproc.spec(frames, int(conf['nfft']))
-    
+
     return spec
-  
+
+
 def spec2time(spec, samplerate, siglen, conf):
-    '''
+    """
     Compute the time domain signal from the complex spectrogram. No preemphasis is assumed.
 
     Args:
-	spec: A numpy array of size (NUMFRAMES by numfreq) containing features. Each
+    spec: A numpy array of size (NUMFRAMES by numfreq) containing features. Each
         row holds 1 feature vector, a numpy vector containing the complex
         spectrum of the corresponding frame
         samplerate: the samplerate of the signal we are working with.
@@ -95,23 +98,23 @@ def spec2time(spec, samplerate, siglen, conf):
     Returns:
         signal: the audio signal from which to compute features. This is an
             N*1 array
-    '''
-    
+    """
+
     frames = sigproc.spec2frames(spec)
-    
+
     winfunc = _get_winfunc(conf['winfunc'])
-    
-    signal = sigproc.deframesig(frames, siglen,float(conf['winlen'])*samplerate,
-                              float(conf['winstep'])*samplerate, winfunc)
-    
-    #Limit the range of the signal between -1.0 and 1.0
+
+    signal = sigproc.deframesig(
+        frames, siglen, float(conf['winlen'])*samplerate, float(conf['winstep'])*samplerate, winfunc)
+
+    # Limit the range of the signal between -1.0 and 1.0
     signal = signal/numpy.max(numpy.abs(signal))
-    
-    return signal 
-    
-  
+
+    return signal
+
+
 def frames(signal, samplerate, conf):
-    '''
+    """
     Compute frames from an audio signal.
 
     Args:
@@ -123,20 +126,20 @@ def frames(signal, samplerate, conf):
     Returns:
         A numpy array of size (NUMFRAMES by winlen) containing features. Each
         row holds 1 feature vector
-    '''
+    """
     signal = sigproc.preemphasis(signal, float(conf['preemph']))
-    
+
     winfunc = _get_winfunc(conf['winfunc'])
-    
+
     frames = sigproc.framesig(signal, float(conf['winlen'])*samplerate,
                               float(conf['winstep'])*samplerate,
                               winfunc)
-    
+
     return frames
-    
-  
+
+
 def magspec(signal, samplerate, conf):
-    '''
+    """
     Compute magnitude spectrogram features from an audio signal.
 
     Args:
@@ -148,21 +151,22 @@ def magspec(signal, samplerate, conf):
     Returns:
         A numpy array of size (NUMFRAMES by numfreq) containing features. Each
         row holds 1 feature vector, a numpy vector containing the magnitude
-        spectrum of the corresponding frame 
-    '''
+        spectrum of the corresponding frame
+    """
     signal = sigproc.preemphasis(signal, float(conf['preemph']))
-    
+
     winfunc = _get_winfunc(conf['winfunc'])
-    
+
     frames = sigproc.framesig(signal, float(conf['winlen'])*samplerate,
                               float(conf['winstep'])*samplerate,
                               winfunc)
     magspec = sigproc.magspec(frames, int(conf['nfft']))
-    
+
     return magspec
 
+
 def logspec(signal, samplerate, conf):
-    '''
+    """
     Compute log magnitude spectrogram features from an audio signal.
 
     Args:
@@ -174,47 +178,47 @@ def logspec(signal, samplerate, conf):
     Returns:
         A numpy array of size (NUMFRAMES by numfreq) containing features. Each
         row holds 1 feature vector, a numpy vector containing the log magnitude
-        spectrum of the corresponding frame 
-    '''
+        spectrum of the corresponding frame
+    """
     signal = sigproc.preemphasis(signal, float(conf['preemph']))
-    
+
     winfunc = _get_winfunc(conf['winfunc'])
-    
+
     frames = sigproc.framesig(signal, float(conf['winlen'])*samplerate,
                               float(conf['winstep'])*samplerate,
                               winfunc)
     logspec = sigproc.logmagspec(frames, int(conf['nfft']))
-    
+
     return logspec
-  
+
+
 def _get_winfunc(str_winfunc):
-    '''
+    """
     Get the requested window function.
-    
+
     Args:
-	str_winfunc: a string indicating the desired window function
-	
+    str_winfunc: a string indicating the desired window function
+
     Returns:
-	winfunc: the desired window function as a python lambda function
-    '''
-  
-    if str_winfunc=='cosine':
-	winfunc=lambda x: scipy.signal.cosine(x)
-    elif str_winfunc=='hanning':
-	winfunc=lambda x: scipy.hanning(x)
-    elif str_winfunc=='hamming':
-	winfunc=lambda x: scipy.signal.hamming(x)
-    elif str_winfunc=='none' or str_winfunc=='None': 
-	winfunc=lambda x: numpy.ones((x, ))
+    winfunc: the desired window function as a python lambda function
+    """
+
+    if str_winfunc == 'cosine':
+        winfunc = scipy.signal.cosine
+    elif str_winfunc == 'hanning':
+        winfunc = scipy.hanning
+    elif str_winfunc == 'hamming':
+        winfunc = scipy.signal.hamming
+    elif str_winfunc == 'none' or str_winfunc == 'None':
+        winfunc = lambda x: numpy.ones((x, ))
     else:
-	raise Exception('unknown window function: %s' % str_winfunc)
-      
+        raise Exception('unknown window function: %s' % str_winfunc)
+
     return winfunc
-  
-     
+
 
 def mfcc(signal, samplerate, conf):
-    '''
+    """
     Compute MFCC features from an audio signal.
 
     Args:
@@ -227,7 +231,7 @@ def mfcc(signal, samplerate, conf):
         A numpy array of size (NUMFRAMES by numcep) containing features. Each
         row holds 1 feature vector, a numpy vector containing the signal
         log-energy
-    '''
+    """
 
     feat, energy = fbank(signal, samplerate, conf)
     feat = numpy.log(feat)
@@ -235,8 +239,9 @@ def mfcc(signal, samplerate, conf):
     feat = lifter(feat, float(conf['ceplifter']))
     return feat, numpy.log(energy)
 
+
 def fbank(signal, samplerate, conf):
-    '''
+    """
     Compute fbank features from an audio signal.
 
     Args:
@@ -248,7 +253,7 @@ def fbank(signal, samplerate, conf):
     Returns:
         A numpy array of size (NUMFRAMES by nfilt) containing features, a numpy
         vector containing the signal energy
-    '''
+    """
 
     highfreq = int(conf['highfreq'])
     if highfreq < 0:
@@ -276,8 +281,9 @@ def fbank(signal, samplerate, conf):
 
     return feat, energy
 
+
 def logfbank(signal, samplerate, conf):
-    '''
+    """
     Compute log-fbank features from an audio signal.
 
     Args:
@@ -289,12 +295,13 @@ def logfbank(signal, samplerate, conf):
     Returns:
         A numpy array of size (NUMFRAMES by nfilt) containing features, a numpy
         vector containing the signal log-energy
-    '''
+    """
     feat, energy = fbank(signal, samplerate, conf)
     return numpy.log(feat), numpy.log(energy)
 
+
 def ssc(signal, samplerate, conf):
-    '''
+    """
     Compute ssc features from an audio signal.
 
     Args:
@@ -306,7 +313,7 @@ def ssc(signal, samplerate, conf):
     Returns:
         A numpy array of size (NUMFRAMES by nfilt) containing features, a numpy
         vector containing the signal log-energy
-    '''
+    """
 
     highfreq = int(conf['highfreq'])
     if highfreq < 0:
@@ -332,8 +339,9 @@ def ssc(signal, samplerate, conf):
 
     return numpy.dot(pspec*tiles, filterbank.T) / feat, numpy.log(energy)
 
+
 def hz2mel(rate):
-    '''
+    """
     Convert a value in Hertz to Mels
 
     Args:
@@ -343,11 +351,12 @@ def hz2mel(rate):
     Returns:
         a value in Mels. If an array was passed in, an identical sized array is
         returned.
-    '''
+    """
     return 2595 * numpy.log10(1+rate/700.0)
 
+
 def mel2hz(mel):
-    '''
+    """
     Convert a value in Mels to Hertz
 
     Args:
@@ -357,12 +366,13 @@ def mel2hz(mel):
     Returns:
         a value in Hertz. If an array was passed in, an identical sized array is
         returned.
-    '''
+    """
     return 700*(10**(mel/2595.0)-1)
+
 
 def get_filterbanks(nfilt=20, nfft=512, samplerate=16000, lowfreq=0,
                     highfreq=None):
-    '''
+    """
     Compute a Mel-filterbank.
 
     The filters are stored in the rows, the columns correspond to fft bins.
@@ -379,7 +389,7 @@ def get_filterbanks(nfilt=20, nfft=512, samplerate=16000, lowfreq=0,
     Returns:
         A numpy array of size nfilt * (nfft/2 + 1) containing filterbank. Each
         row holds 1 filter.
-    '''
+    """
 
     highfreq = highfreq or samplerate/2
     assert highfreq <= samplerate/2, "highfreq is greater than samplerate/2"
@@ -401,8 +411,9 @@ def get_filterbanks(nfilt=20, nfft=512, samplerate=16000, lowfreq=0,
             fbanks[j, i] = (bins[j+2]-i)/(bins[j+2]-bins[j+1])
     return fbanks
 
-def lifter(cepstra, liftering=22):
-    '''
+
+def lifter(cepstra, liftering=22.0):
+    """
     Apply a cepstral lifter the the matrix of cepstra.
 
     This has the effect of increasing the magnitude of the high frequency DCT
@@ -415,18 +426,18 @@ def lifter(cepstra, liftering=22):
 
     Returns:
         the lifted cepstra
-    '''
+    """
     if liftering > 0:
         _, ncoeff = numpy.shape(cepstra)
-        lift = 1+(liftering/2)*numpy.sin(numpy.pi
-                                         *numpy.arange(ncoeff)/liftering)
+        lift = 1+(liftering/2)*numpy.sin(numpy.pi * numpy.arange(ncoeff)/liftering)
         return lift*cepstra
     else:
         # values of liftering <= 0, do nothing
         return cepstra
 
+
 def deriv(features):
-    '''
+    """
     Compute the first order derivative of the features
 
     Args:
@@ -434,11 +445,12 @@ def deriv(features):
 
     Returns:
         the firs order derivative
-    '''
-    return convolve1d(features, [2, 1, 0, -1, -2], 0)
+    """
+    return convolve1d(features, numpy.array([2, 1, 0, -1, -2]), 0)
+
 
 def delta(features):
-    '''
+    """
     concatenate the first order derivative to the features
 
     Args:
@@ -446,11 +458,12 @@ def delta(features):
 
     Returns:
         the features concatenated with the first order derivative
-    '''
+    """
     return numpy.concatenate((features, deriv(features)), 1)
 
+
 def ddelta(features):
-    '''
+    """
     concatenate the first and second order derivative to the features
 
     Args:
@@ -458,6 +471,6 @@ def ddelta(features):
 
     Returns:
         the features concatenated with the first and second order derivative
-    '''
+    """
     deltafeat = deriv(features)
     return numpy.concatenate((features, deltafeat, deriv(deltafeat)), 1)

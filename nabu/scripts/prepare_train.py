@@ -8,7 +8,6 @@ import subprocess
 import tensorflow as tf
 from six.moves import configparser
 from train import train
-import pdb
 sys.path.append(os.getcwd())
 
 

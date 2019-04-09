@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 '''
@@ -69,6 +69,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 Please see http://craffel.github.io/mir_eval/ for more information
+
+Addition by Pieter Appeltans on 4/4/2018: bss_eval for noisy signals
 '''
 
 import numpy as np
@@ -175,14 +177,278 @@ def validate(reference_sources, estimated_sources):
                          'larger value.'.format(reference_sources.shape[0],
                                                 estimated_sources.shape[0],
                                                 MAX_SOURCES))
+def validate_extended(reference_sources, estimated_sources,noise_source):
+    """Checks that the input data to a metric are valid, and throws helpful
+    errors if not.
 
+    Parameters
+    ----------
+    reference_sources : np.ndarray, shape=(nsrc, nsampl)
+        matrix containing true sources
+    estimated_sources : np.ndarray, shape=(nsrc, nsampl)
+        matrix containing estimated sources
+
+    """
+
+    validate(reference_sources, estimated_sources)
+    if noise_source.size == 0:
+        warnings.warn("noise_source is empty, should be of size "
+                      "(1, nsample).  sdr, sir, sar, snr, and perm will all "
+                      "be empty np.ndarrays")
+    elif _any_source_silent(noise_source[np.newaxis,:]):
+        raise ValueError('Noise sources should be non-silent (not '
+                         'all-zeros)')
 
 def _any_source_silent(sources):
     """Returns true if the parameter sources has any silent first dimensions"""
     return np.any(np.all(np.sum(
         sources, axis=tuple(range(2, sources.ndim))) == 0, axis=1))
 
+def bss_eval_sources_extended(reference_sources, estimated_sources,noise_source,
+                     compute_permutation=True):
+    """
+    Ordering and measurement of the separation quality for estimated source
+    signals in terms of filtered true source, interference and artifacts.
 
+    The decomposition allows a time-invariant filter distortion of length
+    512, as described in Section III.B of [#vincent2006performance]_.
+
+    Passing ``False`` for ``compute_permutation`` will improve the computation
+    performance of the evaluation; however, it is not always appropriate and
+    is not the way that the BSS_EVAL Matlab toolbox computes bss_eval_sources.
+
+    Examples
+    --------
+    >>> # reference_sources[n] should be an ndarray of samples of the
+    >>> # n'th reference source
+    >>> # estimated_sources[n] should be the same for the n'th estimated
+    >>> # source
+    >>> (sdr, sir, sar,
+    ...  perm) = mir_eval.separation.bss_eval_sources(reference_sources,
+    ...                                               estimated_sources)
+
+    Parameters
+    ----------
+    reference_sources : np.ndarray, shape=(nsrc, nsampl)
+        matrix containing true sources (must have same shape as
+        estimated_sources)
+    estimated_sources : np.ndarray, shape=(nsrc, nsampl)
+        matrix containing estimated sources (must have same shape as
+        reference_sources)
+    noise_source :np.ndarray, shape = (1,nsampl)
+        matrix containing the noise sourse (must have same number of
+        samples as reference_sources)
+    compute_permutation : bool, optional
+        compute permutation of estimate/source combinations (True by default)
+
+    Returns
+    -------
+    sdr : np.ndarray, shape=(nsrc,)
+        vector of Signal to Distortion Ratios (SDR)
+    sir : np.ndarray, shape=(nsrc,)
+        vector of Source to Interference Ratios (SIR)
+    sar : np.ndarray, shape=(nsrc,)
+        vector of Sources to Artifacts Ratios (SAR)
+    snr : np.ndarray, shape=(nsrc,)
+        vector of Source to Noise Ratios (SNR)
+    perm : np.ndarray, shape=(nsrc,)
+        vector containing the best ordering of estimated sources in
+        the mean SIR sense (estimated source number ``perm[j]`` corresponds to
+        true source number ``j``). Note: ``perm`` will be ``[0, 1, ...,
+        nsrc-1]`` if ``compute_permutation`` is ``False``.
+
+    References
+    ----------
+    .. [#] Emmanuel Vincent, Shoko Araki, Fabian J. Theis, Guido Nolte, Pau
+        Bofill, Hiroshi Sawada, Alexey Ozerov, B. Vikrham Gowreesunker, Dominik
+        Lutter and Ngoc Q.K. Duong, "The Signal Separation Evaluation Campaign
+        (2007-2010): Achievements and remaining challenges", Signal Processing,
+        92, pp. 1928-1936, 2012.
+
+    """
+
+    # make sure the input is of shape (nsrc, nsampl)
+    if estimated_sources.ndim == 1:
+        estimated_sources = estimated_sources[np.newaxis, :]
+    if reference_sources.ndim == 1:
+        reference_sources = reference_sources[np.newaxis, :]
+
+    validate_extended(reference_sources, estimated_sources,noise_source)
+    # If empty matrices were supplied, return empty lists (special case)
+    if reference_sources.size == 0 or estimated_sources.size == 0 or noise_source.size == 0:
+        return np.array([]), np.array([]), np.array([]), np.array([])
+
+    nsrc = estimated_sources.shape[0]
+
+    # does user desire permutations?
+    if compute_permutation:
+        # compute criteria for all possible pair matches
+        sdr = np.empty((nsrc, nsrc))
+        sir = np.empty((nsrc, nsrc))
+        sar = np.empty((nsrc, nsrc))
+        snr = np.empty((nsrc, nsrc))
+        for jest in range(nsrc):
+            for jtrue in range(nsrc):
+                s_true, e_spat, e_interf,e_noise, e_artif = \
+                    _bss_decomp_mtifilt_extended(reference_sources,
+                                        estimated_sources[jest],
+                                        noise_source,
+                                        jtrue, 512)
+                sdr[jest, jtrue], sir[jest, jtrue], sar[jest, jtrue],snr[jest,jtrue] = \
+                    _bss_source_crit_extended(s_true, e_spat, e_interf,e_noise, e_artif)
+
+        # select the best ordering
+        perms = list(itertools.permutations(list(range(nsrc))))
+        mean_sir = np.empty(len(perms))
+        dum = np.arange(nsrc)
+        for (i, perm) in enumerate(perms):
+            mean_sir[i] = np.mean(sir[perm, dum])
+        popt = perms[np.argmax(mean_sir)]
+        idx = (popt, dum)
+        return (sdr[idx], sir[idx], sar[idx],snr[idx], np.asarray(popt))
+    else:
+        # compute criteria for only the simple correspondence
+        # (estimate 1 is estimate corresponding to reference source 1, etc.)
+        sdr = np.empty(nsrc)
+        sir = np.empty(nsrc)
+        sar = np.empty(nsrc)
+        snr = np.empty(nsrc)
+        for j in range(nsrc):
+            s_true, e_spat, e_interf,e_noise, e_artif = \
+                _bss_decomp_mtifilt_extended(reference_sources,
+                                    estimated_sources[j],
+                                    noise_source,
+                                    j, 512)
+            sdr[j], sir[j], sar[j],snr[j] = \
+                _bss_source_crit_extended(s_true, e_spat, e_interf,e_noise, e_artif)
+
+        # return the default permutation for compatibility
+        popt = np.arange(nsrc)
+        return (sdr, sir, sar,snr, popt)
+
+def bss_eval_sources_extended_noise(reference_sources, estimated_sources,noise_source,
+                     compute_permutation=True):
+    """
+    Ordering and measurement of the separation quality for estimated source
+    signals in terms of filtered true source, interference and artifacts.
+
+    The decomposition allows a time-invariant filter distortion of length
+    512, as described in Section III.B of [#vincent2006performance]_.
+
+    Passing ``False`` for ``compute_permutation`` will improve the computation
+    performance of the evaluation; however, it is not always appropriate and
+    is not the way that the BSS_EVAL Matlab toolbox computes bss_eval_sources.
+
+    Examples
+    --------
+    >>> # reference_sources[n] should be an ndarray of samples of the
+    >>> # n'th reference source
+    >>> # estimated_sources[n] should be the same for the n'th estimated
+    >>> # source
+    >>> (sdr, sir, sar,snr
+    ...  perm) = mir_eval.separation.bss_eval_sources(reference_sources,
+    ...                                               estimated_sources)
+
+    Parameters
+    ----------
+    reference_sources : np.ndarray, shape=(nsrc, nsampl)
+        matrix containing true sources (must have same shape as
+        estimated_sources)
+    estimated_sources : np.ndarray, shape=(nsrc, nsampl)
+        matrix containing estimated sources (must have same shape as
+        reference_sources)
+    noise_source :np.ndarray, shape = (1,nsampl)
+        matrix containing the noise sourse (must have same number of
+        samples as reference_sources)
+    compute_permutation : bool, optional
+        compute permutation of estimate/source combinations (True by default)
+
+    Returns
+    -------
+    sdr : np.ndarray, shape=(nsrc,)
+        vector of Signal to Distortion Ratios (SDR)
+    sir : np.ndarray, shape=(nsrc,)
+        vector of Source to Interference Ratios (SIR)
+    sar : np.ndarray, shape=(nsrc,)
+        vector of Sources to Artifacts Ratios (SAR)
+    snr : np.ndarray, shape=(nsrc,)
+        vector of Source to Noise Ratios (SNR)
+    perm : np.ndarray, shape=(nsrc,)
+        vector containing the best ordering of estimated sources in
+        the mean SIR sense (estimated source number ``perm[j]`` corresponds to
+        true source number ``j``). Note: ``perm`` will be ``[0, 1, ...,
+        nsrc-1]`` if ``compute_permutation`` is ``False``.
+
+    References
+    ----------
+    .. [#] Emmanuel Vincent, Shoko Araki, Fabian J. Theis, Guido Nolte, Pau
+        Bofill, Hiroshi Sawada, Alexey Ozerov, B. Vikrham Gowreesunker, Dominik
+        Lutter and Ngoc Q.K. Duong, "The Signal Separation Evaluation Campaign
+        (2007-2010): Achievements and remaining challenges", Signal Processing,
+        92, pp. 1928-1936, 2012.
+
+    """
+
+    # make sure the input is of shape (nsrc, nsampl)
+    if estimated_sources.ndim == 1:
+        estimated_sources = estimated_sources[np.newaxis, :]
+    if reference_sources.ndim == 1:
+        reference_sources = reference_sources[np.newaxis, :]
+
+    #validate_extended(reference_sources, estimated_sources,noise_source)
+    # If empty matrices were supplied, return empty lists (special case)
+    if reference_sources.size == 0 or estimated_sources.size == 0 or noise_source.size == 0:
+        return np.array([]), np.array([]), np.array([]), np.array([])
+
+    nsrc = estimated_sources.shape[0]
+    nspk = reference_sources.shape[0]
+    # does user desire permutations?
+    if compute_permutation:
+        # compute criteria for all possible pair matches
+        sdr = np.empty((nsrc, nspk))
+        sir = np.empty((nsrc, nspk))
+        sar = np.empty((nsrc, nspk))
+        snr = np.empty((nsrc, nspk))
+        for jest in range(nsrc):
+            for jtrue in range(nspk):
+                s_true, e_spat, e_interf,e_noise, e_artif = \
+                    _bss_decomp_mtifilt_extended(reference_sources,
+                                        estimated_sources[jest],
+                                        noise_source,
+                                        jtrue, 512)
+                sdr[jest, jtrue], sir[jest, jtrue], sar[jest, jtrue],snr[jest,jtrue] = \
+                    _bss_source_crit_extended(s_true, e_spat, e_interf,e_noise, e_artif)
+
+        # select the best ordering
+        perms = list(itertools.permutations(list(range(nsrc))))
+        mean_sir = np.empty(len(perms))
+        dum = np.arange(nspk)
+        for (i, perm) in enumerate(perms):
+            mean_sir[i] = np.mean(sir[perm[0:nspk], dum])
+        popt = perms[np.argmax(mean_sir)]
+        idx = (popt[0:nspk], dum)
+        print sdr
+        print popt
+        return (sdr[idx], sir[idx], sar[idx],snr[idx], np.asarray(popt))
+    else:
+        # compute criteria for only the simple correspondence
+        # (estimate 1 is estimate corresponding to reference source 1, etc.)
+        sdr = np.empty(nspk)
+        sir = np.empty(nspk)
+        sar = np.empty(nspk)
+        snr = np.empty(nspk)
+        for j in range(nspk):
+            s_true, e_spat, e_interf,e_noise, e_artif = \
+                _bss_decomp_mtifilt_extended(reference_sources,
+                                    estimated_sources[j],
+                                    noise_source,
+                                    j, 512)
+            sdr[j], sir[j], sar[j],snr[j] = \
+                _bss_source_crit_extended(s_true, e_spat, e_interf,e_noise, e_artif)
+
+        # return the default permutation for compatibility
+        popt = np.arange(nsrc)
+        return (sdr, sir, sar,snr, popt)
 def bss_eval_sources(reference_sources, estimated_sources,
                      compute_permutation=True):
     """
@@ -250,10 +516,9 @@ def bss_eval_sources(reference_sources, estimated_sources,
     validate(reference_sources, estimated_sources)
     # If empty matrices were supplied, return empty lists (special case)
     if reference_sources.size == 0 or estimated_sources.size == 0:
-        return np.array([]), np.array([]), np.array([]), np.array([])
+         return np.array([]), np.array([]), np.array([]), np.array([])
 
     nsrc = estimated_sources.shape[0]
-
     # does user desire permutations?
     if compute_permutation:
         # compute criteria for all possible pair matches
@@ -661,6 +926,28 @@ def bss_eval_images_framewise(reference_sources, estimated_sources,
 
     return sdr, isr, sir, sar, perm
 
+def _bss_decomp_mtifilt_extended(reference_sources, estimated_source,noise_source, j, flen):
+    """Decomposition of an estimated source image into four components
+    representing respectively the true source image, spatial (or filtering)
+    distortion, interference and artifacts, derived from the true source
+    images using multichannel time-invariant filters.
+    """
+    nsampl = estimated_source.size
+    # decomposition
+    # true source image
+    s_true = np.hstack((reference_sources[j], np.zeros(flen - 1)))
+    # spatial (or filtering) distortion
+    e_spat = _project(reference_sources[j, np.newaxis, :], estimated_source,
+                      flen) - s_true
+    # interference
+    e_interf = _project(reference_sources,
+                        estimated_source, flen) - s_true - e_spat
+    e_noise = _project_extended(reference_sources,estimated_source,noise_source, flen) - \
+        _project(reference_sources,estimated_source, flen)
+    # artifacts
+    e_artif = -s_true - e_spat - e_interf - e_noise
+    e_artif[:nsampl] += estimated_source
+    return (s_true, e_spat, e_interf,e_noise, e_artif)
 
 def _bss_decomp_mtifilt(reference_sources, estimated_source, j, flen):
     """Decomposition of an estimated source image into four components
@@ -731,6 +1018,58 @@ def _bss_decomp_mtifilt_images(reference_sources, estimated_source, j, flen,
     else:
         return (s_true, e_spat, e_interf, e_artif)
 
+def _project_extended(reference_sources, estimated_source,noise_source, flen):
+    """Least-squares projection of estimated source on the subspace spanned by
+    delayed versions of reference sources, with delays between 0 and flen-1
+    input:
+        reference_sources: original sources
+        estimated_source: the estimated source
+        noise_source: the seperated signal of the noise
+
+    """
+    nsrc = reference_sources.shape[0]
+    nsampl = reference_sources.shape[1]
+
+    # computing coefficients of least squares problem via FFT ##
+    # zero padding and FFT of input data
+    reference_sources = np.hstack((reference_sources,
+                                   np.zeros((nsrc, flen - 1))))
+
+    noise_source = np.hstack((noise_source,np.zeros(flen-1)))
+    sources = np.vstack((reference_sources,noise_source))
+    estimated_source = np.hstack((estimated_source, np.zeros(flen - 1)))
+    n_fft = int(2**np.ceil(np.log2(nsampl + flen - 1.)))
+    sf = scipy.fftpack.fft(sources, n=n_fft, axis=1)
+    sef = scipy.fftpack.fft(estimated_source, n=n_fft)
+    # inner products between delayed versions of reference_sources
+    G = np.zeros(((nsrc+1) * flen, (nsrc+1) * flen))
+    for i in range(nsrc+1):
+        for j in range(nsrc+1):
+            ssf = sf[i] * np.conj(sf[j])
+            ssf = np.real(scipy.fftpack.ifft(ssf))
+            ss = toeplitz(np.hstack((ssf[0], ssf[-1:-flen:-1])),
+                          r=ssf[:flen])
+            G[i * flen: (i+1) * flen, j * flen: (j+1) * flen] = ss
+            G[j * flen: (j+1) * flen, i * flen: (i+1) * flen] = ss.T
+    # inner products between estimated_source and delayed versions of
+    # reference_sources
+    D = np.zeros((nsrc+1) * flen)
+    for i in range(nsrc+1):
+        ssef = sf[i] * np.conj(sef)
+        ssef = np.real(scipy.fftpack.ifft(ssef))
+        D[i * flen: (i+1) * flen] = np.hstack((ssef[0], ssef[-1:-flen:-1]))
+
+    # Computing projection
+    # Distortion filters
+    try:
+        C = np.linalg.solve(G, D).reshape(flen, nsrc+1, order='F')
+    except np.linalg.linalg.LinAlgError:
+        C = np.linalg.lstsq(G, D)[0].reshape(flen, nsrc+1, order='F')
+    # Filtering
+    sproj = np.zeros(nsampl + flen - 1)
+    for i in range(nsrc+1):
+        sproj += fftconvolve(C[:, i], sources[i])[:nsampl + flen - 1]
+    return sproj
 
 def _project(reference_sources, estimated_source, flen):
     """Least-squares projection of estimated source on the subspace spanned by
@@ -855,6 +1194,24 @@ def _project_images(reference_sources, estimated_source, flen, G=None):
     else:
         return sproj
 
+def _bss_source_crit_extended(s_true, e_spat, e_interf, e_noise, e_artif):
+    """Measurement of the separation quality for a given source in terms of
+    filtered true source, interference, noise and artifacts.
+     input:
+        s_true + e_spat: allowed variation of target speaker
+        e_interf: component caused by interfering speakers
+        e_noise: component caused by noise
+        e_artif: component not caused by other speakers or noise
+     output:
+        SDR,SIR,SNR and SAR
+    """
+    # energy ratios
+    s_filt = s_true + e_spat
+    sdr = _safe_db(np.sum(s_filt**2), np.sum((e_interf + e_noise + e_artif)**2))
+    sir = _safe_db(np.sum(s_filt**2), np.sum(e_interf**2))
+    snr = _safe_db(np.sum((s_filt+e_interf)**2), np.sum(e_noise**2))
+    sar = _safe_db(np.sum((s_filt + e_interf + e_noise)**2), np.sum(e_artif**2))
+    return (sdr, sir,snr, sar)
 
 def _bss_source_crit(s_true, e_spat, e_interf, e_artif):
     """Measurement of the separation quality for a given source in terms of

@@ -9,6 +9,7 @@ sweeps
 *Old*
 *kate-swp*
 config/recipes_Jeroen*/*
+config/recipes_Pieter
 nabu/postprocessing/scorers/pesq
 nabu/neuralnetworks/trainers/task_trainer.py
 nabu/neuralnetworks/evaluators/evaluator.py
@@ -28,3 +29,8 @@ run2
 tf
 test_files_to_run
 doc
+
+aanpassingen_code_Pieter.txt
+nabu/scripts/oracle_no_noise.py
+nabu/scripts/oracle_noise.py
+nabu/scripts/visualise_embedding_vectors.py

@@ -1,7 +1,7 @@
 '''@file scorer_factory.py
 contains the Scorer factory'''
 
-from . import  sdr_scorer, pesq_scorer
+from . import  sdr_scorer, sdr_snr_scorer, pesq_scorer,sdr_snr_noise_scorer
 
 def factory(scorer):
     '''
@@ -16,7 +16,11 @@ def factory(scorer):
 
     if scorer == 'sdr':
         return sdr_scorer.SdrScorer
-    if scorer == 'pesq':
+    elif scorer == 'sdr_snr':
+        return sdr_snr_scorer.SdrSnrScorer
+    elif scorer == 'sdr_snr_noise':
+        return sdr_snr_noise_scorer.SdrSnrNoiseScorer
+    elif scorer == 'pesq':
         return pesq_scorer.PESQScorer
     else:
         raise Exception('Undefined scorer type: %s' % scorer)
