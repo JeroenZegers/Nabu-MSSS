@@ -1,15 +1,15 @@
-'''@file deepattractornetnoise_soft_loss.py
-contains the DeepattractornetnoisesoftLoss'''
+"""@file deepattractornetnoise_soft_loss.py
+contains the DeepattractornetnoisesoftLoss"""
 
-import tensorflow as tf
 import loss_computer
 from nabu.neuralnetworks.components import ops
 
+
 class DeepattractornetnoisesoftLoss(loss_computer.LossComputer):
-    '''A loss computer that calculates the loss'''
+    """A loss computer that calculates the loss"""
 
     def __call__(self, targets, logits, seq_length):
-        '''
+        """
         Compute the loss
 
         Creates the operation to compute the Deep attractor network loss with
@@ -25,7 +25,7 @@ class DeepattractornetnoisesoftLoss(loss_computer.LossComputer):
         Returns:
             loss: a scalar value containing the loss
             norm: a scalar value indicating how to normalize the loss
-        '''
+        """
 
         # To which class belongs bin
         partioning = targets['partitioning']
@@ -40,7 +40,7 @@ class DeepattractornetnoisesoftLoss(loss_computer.LossComputer):
         emb_vec = logits['emb_vec']
         alpha = logits['alpha']
 
-        loss,norm = ops.deepattractornetnoise_soft_loss(partioning, spectrogram_targets, mix_to_mask, \
-                            energybins, emb_vec,alpha,seq_length,self.batch_size)
+        loss, norm = ops.deepattractornetnoise_soft_loss(
+            partioning, spectrogram_targets, mix_to_mask,  energybins, emb_vec, alpha, seq_length, self.batch_size)
 
-        return loss,norm
+        return loss, norm

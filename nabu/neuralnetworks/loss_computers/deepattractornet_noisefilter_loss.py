@@ -1,15 +1,15 @@
-'''@file deepattractornet_noisefilter_loss.py
-contains the DeepattractornetnoisefilterLoss'''
+"""@file deepattractornet_noisefilter_loss.py
+contains the DeepattractornetnoisefilterLoss"""
 
-import tensorflow as tf
 import loss_computer
 from nabu.neuralnetworks.components import ops
 
+
 class DeepattractornetnoisefilterLoss(loss_computer.LossComputer):
-    '''A loss computer that calculates the loss'''
+    """A loss computer that calculates the loss"""
 
     def __call__(self, targets, logits, seq_length):
-        '''
+        """
         Compute the loss
 
         Creates the operation to compute the deep attractor network loss for the connected network
@@ -24,7 +24,7 @@ class DeepattractornetnoisefilterLoss(loss_computer.LossComputer):
         Returns:
             loss: a scalar value containing the loss
             norm: a scalar value indicating how to normalize the loss
-        '''
+        """
 
         # To which class belongs bin
         partitioning = targets['partitioning']
@@ -37,7 +37,7 @@ class DeepattractornetnoisefilterLoss(loss_computer.LossComputer):
         emb_vec = logits['emb_vec']
         alpha = logits['alpha']
 
-        loss,norm = ops.deepattractornet_noisefilter_loss(partition_target, spectrogram_targets, mix_to_mask,\
-                emb_vec,alpha,seq_length,self.batch_size)
+        loss, norm = ops.deepattractornet_noisefilter_loss(
+            partitioning, spectrogram_targets, mix_to_mask, emb_vec, alpha, seq_length, self.batch_size)
 
-        return loss,norm
+        return loss, norm

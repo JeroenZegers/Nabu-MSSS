@@ -1,15 +1,15 @@
-'''@file deepattractornet_softmax_loss.py
-contains the DeepattractornetSoftmaxLoss'''
+"""@file deepattractornet_softmax_loss.py
+contains the DeepattractornetSoftmaxLoss"""
 
-import tensorflow as tf
 import loss_computer
 from nabu.neuralnetworks.components import ops
 
+
 class DeepattractornetSoftmaxLoss(loss_computer.LossComputer):
-    '''A loss computer that calculates the loss'''
+    """A loss computer that calculates the loss"""
 
     def __call__(self, targets, logits, seq_length):
-        '''
+        """
         Compute the loss
 
         Creates the operation to compute the deep attractor network with softmax loss
@@ -24,7 +24,7 @@ class DeepattractornetSoftmaxLoss(loss_computer.LossComputer):
         Returns:
             loss: a scalar value containing the loss
             norm: a scalar value indicating how to normalize the loss
-        '''
+        """
 
         # To which class belongs bin
         partioning = targets['partitioning']
@@ -42,7 +42,7 @@ class DeepattractornetSoftmaxLoss(loss_computer.LossComputer):
         # Logits (=output network)
         emb_vec = logits['emb_vec']
         # calculate loss and normalisation factor of mini-batch
-        loss,norm = ops.deepattractornet_softmax_loss(partioning, spectrogram_targets, mix_to_mask, energybins, emb_vec,
-                            seq_length,self.batch_size)
+        loss, norm = ops.deepattractornet_softmax_loss(
+            partioning, spectrogram_targets, mix_to_mask, energybins, emb_vec, seq_length,self.batch_size)
 
-        return loss,norm
+        return loss, norm
