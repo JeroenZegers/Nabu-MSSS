@@ -1253,7 +1253,7 @@ class LayerNormResetLSTMCell(rnn_cell_impl_extended.RNNCell):
         new_h = self._activation(new_c) * math_ops.sigmoid(o)
         new_h_current = tf.gather(new_h, state_index, axis=1)
 
-        # here we reset the correct state
+        # here we reset the correct state for the next time step
         tmp = 1-tf.scatter_nd(tf.expand_dims(tf.expand_dims(state_index, 0), 0), tf.constant([1.0]),
                               tf.constant([self._t_reset]))
         reset_mask = tf.expand_dims(tf.expand_dims(tmp, 0), -1)
