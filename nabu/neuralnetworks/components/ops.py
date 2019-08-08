@@ -259,7 +259,8 @@ def deepattractornet_loss(partitioning, spectogram_targets, mix_to_mask, energyb
 
 
 def anchor_deepattractornet_loss(
-		spectogram_targets, mix_to_mask, embeddings, anchors, seq_length, batch_size, activation='softmax', normalize=False):
+		spectogram_targets, mix_to_mask, embeddings, anchors, seq_length, batch_size, activation='softmax',
+		normalize=False, time_anchors_flag=False, av_anchors_time_flag=False):
 	"""
 	Compute the deep attractor net loss with anchors (as described in Speaker-Independent Speech Separation With Deep
 		Attractor Network by Luo, et al. [1]).
@@ -268,30 +269,39 @@ def anchor_deepattractornet_loss(
 		spectogram_targets: clean spectograms of the sources                [batch_size x time x feature_dim (F)  x nrS]
 		mix_to_mask:        spectograms of the mixture                      [batch_size x time (T) x feature_dim (F)]
 		embeddings:         resulting embeddingsvectors                     [batch_size x time (T) x (feature_dim(F) * emb_dim (D)]
-		anchors:         	resulting anchors			                    [nrS x emb_dim (D)]
+		anchors:         	resulting anchors			                    [nrS x emb_dim (D)] or [batch_size x time (T) x nrS x emb_dim (D)], depending on time_anchors_flag
 		seq_length:         sequence lengths                                [batch_size]
 		batch_size:         number of utterances in this batch
 		activation: 		activation to apply to the logits
 		normalize:			whether to normalize the embeddings
+		time_anchors_flag:	whether anchors vary over time (meaning that anchors has shape [batch_size x time (T) x nrS x emb_dim (D)])
+		av_anchors_time_flag:	whether anchors, if they vary over time, should be averaged over time
 	Returns:
 		loss: a scalar value containing the loss
 		norm: a scalar value containing the normalisation constant
 	"""
 	with tf.name_scope('anchor_deepattractornet_loss'):
+
 		feat_dim = spectogram_targets.get_shape()[2]
 		emb_dim = anchors.get_shape()[-1]
 		nrS = spectogram_targets.get_shape()[3]
 
-		V = tf.reshape(embeddings, [batch_size, -1, emb_dim], name='V')
-		anchors = tf.tile(tf.expand_dims(anchors, 0), [batch_size, 1, 1])
+		V = tf.reshape(embeddings, [batch_size, -1, feat_dim, emb_dim], name='V')  # dim: (B x T x F x D)
 		if normalize:
 			V = V/(tf.norm(V, axis=-1, keepdims=True) + 1e-12)
+		time_dim = tf.shape(V)[1]
+
+		if not time_anchors_flag:
+			anchors = tf.tile(tf.expand_dims(tf.expand_dims(anchors, 0), 0), [batch_size, time_dim, 1, 1])  # dim: (B x T x S x D)
+		if av_anchors_time_flag:
+			anchors = tf.reduce_mean(anchors, axis=1, keepdims=True)
+			anchors = tf.tile(anchors, [1, time_dim, 1, 1])
 
 		# Calculate softmax masker
-		prod_1 = tf.matmul(anchors, V, transpose_a=False, transpose_b=True, name='AVT')
+		prod_1 = tf.matmul(V, anchors, transpose_a=False, transpose_b=True, name='AVT')
 
 		if activation == 'softmax':
-			masks = tf.nn.softmax(prod_1, axis=1, name='M')  # dim: (B x nrS x K)
+			masks = tf.nn.softmax(prod_1, axis=-1, name='M')  # dim: (B x T x F x nrS)
 		elif activation in ['None', 'none', None]:
 			masks = prod_1
 		elif activation == 'sigmoid':
@@ -299,16 +309,51 @@ def anchor_deepattractornet_loss(
 		else:
 			masks = tf.nn.sigmoid(prod_1, name='M')
 
-		X = tf.reshape(mix_to_mask, [batch_size, 1, -1], name='X')  # dim: (B x 1 x K)
-		reconstructions = tf.multiply(masks, X)  # dim: (B x nrS x K)
-		reconstructions = tf.transpose(reconstructions, perm=[1, 0, 2])  # dim: (nrS x B x K)
+		X = tf.expand_dims(mix_to_mask, -1, name='X')  # dim: (B x T x F x 1)
+		reconstructions = tf.multiply(masks, X)  # dim: (B x T x F x nrS)
+		reconstructions = tf.transpose(reconstructions, perm=[3, 0, 1, 2])  # dim: (nrS x B x T x F)
 
-		S = tf.reshape(spectogram_targets, [batch_size, -1, nrS])  # dim: (B x K x nrS)
-		S = tf.transpose(S, [2, 0, 1])  # nrS x B x K
+		S = tf.transpose(spectogram_targets, [3, 0, 1, 2])  # nrS x B x T x F
 
 		loss = base_pit_loss(reconstructions, S, overspeakererized=False)
 
 		norm = tf.to_float(tf.reduce_sum(seq_length) * feat_dim)
+
+
+
+
+
+		# feat_dim = spectogram_targets.get_shape()[2]
+		# emb_dim = anchors.get_shape()[-1]
+		# nrS = spectogram_targets.get_shape()[3]
+		#
+		# V = tf.reshape(embeddings, [batch_size, -1, emb_dim], name='V')
+		# anchors = tf.tile(tf.expand_dims(anchors, 0), [batch_size, 1, 1])
+		# if normalize:
+		# 	V = V/(tf.norm(V, axis=-1, keepdims=True) + 1e-12)
+		#
+		# # Calculate softmax masker
+		# prod_1 = tf.matmul(anchors, V, transpose_a=False, transpose_b=True, name='AVT')
+		#
+		# if activation == 'softmax':
+		# 	masks = tf.nn.softmax(prod_1, axis=1, name='M')  # dim: (B x nrS x K)
+		# elif activation in ['None', 'none', None]:
+		# 	masks = prod_1
+		# elif activation == 'sigmoid':
+		# 	masks = tf.nn.sigmoid(prod_1, name='M')
+		# else:
+		# 	masks = tf.nn.sigmoid(prod_1, name='M')
+		#
+		# X = tf.reshape(mix_to_mask, [batch_size, 1, -1], name='X')  # dim: (B x 1 x K)
+		# reconstructions = tf.multiply(masks, X)  # dim: (B x nrS x K)
+		# reconstructions = tf.transpose(reconstructions, perm=[1, 0, 2])  # dim: (nrS x B x K)
+		#
+		# S = tf.reshape(spectogram_targets, [batch_size, -1, nrS])  # dim: (B x K x nrS)
+		# S = tf.transpose(S, [2, 0, 1])  # nrS x B x K
+		#
+		# loss = base_pit_loss(reconstructions, S, overspeakererized=False)
+		#
+		# norm = tf.to_float(tf.reduce_sum(seq_length) * feat_dim)
 
 		return loss, norm
 

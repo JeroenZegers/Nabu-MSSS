@@ -12,7 +12,7 @@ import numpy as np
 class TaskTrainer(object):
 	"""General class on how to train for a single task."""
 
-	def __init__(self, task_name, trainerconf, taskconf, models, modelconf, dataconf, evaluatorconf, batch_size):
+	def __init__(self, task_name, trainerconf, taskconf, models, modelconf, dataconf, evaluatorconf, lossconf, batch_size):
 		"""
 		TaskTrainer constructor, gathers the dataconfigs and sets the loss_computer and
 		evaluator for this task.
@@ -26,6 +26,7 @@ class TaskTrainer(object):
 			dataconf: the data configuration as a ConfigParser
 			evaluatorconf: the evaluator configuration for evaluating
 				if None no evaluation will be done
+			lossconf: the configuration of the loss function
 			batch_size: the size of the batch.
 		"""
 
@@ -97,14 +98,18 @@ class TaskTrainer(object):
 				self.nodes_output_names[node] = node
 
 		# create the loss computer
-		self.loss_computer = loss_computer_factory.factory(
-			taskconf['loss_type'])(self.batch_size)
+		if lossconf:
+			loss_type = lossconf['loss_type']
+		else:
+			loss_type = taskconf['loss_type']
+
+		self.loss_computer = loss_computer_factory.factory(loss_type)(lossconf, self.batch_size)
 
 		# create valiation evaluator
 		evaltype = evaluatorconf.get('evaluator', 'evaluator')
 		if evaltype != 'None':
 			self.evaluator = evaluator_factory.factory(evaltype)(
-				conf=evaluatorconf, dataconf=dataconf, models=self.models, task=task_name)
+				conf=evaluatorconf, dataconf=dataconf, lossconf=lossconf, models=self.models, task=task_name)
 
 	def set_dataqueues(self):
 		"""sets the data queues"""

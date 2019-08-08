@@ -8,6 +8,7 @@ from six.moves import configparser
 from nabu.neuralnetworks.trainers import trainer_factory
 import json
 import math
+import warnings
 
 sys.path.append(os.getcwd())
 
@@ -42,7 +43,18 @@ def train(clusterfile, job_name, task_index, ssh_command, expdir):
 	# read the decoder config file
 	evaluator_cfg = configparser.ConfigParser()
 	evaluator_cfg.read(os.path.join(expdir, 'evaluator.cfg'))
-	
+
+	# read the loss config file
+	losses_cfg_file = os.path.join(expdir, 'loss.cfg')
+	if not os.path.isfile(losses_cfg_file):
+		warnings.warn('In following versions it will be required to provide a loss config file', Warning)
+		losses_cfg_available = False
+		losses_cfg = None
+	else:
+		losses_cfg_available = True
+		losses_cfg = configparser.ConfigParser()
+		losses_cfg.read(losses_cfg_file)
+
 	# Get the config files for each training stage. Each training stage has a different
 	# segment length and its network is initliazed with the network of the previous
 	# training stage
@@ -90,6 +102,7 @@ def train(clusterfile, job_name, task_index, ssh_command, expdir):
 				dataconf=segment_parsed_database_cfg,
 				modelconf=model_cfg,
 				evaluatorconf=evaluator_cfg,
+				lossesconf=losses_cfg,
 				expdir=segment_expdir,
 				init_filename=init_filename,
 				task_index=task_index)

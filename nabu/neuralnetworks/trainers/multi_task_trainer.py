@@ -23,6 +23,7 @@ class MultiTaskTrainer(object):
 			dataconf,
 			modelconf,
 			evaluatorconf,
+			lossesconf,
 			expdir,
 			init_filename,
 			task_index):
@@ -36,6 +37,7 @@ class MultiTaskTrainer(object):
 			modelconf: the neural net model configuration
 			evaluatorconf: the evaluator configuration for evaluating
 				if None no evaluation will be done
+			lossesconf: the configuration of the loss functions
 			expdir: directory where the summaries will be written
 			init_filename: filename of the network that should be used to
 			initialize the model. Put to None if no network is available/wanted.
@@ -82,9 +84,9 @@ class MultiTaskTrainer(object):
 		self.task_trainers = []
 		for task in self.tasks:
 			taskconf = self.tasksconf[task]
-
+			lossconf = dict(lossesconf.items(taskconf['loss_type']))
 			task_trainer = task_trainer_script.TaskTrainer(
-				task, conf, taskconf, self.models, modelconf, dataconf, evaluatorconf, self.batch_size)
+				task, conf, taskconf, self.models, modelconf, dataconf, evaluatorconf, lossconf, self.batch_size)
 
 			self.task_trainers.append(task_trainer)
 		nr_tasks = len(self.task_trainers)

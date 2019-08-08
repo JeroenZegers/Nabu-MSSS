@@ -43,6 +43,8 @@ def factory(loss_type):
         return deepattractornet_loss.DeepattractornetSigmoidLoss
     elif loss_type == 'deepattractornet_softmax':
         return deepattractornet_loss.DeepattractornetSoftmaxLoss
+    elif loss_type == 'anchor_deepattractornet':
+        return anchor_deepattractornet_softmax_loss.AnchorDeepattractornetLoss
     elif loss_type == 'anchor_deepattractornet_softmax':
         return anchor_deepattractornet_softmax_loss.AnchorDeepattractornetSoftmaxLoss
     elif loss_type == 'anchor_normdeepattractornet_softmax':

@@ -8,6 +8,7 @@ import subprocess
 import tensorflow as tf
 from six.moves import configparser
 from train import train
+import warnings
 sys.path.append(os.getcwd())
 
 
@@ -33,6 +34,11 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 	model_cfg_file = os.path.join(recipe, 'model.cfg')
 	trainer_cfg_file = os.path.join(recipe, 'trainer.cfg')
 	evaluator_cfg_file = os.path.join(recipe, 'validation_evaluator.cfg')
+	losses_cfg_file = os.path.join(recipe, 'loss.cfg')
+	losses_cfg_available = True
+	if not os.path.isfile(losses_cfg_file):
+		warnings.warn('In following versions it will be required to provide a loss config file', Warning)
+		losses_cfg_available = False
 
 	# read the trainer config file
 	parsed_trainer_cfg = configparser.ConfigParser()
@@ -84,6 +90,8 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 			shutil.copyfile(model_cfg_file, os.path.join(expdir_run, 'model.cfg'))
 			shutil.copyfile(evaluator_cfg_file, os.path.join(expdir_run, 'evaluator.cfg'))
 			shutil.copyfile(trainer_cfg_file, os.path.join(expdir_run, 'trainer.cfg'))
+			if losses_cfg_available:
+				shutil.copyfile(losses_cfg_file, os.path.join(expdir_run, 'loss.cfg'))
 
 			if 'segment_lengths' in trainer_cfg:
 				# create designated database and trainer config files for each training stage
