@@ -1,10 +1,11 @@
-'''@file scorer_factory.py
-contains the Scorer factory'''
+"""@file scorer_factory.py
+contains the Scorer factory"""
 
-from . import  sdr_scorer, sdr_snr_scorer, pesq_scorer,sdr_snr_noise_scorer
+from . import sdr_scorer, sdr_snr_scorer, sdr_snr_noise_scorer, pesq_scorer
+
 
 def factory(scorer):
-    '''
+    """
     gets a scorer class
 
     Args:
@@ -12,7 +13,7 @@ def factory(scorer):
 
     Returns:
         a scorer class
-    '''
+    """
 
     if scorer == 'sdr':
         return sdr_scorer.SdrScorer

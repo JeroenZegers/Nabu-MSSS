@@ -4,7 +4,7 @@ contains the TaskEvaluator class"""
 from abc import ABCMeta, abstractmethod
 import tensorflow as tf
 from nabu.processing import input_pipeline
-import pdb
+import numpy as np
 
 
 class TaskEvaluator(object):
@@ -49,13 +49,20 @@ class TaskEvaluator(object):
 			set_names = task_eval_conf['linkedsets'].split(' ')
 			self.linkedsets = dict()
 			for set_name in set_names:
-				inp_indices = map(int, task_eval_conf['%s_inputs' % set_name].split(' '))
-				tar_indices = map(int, task_eval_conf['%s_targets' % set_name].split(' '))
-				set_inputs = [inp for ind, inp in enumerate(self.input_names) if ind in inp_indices]
-				set_targets = [tar for ind, tar in enumerate(self.target_names) if ind in tar_indices]
-				self.linkedsets[set_name] = {'inputs': set_inputs, 'targets': set_targets}
+				set_input_names = ['%s_%s' % (set_name, in_name) for in_name in self.input_names]
+				set_target_names = ['%s_%s' % (set_name, tar_name) for tar_name in self.target_names]
+				self.linkedsets[set_name] = {'inputs': set_input_names, 'targets': set_target_names}
+
+			if 'linkedset_weighting' in task_eval_conf:
+				linkedset_weighting = np.array(map(float, task_eval_conf['linkedset_weighting'].split(' ')))
+				# the first set has the reference weight
+				linkedset_weighting /= linkedset_weighting[0]
+			else:
+				linkedset_weighting = np.array([1.0] * len(self.linkedsets))
+			self.linkedset_weighting = {set_name: weight for set_name, weight in zip(set_names, linkedset_weighting)}
 		else:
 			self.linkedsets = {'set0': {'inputs': self.input_names, 'targets': self.target_names}}
+			self.linkedset_weighting = {'set0': 1.0}
 
 		self.input_dataconfs = dict()
 		self.target_dataconfs = dict()
@@ -80,9 +87,14 @@ class TaskEvaluator(object):
 
 		self.model_links = dict()
 		self.inputs_links = dict()
+		self.nodes_output_names = dict()
 		for node in self.model_nodes:
 			self.model_links[node] = task_eval_conf['%s_model' % node]
 			self.inputs_links[node] = task_eval_conf['%s_inputs' % node].split(' ')
+			if '%s_output_names' % node in task_eval_conf:
+				self.nodes_output_names[node] = task_eval_conf['%s_output_names' % node].split(' ')
+			else:
+				self.nodes_output_names[node] = node
 
 	def evaluate(self):
 		"""evaluate the performance of the model
@@ -96,7 +108,9 @@ class TaskEvaluator(object):
 			inputs = dict()
 			seq_lengths = dict()
 			targets = dict()
-			for linkedset in self.linkedsets:
+			loss = []
+			norm = []
+			for set_ind, linkedset in enumerate(self.linkedsets):
 				data_queue_elements, _ = input_pipeline.get_filenames(
 					self.input_dataconfs[linkedset] + self.target_dataconfs[linkedset])
 
@@ -111,7 +125,7 @@ class TaskEvaluator(object):
 				# cut the data so it has a whole number of batches
 				data_queue_elements = data_queue_elements[:number_of_elements]
 
-				# create the data queue and queue runners (inputs are allowed to get shuffled. I already did this so set to False)
+				# create the data queue and queue runners (inputs are not allowed to get shuffled. I already did this so set to False)
 				data_queue = tf.train.string_input_producer(
 					string_tensor=data_queue_elements,
 					shuffle=False,
@@ -126,23 +140,32 @@ class TaskEvaluator(object):
 					dataconfs=self.input_dataconfs[linkedset] + self.target_dataconfs[linkedset]
 				)
 				# split data into inputs and targets
-				for ind, input_name in enumerate(self.linkedsets[linkedset]['inputs']):
+				for ind, input_name in enumerate(self.input_names):
 					inputs[input_name] = data[ind]
 					seq_lengths[input_name] = seq_length[ind]
 
-				for ind, target_name in enumerate(self.linkedsets[linkedset]['targets']):
-					targets[target_name] = data[len(self.linkedsets[linkedset]['inputs'])+ind]
+				# out_seq_lengths = {
+				# 	seq_name: seq for seq_name, seq in seq_lengths.iteritems()
+				# 	if seq_name in self.output_names}
+				out_seq_lengths = {
+					output_name: seq_lengths[self.input_names[0]] for output_name in self.output_names}
 
-			# get the logits
-			logits = self._get_outputs(
-				inputs=inputs,
-				seq_lengths=seq_lengths)
+				for ind, target_name in enumerate(self.target_names):
+					targets[target_name] = data[len(self.input_names)+ind]
 
-			loss, norm = self.compute_loss(targets, logits, seq_lengths)
+				# get the logits
+				logits = self._get_outputs(
+					inputs=inputs,
+					seq_lengths=seq_lengths)
 
-			out_seq_lengths = {
-				seq_name: seq for seq_name, seq in seq_lengths.iteritems()
-				if seq_name in self.output_names}
+				set_loss, set_norm = self.compute_loss(targets, logits, seq_lengths)
+				set_loss *= self.linkedset_weighting[linkedset]
+				set_norm *= self.linkedset_weighting[linkedset]
+				loss.append(set_loss)
+				norm.append(set_norm)
+		loss = tf.reduce_sum(loss)
+		norm = tf.reduce_sum(norm)
+
 		return loss, norm, numbatches, logits, targets, out_seq_lengths
 
 	@abstractmethod

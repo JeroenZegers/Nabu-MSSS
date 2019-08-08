@@ -102,15 +102,15 @@ def main(_):
         if not os.path.isdir(os.path.join(FLAGS.expdir, 'test', 'outputs')):
             os.makedirs(os.path.join(FLAGS.expdir, 'test', 'outputs'))
     
-        minmemory = computing_cfg['minmemory']
-        subprocess.call([
-            'condor_submit', 'expdir=%s/test' % FLAGS.expdir, 'script=nabu/scripts/test.py', 'memory=%s' % minmemory,
-                             'condor_prio=%s' % -10, 'nabu/computing/condor/non_distributed.job'])
+        # minmemory = computing_cfg['minmemory']
+        # subprocess.call([
+        #     'condor_submit', 'expdir=%s/test' % FLAGS.expdir, 'script=nabu/scripts/test.py', 'memory=%s' % minmemory,
+        #                      'condor_prio=%s' % -10, 'nabu/computing/condor/non_distributed.job'])
 
-        # subprocess.call(['condor_submit',
-        #               'expdir=%s' % os.path.join(FLAGS.expdir, 'test'),
-        #               'script=nabu/scripts/test.py',
-        #               'nabu/computing/condor/non_distributed_cpu.job'])
+        subprocess.call(['condor_submit',
+                      'expdir=%s' % os.path.join(FLAGS.expdir, 'test'),
+                      'script=nabu/scripts/test.py',
+                      'nabu/computing/condor/non_distributed_cpu.job'])
 
     elif FLAGS.computing == 'torque':
 

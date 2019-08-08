@@ -156,7 +156,7 @@ def bidirectional_dynamic_rnn_time_input(cell_fw, cell_bw, inputs, sequence_leng
 
 
 def bidirectional_dynamic_rnn_2inputs_time_input(cell_fw, cell_bw, inputs_fw, inputs_bw, 
-			      sequence_length=None,
+			      sequence_length=None, time_input_for_fw=True, time_input_for_bw=True,
                               initial_state_fw=None, initial_state_bw=None,
                               dtype=None, parallel_iterations=None,
                               swap_memory=False, time_major=False, scope=None):
@@ -240,7 +240,11 @@ def bidirectional_dynamic_rnn_2inputs_time_input(cell_fw, cell_bw, inputs_fw, in
   with vs.variable_scope(scope or "bidirectional_rnn"):
     # Forward direction
     with vs.variable_scope("fw") as fw_scope:
-      output_fw, output_state_fw = dynamic_rnn_time_input(
+      if time_input_for_fw:
+        dynamic_rnn_fw_type = dynamic_rnn_time_input
+      else:
+        dynamic_rnn_fw_type = rnn.dynamic_rnn
+      output_fw, output_state_fw = dynamic_rnn_fw_type(
           cell=cell_fw, inputs=inputs_fw, sequence_length=sequence_length,
           initial_state=initial_state_fw, dtype=dtype,
           parallel_iterations=parallel_iterations, swap_memory=swap_memory,
@@ -266,7 +270,11 @@ def bidirectional_dynamic_rnn_2inputs_time_input(cell_fw, cell_bw, inputs_fw, in
       inputs_reverse = _reverse(
           inputs_bw, seq_lengths=sequence_length,
           seq_dim=time_dim, batch_dim=batch_dim)
-      tmp, output_state_bw = dynamic_rnn_time_input(
+      if time_input_for_bw:
+        dynamic_rnn_bw_type = dynamic_rnn_time_input
+      else:
+        dynamic_rnn_bw_type = rnn.dynamic_rnn
+      tmp, output_state_bw = dynamic_rnn_bw_type(
           cell=cell_bw, inputs=inputs_reverse, sequence_length=sequence_length,
           initial_state=initial_state_bw, dtype=dtype,
           parallel_iterations=parallel_iterations, swap_memory=swap_memory,

@@ -1,18 +1,18 @@
-'''@file pit_loss_sigmoid_scaled.py
-contains the PITLossSigmoidScaled'''
+"""@file deepclustering_diar_loss.py
+contains the DeepclusteringDiarLoss"""
 
-import tensorflow as tf
 import loss_computer
 from nabu.neuralnetworks.components import ops
 
-class PITLossSigmoidScaled(loss_computer.LossComputer):
-    '''A loss computer that calculates the loss'''
+
+class DeepclusteringDiarLoss(loss_computer.LossComputer):
+    """A loss computer that calculates the loss"""
 
     def __call__(self, targets, logits, seq_length):
-        '''
+        """
         Compute the loss
 
-        Creates the operation to compute the Permudation Invariant Training loss
+        Creates the operation to compute the deep clustering diarization loss
 
         Args:
             targets: a dictionary of [batch_size x time x ...] tensor containing
@@ -24,15 +24,12 @@ class PITLossSigmoidScaled(loss_computer.LossComputer):
         Returns:
             loss: a scalar value containing the loss
             norm: a scalar value indicating how to normalize the loss
-        '''
-                       
-	multi_targets=targets['multi_targets']            
-	mix_to_mask = targets['mix_to_mask']
-	seq_length = seq_length['bin_est']
-	logits = logits['bin_est']
-		    
-	loss, norm = ops.pit_loss(multi_targets, logits, mix_to_mask, 
-					seq_length,self.batch_size,softmax=False,
-					rescale_recs=True)
-            
+        """
+
+        vad_target = targets['diar_targets']
+        seq_length = seq_length['features']
+        read_heads = logits['read_heads']
+
+        loss, norm = ops.deepclustering_diar_loss(vad_target, read_heads, seq_length, self.batch_size)
+
         return loss, norm

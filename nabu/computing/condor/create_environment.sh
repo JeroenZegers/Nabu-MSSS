@@ -30,7 +30,6 @@ extrainput="--meminfo=$meminfocommaseparated"
 # fullinput="$@ $extrainput"
 fullinput="$@"
 
-
 #run the original. Retry untill succes for a maximum of 5 runs
 #for ind in 0 1 2 3 4
 #do

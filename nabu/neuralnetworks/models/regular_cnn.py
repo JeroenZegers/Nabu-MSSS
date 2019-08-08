@@ -1,5 +1,9 @@
 '''@file regular_cnn.py
-contains de RegularCNN class'''
+contains de RegularCNN class
+
+OBSOLETE: USE dcnn.py INSTEAD
+
+'''
 
 import tensorflow as tf
 import model

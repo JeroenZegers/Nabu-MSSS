@@ -44,6 +44,7 @@ class TaskLossEvaluator(task_evaluator.TaskEvaluator):
 		model_links=self.model_links, 
 		inputs=inputs, 
 		inputs_links=self.inputs_links,
+		nodes_output_names=self.nodes_output_names,
 		output_names=self.output_names, 
 		seq_lengths=seq_lengths,
 		is_training=False)

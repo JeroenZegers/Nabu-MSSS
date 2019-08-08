@@ -5,6 +5,7 @@ import tensorflow as tf
 import itertools
 import math
 from tensorflow.python.framework import ops
+import numpy as np
 import pdb
 
 
@@ -22,7 +23,7 @@ def squash(s, axis=-1, epsilon=1e-7, name=None):
 									 keepdims=True)
 		sn=tf.sqrt(squared_norm + epsilon)
 		squash_factor=squared_norm / (1. + squared_norm)
-		squash_factor /= sn
+		squash_factor = squash_factor/sn
 
 		return squash_factor * s
 
@@ -160,6 +161,7 @@ def seq2nonseq(sequential, sequence_lengths, name=None):
 
 	return tensor
 
+
 def dense_sequence_to_sparse(sequences, sequence_lengths):
 	"""convert sequence dense representations to sparse representations
 
@@ -186,102 +188,12 @@ def dense_sequence_to_sparse(sequences, sequence_lengths):
 
 	return sparse
 
-def deepattractornet_sigmoid_loss(partitioning, spectogram_targets, mix_to_mask, energybins, embeddings, \
-	seq_length, batch_size):
+
+def deepattractornet_loss(partitioning, spectogram_targets, mix_to_mask, energybins, embeddings,\
+				seq_length, batch_size, activation='softmax'):
 	"""
 	Compute the deep attractor net loss (as described in Deep attractor network for single-microphone speaker separation,
-		Zhuo Chen, et al. [1]) using sigmoid masks.
-
-	Args:
-		partitioning:       optimal binary partitioning of the bins         [batch_size x time x (feature_dim(F)*nrS)]
-		spectogram_targets: clean spectograms of the sources                [batch_size x time x feature_dim (F)  x nrS]
-		mix_to_mask:        spectograms of the mixture                      [batch_size x time x feature_dim (F)]
-		energybins:         indicating whether the bin has enough energy    [batch_size x time x feature_dim (F)]
-		embeddings:         resulting embeddingsvectors                     [batch_size x time x (feature_dim(F) * emb_dim (D)] tensor containing the
-		seq_length:         sequence lengths                                [batch_size]
-		batch_size:         number of utterances in this batch
-	Returns:
-		loss: a scalar value containing the loss
-		norm: a scalar value containing the normalisation constant
-	"""
-	with tf.name_scope('deepattractornet_sigmoid_loss'):
-		# Number of frequency bins
-		F = tf.shape(energybins)[2]
-		# Dimension embeddingspace
-		D = tf.shape(embeddings)[2]/F
-		# Number of sources
-		nrS = tf.shape(spectogram_targets)[3]
-
-		# Initialise loss and normalisation with zero
-		loss = 0.0
-		norm = 0.0
-
-		# Loop over utterances in this batch
-		for utt_ind in range(batch_size):
-			# Number of timeframes in this utterance
-			T = seq_length[utt_ind]
-			# Number of time-frequency bins in current spectogram
-			K = T*F
-			# Which time-frequency bins have enough enery
-			energybins_utt = energybins[utt_ind]
-			energybins_utt = energybins_utt[:T,:] # dim: (Tx F)
-			# Embedding vectors of this utterance
-			embedding_utt = embeddings[utt_ind]
-			embedding_utt = embedding_utt[:T,:] # dim: (T x F*D)
-			# Partitioning of this utterance
-			partition_utt = partitioning[utt_ind]
-			partition_utt = partition_utt[:T,:] # dim: (T x F*nrS)
-			# Spectrogram of this utterance
-			mix_to_mask_utt = mix_to_mask[utt_ind]
-			mix_to_mask_utt = mix_to_mask_utt[:T,:] # dim: (T x F)
-			# Clean spectogram of the speakers in this utterance
-			spectogram_utt = spectogram_targets[utt_ind]
-			spectogram_utt = spectogram_utt[:T,:,:] # dim: (T x F x nrS)
-
-			# Reshape the energy indication
-			ebresh = tf.reshape(energybins_utt,[K,1],name='ebresh') # dim: (K x 1)
-			ebreshY = tf.tile(ebresh,[1,nrS]) # dim: (K x nrS)
-
-			# Reshape the embeddingsvectors
-			V = tf.reshape(embedding_utt,[K,D],name='V') # dim: (K x D)
-
-			# Reshape partitioning and remove silent bins
-			Y = tf.reshape(partition_utt,[K,nrS],name='Y')
-			Y = tf.multiply(Y,ebreshY)
-			Y = tf.to_float(Y) # dim: (K x nrS)
-
-			# Calculate attractor centers
-			numerator_A = tf.matmul(Y,V,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=False, name='YTV')
-			# Number of bins each speaker dominates
-			nb_bins_class = tf.reduce_sum(Y,axis=0) # dim: (rank 1) (nrS)
-			# Set number of bins of each speaker to at least 1 to avoid division by zero
-			nb_bins_class = tf.where(tf.equal(nb_bins_class,tf.zeros_like(nb_bins_class)), tf.ones_like(nb_bins_class), nb_bins_class)
-			nb_bins_class = tf.expand_dims(nb_bins_class,1) # dim: (rank 2) (nrS x 1)
-			denominator_A = tf.tile(nb_bins_class,[1,D],name='denominator_A') # dim: (nrS x D)
-			A = tf.divide(numerator_A,denominator_A,name='A') # dim: (nrS x D)
-
-			# Calculate sigmoid mask
-			prod_1 = tf.matmul(A,V,transpose_a=False, transpose_b=True,name='AVT')
-			M = tf.sigmoid(prod_1,name='M') # dim: (nrS x K)
-
-			# Reshape spectrogram of mixture
-			X = tf.transpose(tf.reshape(mix_to_mask_utt,[K,1],name='X')) # dim: (1 x K)
-			# Calculate the reconstructions
-			reconstructions = tf.multiply(M,X) # dim: (nrS x K)
-			S=tf.reshape(tf.transpose(spectogram_utt,perm=[2,0,1]),[nrS,K]) # dim: (nrS x K)
-			loss_utt=tf.reduce_sum(tf.square(S-reconstructions),name='loss')
-			# update loss and normalisation
-			norm += tf.to_float(K*nrS)
-			loss += loss_utt
-
-		return loss,norm
-
-
-def deepattractornet_softmax_loss(partitioning, spectogram_targets, mix_to_mask, energybins, embeddings,\
-				seq_length, batch_size):
-	"""
-	Compute the deep attractor net loss (as described in Deep attractor network for single-microphone speaker separation,
-		Zhuo Chen, et al. [1]) with softmax masks.
+		Zhuo Chen, et al. [1]).
 
 	Args:
 		partitioning:       optimal binary partitioning of the bins         [batch_size x time x (feature_dim(F)*nrS)]
@@ -291,82 +203,322 @@ def deepattractornet_softmax_loss(partitioning, spectogram_targets, mix_to_mask,
 		embeddings:         resulting embeddingsvectors                     [batch_size x time (T) x (feature_dim(F) * emb_dim (D)] tensor containing the
 		seq_length:         sequence lengths                                [batch_size]
 		batch_size:         number of utterances in this batch
+		activation: 		activation to apply to the logits
 	Returns:
 		loss: a scalar value containing the loss
 		norm: a scalar value containing the normalisation constant
 	"""
-	with tf.name_scope('deepattractornet_softmax_loss'):
-		# Number of frequency bins
-		F=tf.shape(energybins)[2]
-		# Dimension embeddingspace
-		D=tf.shape(embeddings)[2]/F
-		# Number of sources
-		nrS= tf.shape(spectogram_targets)[3]
 
-		# Initialise loss and normalisation with zero
-		loss=0.0
-		norm=0.0
+	with tf.name_scope('deepattractornet_loss'):
+		feat_dim = energybins.get_shape()[2]
+		output_dim = embeddings.get_shape()[2]
+		emb_dim = output_dim/feat_dim
+		nrS = spectogram_targets.get_shape()[3]
 
-		# Loop over utterances in this batch
-		for utt_ind in range(batch_size):
-			# Number of timeframes in this utterance
-			T=seq_length[utt_ind]
-			# Number of time-frequency bins in current spectogram
-			K=T*F
-			# Which time-frequency bins have enough enery
-			energybins_utt=energybins[utt_ind]
-			energybins_utt=energybins_utt[:T,:] # dim: (Tx F)
-			# Embedding vectors of this utterance
-			embedding_utt=embeddings[utt_ind]
-			embedding_utt=embedding_utt[:T,:] # dim: (T x F*D)
-			# Partitioning of this utterance
-			partition_utt=partitioning[utt_ind]
-			partition_utt=partition_utt[:T,:] # dim: (T x F*nrS)
-			# Spectrogram of this utterance
-			mix_to_mask_utt=mix_to_mask[utt_ind]
-			mix_to_mask_utt=mix_to_mask_utt[:T,:] # dim: (T x F)
-			# Clean spectogram of the speakers in this utterance
-			spectogram_utt=spectogram_targets[utt_ind]
-			spectogram_utt=spectogram_utt[:T,:,:] # dim: (T x F x nrS)
+		energybins = tf.to_float(energybins)
+		ebresh = tf.reshape(energybins, [batch_size, -1, 1], name='ebresh')
 
-			# Reshape the energy indication
-			ebresh=tf.reshape(energybins_utt,[K,1],name='ebresh') # dim: (K x 1)
-			ebreshY=tf.tile(ebresh,[1,nrS]) # dim: (K x nrS)
+		V = tf.reshape(embeddings, [batch_size, -1, emb_dim], name='V')
+		V = tf.multiply(V, ebresh)
 
-			# Reshape the embeddingsvectors
-			V=tf.reshape(embedding_utt,[K,D],name='V') # dim: (K x D)
+		Y = tf.reshape(partitioning, [batch_size, -1, nrS], name='Y')
+		Y = tf.to_float(Y)
+		Y = tf.multiply(Y, ebresh)
 
-			# Reshape partitioning and remove silent bins
-			Y=tf.reshape(partition_utt,[K,nrS],name='Y') # dim: N x number_sources
-			Y=tf.multiply(Y,ebreshY)
-			Y=tf.to_float(Y) # dim: (K x nrS)
+		numerator_A = tf.matmul(Y, V, transpose_a=True, transpose_b=False, name='YTV')
+		# Number of bins each speaker dominates
+		nb_bins_class = tf.reduce_sum(Y, axis=1)  # dim: (rank 2) (B x nrS)
+		# Set number of bins of each speaker to at least 1 to avoid division by zero
+		nb_bins_class = tf.where(tf.equal(nb_bins_class, tf.zeros_like(nb_bins_class)), tf.ones_like(nb_bins_class), nb_bins_class)
+		nb_bins_class = tf.expand_dims(nb_bins_class, -1)  # dim: (rank 3) (B x nrS x 1)
+		denominator_A = tf.tile(nb_bins_class, [1, 1, emb_dim], name='denominator_A')  # dim: (B x nrS x D)
+		A = tf.divide(numerator_A, denominator_A, name='A')  # dim: (B x nrS x D)
 
-			# Calculate attractor centers
-			numerator_A=tf.matmul(Y,V,transpose_a=True, transpose_b=False, a_is_sparse=True,b_is_sparse=False, name='YTV')
-			# Number of bins each speaker dominates
-			nb_bins_class=tf.reduce_sum(Y,axis=0) # dim: (rank 1) (nrS)
-			# Set number of bins of each speaker to at least 1 to avoid division by zero
-			nb_bins_class=tf.where(tf.equal(nb_bins_class,tf.zeros_like(nb_bins_class)), tf.ones_like(nb_bins_class), nb_bins_class)
-			nb_bins_class=tf.expand_dims(nb_bins_class,1) # dim: (rank 2) (nrS x 1)
-			denominator_A=tf.tile(nb_bins_class,[1,D],name='denominator_A') # dim: (nrS x D)
-			A=tf.divide(numerator_A,denominator_A,name='A') # dim: (nrS x D)
+		# Calculate softmax masker
+		prod_1 = tf.matmul(A, V, transpose_a=False, transpose_b=True, name='AVT')
 
-			# Calculate softmax masker
-			prod_1=tf.matmul(A,V,transpose_a=False, transpose_b=True,name='AVT')
-			M=tf.nn.softmax(prod_1,dim=0,name='M') # dim: (nrS x K)
+		if activation == 'softmax':
+			masks = tf.nn.softmax(prod_1, axis=1, name='M')  # dim: (B x nrS x K)
+		elif activation in ['None', 'none', None]:
+			masks = prod_1
+		elif activation == 'sigmoid':
+			masks = tf.nn.sigmoid(prod_1, name='M')
+		else:
+			masks = tf.nn.sigmoid(prod_1, name='M')
 
-			# Reshape spectrogram of mixture
-			X=tf.transpose(tf.reshape(mix_to_mask_utt,[K,1],name='X')) # dim: (1 x K)
-			# Calculate the reconstructions
-			reconstructions=tf.multiply(M,X) # dim: (nrS x K)
-			S=tf.reshape(tf.transpose(spectogram_utt,perm=[2,0,1]),[nrS,K]) # dim: (nrS x K)
-			# Calculate loss of this utterance
-			loss_utt=tf.reduce_sum(tf.square(S-reconstructions),name='loss') # Calculate difference reconstructions and clean spectrogram
-			# update loss and normalisation
-			norm += tf.to_float(K*nrS)
-			loss += loss_utt
+		X = tf.reshape(mix_to_mask, [batch_size, 1, -1], name='X')  # dim: (B x 1 x K)
+		reconstructions = tf.multiply(masks, X)  # dim: (B x nrS x K)
 
-		return loss,norm
+		S = tf.reshape(spectogram_targets, [batch_size, -1, nrS])  # dim: (B x K x nrS)
+		S = tf.transpose(S, [0, 2, 1])  # B x nrS x K
+		# Calculate loss of this utterance
+		loss = tf.reduce_sum(tf.square(S - reconstructions), name='loss')
+		norm = tf.reduce_sum(energybins)
+
+		return loss, norm
+
+
+def anchor_deepattractornet_loss(
+		spectogram_targets, mix_to_mask, embeddings, anchors, seq_length, batch_size, activation='softmax', normalize=False):
+	"""
+	Compute the deep attractor net loss with anchors (as described in Speaker-Independent Speech Separation With Deep
+		Attractor Network by Luo, et al. [1]).
+
+	Args:
+		spectogram_targets: clean spectograms of the sources                [batch_size x time x feature_dim (F)  x nrS]
+		mix_to_mask:        spectograms of the mixture                      [batch_size x time (T) x feature_dim (F)]
+		embeddings:         resulting embeddingsvectors                     [batch_size x time (T) x (feature_dim(F) * emb_dim (D)]
+		anchors:         	resulting anchors			                    [nrS x emb_dim (D)]
+		seq_length:         sequence lengths                                [batch_size]
+		batch_size:         number of utterances in this batch
+		activation: 		activation to apply to the logits
+		normalize:			whether to normalize the embeddings
+	Returns:
+		loss: a scalar value containing the loss
+		norm: a scalar value containing the normalisation constant
+	"""
+	with tf.name_scope('anchor_deepattractornet_loss'):
+		feat_dim = spectogram_targets.get_shape()[2]
+		emb_dim = anchors.get_shape()[-1]
+		nrS = spectogram_targets.get_shape()[3]
+
+		V = tf.reshape(embeddings, [batch_size, -1, emb_dim], name='V')
+		anchors = tf.tile(tf.expand_dims(anchors, 0), [batch_size, 1, 1])
+		if normalize:
+			V = V/(tf.norm(V, axis=-1, keepdims=True) + 1e-12)
+
+		# Calculate softmax masker
+		prod_1 = tf.matmul(anchors, V, transpose_a=False, transpose_b=True, name='AVT')
+
+		if activation == 'softmax':
+			masks = tf.nn.softmax(prod_1, axis=1, name='M')  # dim: (B x nrS x K)
+		elif activation in ['None', 'none', None]:
+			masks = prod_1
+		elif activation == 'sigmoid':
+			masks = tf.nn.sigmoid(prod_1, name='M')
+		else:
+			masks = tf.nn.sigmoid(prod_1, name='M')
+
+		X = tf.reshape(mix_to_mask, [batch_size, 1, -1], name='X')  # dim: (B x 1 x K)
+		reconstructions = tf.multiply(masks, X)  # dim: (B x nrS x K)
+		reconstructions = tf.transpose(reconstructions, perm=[1, 0, 2])  # dim: (nrS x B x K)
+
+		S = tf.reshape(spectogram_targets, [batch_size, -1, nrS])  # dim: (B x K x nrS)
+		S = tf.transpose(S, [2, 0, 1])  # nrS x B x K
+
+		loss = base_pit_loss(reconstructions, S, overspeakererized=False)
+
+		norm = tf.to_float(tf.reduce_sum(seq_length) * feat_dim)
+
+		return loss, norm
+
+
+def weighted_anchor_deepattractornet_loss(
+		spectogram_targets, mix_to_mask, embeddings, anchors, spk_weights, seq_length, batch_size, activation='softmax', normalize=False):
+	"""
+	Compute the deep attractor net loss with anchors (as described in Speaker-Independent Speech Separation With Deep
+		Attractor Network by Luo, et al. [1]).
+
+	Args:
+		spectogram_targets: clean spectograms of the sources                [batch_size x time x feature_dim (F)  x nrS]
+		mix_to_mask:        spectograms of the mixture                      [batch_size x time (T) x feature_dim (F)]
+		embeddings:         resulting embeddingsvectors                     [batch_size x time (T) x (feature_dim(F) * emb_dim (D)]
+		anchors:         	resulting anchors			                    [nrS x emb_dim (D)]
+		spk_weights:        weights for anchors			                    [batch_size x time (T) x nrS]
+		seq_length:         sequence lengths                                [batch_size]
+		batch_size:         number of utterances in this batch
+		activation: 		activation to apply to the logits
+		normalize:			whether to normalize the embeddings
+	Returns:
+		loss: a scalar value containing the loss
+		norm: a scalar value containing the normalisation constant
+	"""
+	with tf.name_scope('weighted_anchor_deepattractornet_loss'):
+		feat_dim = spectogram_targets.get_shape()[2]
+		emb_dim = anchors.get_shape()[-1]
+		nrS = spectogram_targets.get_shape()[3]
+
+		V = tf.reshape(embeddings, [batch_size, -1, feat_dim, emb_dim], name='V')  # dim: (B x T x F x D)
+		if normalize:
+			V = V / (tf.norm(V, axis=-1, keepdims=True) + 1e-12)
+		anchors = tf.expand_dims(tf.tile(tf.expand_dims(anchors, 0), [batch_size, 1, 1]), 1)  # B x 1 x nrS x D
+		anchors = anchors * tf.expand_dims(spk_weights, -1)  # B x T x nrS x D
+
+		# Calculate softmax masker
+		prod_1 = tf.matmul(V, anchors, transpose_a=False, transpose_b=True, name='AVT')  # B x T x F x nrS
+
+		if activation == 'softmax':
+			masks = tf.nn.softmax(prod_1, axis=-1, name='M')  # dim: (B x T x F x nrS)
+		elif activation in ['None', 'none', None]:
+			masks = prod_1
+		elif activation == 'sigmoid':
+			masks = tf.nn.sigmoid(prod_1, name='M')
+		else:
+			masks = tf.nn.sigmoid(prod_1, name='M')
+
+		X = tf.expand_dims(mix_to_mask, -1, name='X')  # dim: (B x T x F x 1)
+		reconstructions = tf.multiply(masks, X)  # dim: (B x T x F x nrS)
+		reconstructions = tf.transpose(reconstructions, perm=[3, 0, 1, 2])  # dim: (nrS x B x T x F)
+
+		S = tf.transpose(spectogram_targets, [3, 0, 1, 2])  # nrS x B x T x F
+
+		loss = base_pit_loss(reconstructions, S, overspeakererized=True)
+
+		norm = tf.to_float(tf.reduce_sum(seq_length) * feat_dim)
+
+		return loss, norm
+
+
+def time_anchor_deepattractornet_loss(
+		spectogram_targets, mix_to_mask, embeddings, anchors, seq_length, batch_size, activation='softmax', normalize=False):
+	"""
+	Just as anchor_deepattractornet_loss but anchors vary over time
+
+	Args:
+		spectogram_targets: clean spectograms of the sources                [batch_size x time x feature_dim (F)  x nrS]
+		mix_to_mask:        spectograms of the mixture                      [batch_size x time (T) x feature_dim (F)]
+		embeddings:         resulting embeddingsvectors                     [batch_size x time (T) x (feature_dim(F) * emb_dim (D)]
+		anchors:         	resulting anchors			                    [batch_size x time (T) x nrS x emb_dim (D)]
+		seq_length:         sequence lengths                                [batch_size]
+		batch_size:         number of utterances in this batch
+		activation: 		activation to apply to the logits
+		normalize:			whether to normalize the embeddings
+	Returns:
+		loss: a scalar value containing the loss
+		norm: a scalar value containing the normalisation constant
+	"""
+	with tf.name_scope('time_anchor_deepattractornet_loss'):
+		feat_dim = spectogram_targets.get_shape()[2]
+		emb_dim = anchors.get_shape()[-1]
+		nrS = spectogram_targets.get_shape()[3]
+
+		V = tf.reshape(embeddings, [batch_size, -1, feat_dim, emb_dim], name='V')  # dim: (B x T x F x D)
+		if normalize:
+			V = V/(tf.norm(V, axis=-1, keepdims=True) + 1e-12)
+
+		# Calculate softmax masker
+		prod_1 = tf.matmul(V, anchors, transpose_a=False, transpose_b=True, name='AVT')
+
+		if activation == 'softmax':
+			masks = tf.nn.softmax(prod_1, axis=-1, name='M')  # dim: (B x T x F x nrS)
+		elif activation in ['None', 'none', None]:
+			masks = prod_1
+		elif activation == 'sigmoid':
+			masks = tf.nn.sigmoid(prod_1, name='M')
+		else:
+			masks = tf.nn.sigmoid(prod_1, name='M')
+
+		X = tf.expand_dims(mix_to_mask, -1, name='X')  # dim: (B x T x F x 1)
+		reconstructions = tf.multiply(masks, X)  # dim: (B x T x F x nrS)
+		reconstructions = tf.transpose(reconstructions, perm=[3, 0, 1, 2])  # dim: (nrS x B x T x F)
+
+		S = tf.transpose(spectogram_targets, [3, 0, 1, 2])  # nrS x B x T x F
+
+		loss = base_pit_loss(reconstructions, S, overspeakererized=False)
+
+		norm = tf.to_float(tf.reduce_sum(seq_length) * feat_dim)
+
+		return loss, norm
+
+
+def time_anchor_read_heads_deepattractornet_loss(
+		spectogram_targets, mix_to_mask, embeddings, anchors, read_heads, seq_length, batch_size, activation='softmax',
+		normalize=False, hardmax=False, frame_based=False):
+	"""
+	Just as anchor_deepattractornet_loss but anchors vary over time
+
+	Args:
+		spectogram_targets: clean spectograms of the sources                [batch_size x time x feature_dim (F)  x nrS]
+		mix_to_mask:        spectograms of the mixture                      [batch_size x time (T) x feature_dim (F)]
+		embeddings:         resulting embeddingsvectors                     [batch_size x time (T) x (feature_dim(F) * emb_dim (D)]
+		anchors:         	resulting anchors			                    [batch_size x time (T) x nrS x emb_dim (D)]
+		read_heads:         read heads used for assignments                 [batch_size x time (T) x nrS x nrSmax]
+		seq_length:         sequence lengths                                [batch_size]
+		batch_size:         number of utterances in this batch
+		activation: 		activation to apply to the logits
+		normalize:			whether to normalize the embeddings
+		hardmax:			whether to use hardmax to assign mask to a speaker
+		frame_based:			whether energy over frequency dimension should be summed and then compared to reconstructions.
+			Can be usefull for e.g. diarization type of loss
+	Returns:
+		loss: a scalar value containing the loss
+		norm: a scalar value containing the normalisation constant
+	"""
+	with tf.name_scope('time_anchor_deepattractornet_loss'):
+		feat_dim = spectogram_targets.get_shape()[2]
+		emb_dim = anchors.get_shape()[-1]
+		nrS = spectogram_targets.get_shape()[3]
+		nrSmax = read_heads.get_shape()[-1]
+
+		V = tf.reshape(embeddings, [batch_size, -1, feat_dim, emb_dim], name='V')  # dim: (B x T x F x D)
+		if normalize:
+			V = V/(tf.norm(V, axis=-1, keepdims=True) + 1e-12)
+
+		# Calculate softmax masker
+		prod_1 = tf.matmul(V, anchors, transpose_a=False, transpose_b=True, name='AVT')
+
+		if activation == 'softmax':
+			masks_S = tf.nn.softmax(prod_1, axis=-1, name='masks_S')  # dim: (B x T x F x nrS)
+		elif activation in ['None', 'none', None]:
+			masks_S = prod_1
+		elif activation == 'sigmoid':
+			masks_S = tf.nn.sigmoid(prod_1, name='masks_S')
+		else:
+			masks_S = tf.nn.sigmoid(prod_1, name='masks_S')
+
+		if hardmax:
+			raise NotImplementedError('Did not yet implement the hard max assignment')
+			raise Exception('What if one speaker is assigned both masks for a tf-bin?')
+			chosen_Stot = tf.argmax(read_heads, -1)  # dim: (B x T x nrS)
+		else:
+			masks_Stot = tf.matmul(masks_S, read_heads, name='masks_Stot')  # dim: (B x T x F x nrSmax)
+
+		X = tf.expand_dims(mix_to_mask, -1, name='X')  # dim: (B x T x F x 1)
+		reconstructions = tf.multiply(masks_Stot, X)  # dim: (B x T x F x nrSmax)
+		reconstructions = tf.transpose(reconstructions, perm=[3, 0, 1, 2])  # dim: (nrSmax x B x T x F)
+
+		S = tf.transpose(spectogram_targets, [3, 0, 1, 2])  # nrS x B x T x F
+
+		loss = base_pit_loss(reconstructions, S, overspeakererized=True, frame_based=frame_based)
+
+		norm = tf.to_float(tf.reduce_sum(seq_length) * feat_dim)
+
+		return loss, norm
+
+
+def base_pit_loss(reconstructions, org_signals, overspeakererized=False, frame_based=False):
+	"""
+	Just the basic pit loss. Can be used in many loss functions.
+	Args:
+		reconstructions:        reconstruction spectrograms of the sources       [nrSmax x batch_size x ... ]
+		org_signals: 			clean spectrograms of the sources                [nrS x batch_size x ...]
+		overspeakererized:		Whether possibly more reconstructions than source signals are available. If so the
+			last unnecessary reconstructions should be penalized if they are not just silence.
+		frame_based:			whether energy over frequency dimension should be summed and then compared to reconstructions.
+			Can be usefull for e.g. diarization type of loss
+	"""
+	nr_spk = org_signals.get_shape()[0]
+	permutations = list(itertools.permutations(range(nr_spk), nr_spk))
+
+	if frame_based:
+		reconstructions = tf.sqrt(tf.reduce_sum(tf.square(reconstructions), -2))
+		org_signals = tf.sqrt(tf.reduce_sum(tf.square(org_signals), -2))
+
+	num_axis = np.size(org_signals.get_shape())
+	sum_axises = [0] + range(2, num_axis)
+	perm_cost = []
+	for perm in permutations:
+		perm_cost.append(tf.reduce_sum(tf.square(tf.gather(reconstructions, perm) - org_signals), axis=sum_axises))
+
+	loss_utts = tf.reduce_min(perm_cost, 0)
+	loss = tf.reduce_sum(loss_utts)
+
+	if overspeakererized:
+		silence_loss = tf.reduce_sum(tf.square(reconstructions[nr_spk:]))
+		loss += silence_loss
+
+	return loss
+
 
 def deepattractornetnoise_soft_loss(partitioning, spectogram_targets, mix_to_mask, energybins, embeddings, \
 		alpha, seq_length, batch_size):
@@ -568,6 +720,7 @@ def deepattractornetnoise_hard_loss(partitioning, spectogram_targets, mix_to_mas
 
 		return loss,norm
 
+
 def noise_filter_loss(clean_spectrogram,noise_spectrogram,alpha,seq_length,batch_size):
 	"""
 		Calculates loss for loss filter
@@ -607,6 +760,35 @@ def noise_filter_loss(clean_spectrogram,noise_spectrogram,alpha,seq_length,batch
 			loss += tf.reduce_sum(tf.square(clean_spectrogram_utt-estimate),name='loss')
 			norm += tf.to_float(T*F)
 	return loss,norm
+
+
+def noise_mask_loss(ideal_ratio, alpha, energybins):
+	"""
+	cost derivation of ideal ratio mask for noise
+
+	Args:
+		ideal_ratio:        optimal ratio masker to filter the noise                  [batch_size x time x feat_dim (F)]
+		alpha:              resulting alpha                                           [batch_size x time x feature_dim (F)]
+		energybins:         indicating whether the bin has enough energy              [batch_size x time x feature_dim (F)]
+	Returns:
+		loss: a scalar value containing the loss
+		norm: a scalar value containing the normalisation constant
+	"""
+
+	with tf.name_scope('deepclustering_loss'):
+		# enough energy in bin
+		energybins = tf.to_float(energybins)
+
+		# determine noise bin identification loss
+		ideal_ratio = tf.multiply(ideal_ratio, energybins, name='ideal_ratio')
+		alpha = tf.multiply(alpha, energybins, name='ideal_ratio')
+		loss_noise_red = tf.reduce_sum(tf.square(ideal_ratio-alpha))
+		norm_noise_red = tf.reduce_sum(energybins)
+
+		loss = loss_noise_red/norm_noise_red
+
+		norm = tf.to_float(tf.constant(1))
+		return loss, norm
 
 def deepattractornet_noisefilter_loss(partitioning, spectrogram_targets, mix_to_mask, embeddings,alpha,seq_length,
 									  batch_size):
@@ -1122,34 +1304,35 @@ def deepclustering_loss(targets, logits, usedbins, seq_length, batch_size):
 	"""
 
 	with tf.name_scope('deepclustering_loss'):
-		feat_dim=usedbins.get_shape()[2]
-		output_dim=logits.get_shape()[2]
-		emb_dim=output_dim/feat_dim
-		target_dim=targets.get_shape()[2]
-		nrS=target_dim/feat_dim
+		feat_dim = usedbins.get_shape()[2]
+		output_dim = logits.get_shape()[2]
+		emb_dim = output_dim/feat_dim
+		target_dim = targets.get_shape()[2]
+		nrS = target_dim/feat_dim
 
-		ubresh=tf.reshape(usedbins,[batch_size,-1,1],name='ubresh')
-		ubresh=tf.to_float(ubresh)
+		ubresh = tf.reshape(usedbins, [batch_size, -1, 1], name='ubresh')
+		ubresh = tf.to_float(ubresh)
 
-		V=tf.reshape(logits,[batch_size,-1,emb_dim],name='V')
-		Vnorm=tf.nn.l2_normalize(V, axis=2, epsilon=1e-12, name='Vnorm')
-		Vnorm=tf.multiply(Vnorm,ubresh)
-		Y=tf.reshape(targets,[batch_size,-1,nrS],name='Y')
-		Y=tf.to_float(Y)
-		Y=tf.multiply(Y,ubresh)
+		V = tf.reshape(logits, [batch_size, -1, emb_dim], name='V')
+		Vnorm = tf.nn.l2_normalize(V, axis=2, epsilon=1e-12, name='Vnorm')
+		Vnorm = tf.multiply(Vnorm, ubresh)
+		Y = tf.reshape(targets, [batch_size, -1, nrS], name='Y')
+		Y = tf.to_float(Y)
+		Y = tf.multiply(Y, ubresh)
 
-		prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, name='VTV')
-		prod2=tf.matmul(Vnorm,Y,transpose_a=True, transpose_b=False, name='VTY')
-		prod3=tf.matmul(Y,Y,transpose_a=True, transpose_b=False, name='YTY')
-		term1=tf.reduce_sum(tf.square(prod1),name='frob_1')
-		term2=tf.reduce_sum(tf.square(prod2),name='frob_2')
-		term3=tf.reduce_sum(tf.square(prod3),name='frob_3')
+		prod1 = tf.matmul(Vnorm, Vnorm, transpose_a=True, transpose_b=False, name='VTV')
+		prod2 = tf.matmul(Vnorm, Y, transpose_a=True, transpose_b=False, name='VTY')
+		prod3 = tf.matmul(Y, Y, transpose_a=True, transpose_b=False, name='YTY')
+		term1 = tf.reduce_sum(tf.square(prod1), name='frob_1')
+		term2 = tf.reduce_sum(tf.square(prod2), name='frob_2')
+		term3 = tf.reduce_sum(tf.square(prod3), name='frob_3')
 
-		term1and2=tf.add(term1,-2*term2,name='term1and2')
-		loss=tf.add(term1and2,term3,name='term1and2and3')
-		norm= tf.reduce_sum(tf.square(tf.to_float(tf.reduce_sum(usedbins,[1,2]))))
+		term1and2 = tf.add(term1, -2*term2, name='term1and2')
+		loss = tf.add(term1and2, term3, name='term1and2and3')
+		norm = tf.reduce_sum(tf.square(tf.to_float(tf.reduce_sum(usedbins, [1, 2]))))
 
-	return loss , norm
+	return loss, norm
+
 
 def deepclustering_flat_loss(targets, logits, usedbins, seq_length, batch_size):
 	"""
@@ -1262,13 +1445,7 @@ def dc_pit_loss(targets_dc, logits_dc, targets_pit, logits_pit, usedbins, mix_to
 		targets_pit_resh=tf.transpose(targets_pit,perm=[3,0,1,2])
 		recs=tf.transpose(recs,perm=[3,0,1,2])
 
-		perm_cost=[]
-		for perm in permutations:
-			tmp=tf.square(tf.norm(tf.gather(recs,perm)-targets_pit_resh,ord='fro',axis=[2,3]))
-			perm_cost.append(tf.reduce_sum(tmp,0))
-
-		loss_pit_utt=tf.reduce_min(perm_cost,0)
-		loss_pit=tf.reduce_sum(loss_pit_utt)
+		loss_pit = base_pit_loss(recs, targets_pit_resh, overspeakererized=False)
 		norm_pit=tf.to_float(tf.reduce_sum(seq_length)*nrS * feat_dim )
 
 		loss=loss_dc/norm_dc+alpha*loss_pit/norm_pit
@@ -1363,6 +1540,44 @@ def crossentropy_multi_loss(labels, logits, batch_size):
 
 	return loss, norm
 
+
+
+
+def deepclustering_diar_loss(targets, read_heads, seq_length, batch_size):
+	"""
+
+	Args:
+
+		seq_length: a [batch_size] vector containing the
+			sequence lengths
+		batch_size: the batch size
+
+	Returns:
+		a scalar value containing the loss
+	"""
+
+	with tf.name_scope('deepclustering_diar_loss'):
+		nrS = targets.get_shape()[-1]
+
+		single_logits = tf.reduce_sum(read_heads, -2)
+		single_logits = single_logits/tf.reduce_max(single_logits, -1, keepdims=True)
+
+		prod1 = tf.matmul(single_logits, single_logits, transpose_a=True, transpose_b=False)
+		prod2 = tf.matmul(single_logits, targets, transpose_a=True, transpose_b=False)
+		prod3 = tf.matmul(targets, targets, transpose_a=True, transpose_b=False)
+
+		term1 = tf.reduce_sum(tf.square(prod1), name='frob_1')
+		term2 = tf.reduce_sum(tf.square(prod2), name='frob_2')
+		term3 = tf.reduce_sum(tf.square(prod3), name='frob_3')
+
+		term1and2 = tf.add(term1, -2*term2, name='term1and2')
+		loss = tf.add(term1and2, term3, name='term1and2and3')
+
+		norm = tf.reduce_sum(tf.square(tf.to_float(nrS * seq_length)))
+
+	return loss, norm
+
+
 def direct_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 	"""
 	Compute the direct reconstruction loss via masks.
@@ -1396,8 +1611,10 @@ def direct_loss(targets, logits, mix_to_mask, seq_length, batch_size):
 
 	return loss, norm
 
+
 def deepclustering_noise_loss(
-		binary_target,noise_partition,ideal_ratio,emb_vec,alpha, energybins,seq_length,batch_size):
+		binary_target, noise_partition, ideal_ratio, emb_vec, alpha, energybins, seq_length, batch_size,
+		rat_as_weight=False, alpha_as_weight=False):
 	"""
 	Compute the deep clustering loss with modified architecture for noise
 	cost function based on Hershey et al. 2016 + cost derivation of ideal ratio mask for noise
@@ -1412,103 +1629,194 @@ def deepclustering_noise_loss(
 		energybins:         indicating whether the bin has enough energy              [batch_size x time x feature_dim (F)]
 		seq_length:         sequence lengths                                          [batch_size]
 		batch_size:         number of utterances in this batch
+		rat_as_weight:		use ideal_ratio to weight importance of speech separation instead of hard cut of with noise paratition
+		alpha_as_weight:	use alpha to weight importance of speech separation instead of hard cut of with noise paratition
 	Returns:
 		loss: a scalar value containing the loss
 		norm: a scalar value containing the normalisation constant
 	"""
 
-	with tf.name_scope('deepclustering_noise_loss'):
-		# Number of frequency bins
-		F=tf.shape(energybins)[2]
-		# Dimension of embeddingsspace
-		D=tf.shape(emb_vec)[2]/F
-		# Number of sources
-		nrS=tf.shape(binary_target)[2]/F # Number of speakers
+	if rat_as_weight and alpha_as_weight:
+		raise Exception('Ideal ratio and alpha cannot both be used to weigh speech separation importance for bin')
 
-		# Initialise loss and normalisation with zero
-		loss=0.0
-		norm=0.0
+	with tf.name_scope('deepclustering_loss'):
+		feat_dim = energybins.get_shape()[2]
+		output_dim = emb_vec.get_shape()[2]
+		emb_dim = output_dim/feat_dim
+		target_dim = binary_target.get_shape()[2]
+		nrS = target_dim/feat_dim
 
-		# Loop over utterances in this batch
-		for utt_ind in range(batch_size):
-			# Number of timeframes in this utterance
-			T=seq_length[utt_ind]
-			Nspec=T*F
-			# Number of time-frequency bins in current spectogram
-			K=T*F
+		# enough energy in bin
+		energybins = tf.to_float(energybins)
+		ebresh = tf.reshape(energybins, [batch_size, -1, 1], name='ebresh')
 
-			# Which time-frequency bins have enough enery
-			energybins_utt=energybins[utt_ind]
-			energybins_utt=energybins_utt[:T,:] # dim: (T x F)
-			# Embedding vectors of this utterance
-			logits_utt=emb_vec[utt_ind]
-			logits_utt=logits_utt[:T,:] # dim: (T x F*D)
-			# partition targets for this utterance
-			targets_utt=binary_target[utt_ind]
-			targets_utt=targets_utt[:T,:] # dim: (T x F*nrS)
-			# noise partition for current utterance
-			noise_partition_utt=noise_partition[utt_ind]
-			noise_partition_utt=noise_partition_utt[:T,:] # dim: (T x F)
-			# ideal ratio for current utterance
-			ideal_ratio_utt=ideal_ratio[utt_ind]
-			ideal_ratio_utt=ideal_ratio_utt[:T,:] # dim: (T x F)
-			# Alpha outputs of the network
-			alpha_utt=alpha[utt_ind]
-			alpha_utt=alpha_utt[:T,:] # dim: (TxF)
+		# noise dominates bin
+		noise_partition = tf.to_float(noise_partition)
+		nbresh = tf.reshape(noise_partition, [batch_size, -1, 1], name='nbresh')
 
+		# speech dominates bin
+		sbresh = 1-nbresh
 
-			# Reshape the energy indication
-			ebresh=tf.reshape(energybins_utt,[K,1],name='ubresh')
-			ebreshV=tf.tile(ebresh,[1,D])
-			ebreshV=tf.to_float(ebreshV) # dim: (K x D)
-			ebreshY=tf.tile(ebresh,[1,nrS])  # dim: (K x nrS)
+		# speech dominates bin and sufficient energy
+		sebresh = sbresh * ebresh
 
-			# Reshape binary noise mask
-			nbresh=tf.reshape(1-noise_partition_utt,[K,1],name='ndresh')
-			nbreshV=tf.tile(nbresh,[1,D])
-			nbreshV=tf.to_float(nbreshV) # dim: (K x D)
-			nbreshY=tf.tile(nbresh,[1,nrS]) # dim: (K x nrS)
+		ideal_ratio_resh = tf.reshape(ideal_ratio, [batch_size, -1, 1])
+		ideal_ratio_sqrt_resh = tf.sqrt(ideal_ratio_resh)
+		alpha_resh = tf.reshape(alpha, [batch_size, -1, 1])
+		alpha_sqrt_resh = tf.sqrt(alpha_resh)
 
-			# Reshape the embeddingsvectors
-			V=tf.reshape(logits_utt,[K,D],name='V') # dim: (K x D)
-			# Normalise Embeddingsvectors
-			Vnorm=tf.nn.l2_normalize(V, axis=1, epsilon=1e-12, name='Vnorm')
-			# Remove noisy and silent bins
-			Vnorm=tf.multiply(tf.multiply(Vnorm,ebreshV),nbreshV) # dim: (K x D)
-			# Reshape binary targets and remove noisy and silent bins
-			Y=tf.reshape(targets_utt,[K,nrS],name='Y')
-			Y=tf.multiply(tf.multiply(Y,ebreshY),nbreshY)
-			Y=tf.to_float(Y) # dim: (K x nrS)
+		# determine speech separation loss
+		V = tf.reshape(emb_vec, [batch_size, -1, emb_dim], name='V')
+		Vnorm = tf.nn.l2_normalize(V, axis=2, epsilon=1e-12, name='Vnorm')
+		if rat_as_weight:
+			Vnorm = tf.multiply(Vnorm, ebresh)
+			Vnorm = tf.multiply(Vnorm, ideal_ratio_sqrt_resh)
+		elif alpha_as_weight:
+			Vnorm = tf.multiply(Vnorm, ebresh)
+			Vnorm = tf.multiply(Vnorm, alpha_sqrt_resh)
+		else:
+			Vnorm = tf.multiply(Vnorm, sebresh)
+		Y = tf.reshape(binary_target, [batch_size, -1, nrS], name='Y')
+		Y = tf.to_float(Y)
+		if rat_as_weight:
+			Y = tf.multiply(Y, ebresh)
+			Y = tf.multiply(Y, ideal_ratio_sqrt_resh)
+		elif alpha_as_weight:
+			Y = tf.multiply(Y, ebresh)
+			Y = tf.multiply(Y, alpha_sqrt_resh)
+		else:
+			Y = tf.multiply(Y, sebresh)
 
-			# First part cost function cfr. Hershey et al. 2016
-			prod1=tf.matmul(Vnorm,Vnorm,transpose_a=True, transpose_b=False, a_is_sparse=True,
-					b_is_sparse=True, name='VTV')
-			prod2=tf.matmul(Vnorm,Y,transpose_a=True, transpose_b=False, a_is_sparse=True,
-					b_is_sparse=True, name='VTY')
+		prod1 = tf.matmul(Vnorm, Vnorm, transpose_a=True, transpose_b=False, name='VTV')
+		prod2 = tf.matmul(Vnorm, Y, transpose_a=True, transpose_b=False, name='VTY')
+		prod3 = tf.matmul(Y, Y, transpose_a=True, transpose_b=False, name='YTY')
+		term1 = tf.reduce_sum(tf.square(prod1), name='frob_1')
+		term2 = tf.reduce_sum(tf.square(prod2), name='frob_2')
+		term3 = tf.reduce_sum(tf.square(prod3), name='frob_3')
 
-			term1=tf.reduce_sum(tf.square(prod1),name='frob_1')
-			term2=tf.reduce_sum(tf.square(prod2),name='frob_2')
+		term1and2 = tf.add(term1, -2*term2, name='term1and2')
+		loss_speech_sep = tf.add(term1and2, term3, name='term1and2and3')
+		if rat_as_weight:
+			tmp = tf.multiply(ebresh, ideal_ratio_resh)
+			norm_speech_sep = tf.reduce_sum(tf.square(tf.reduce_sum(tmp, [1])))
+		elif alpha_as_weight:
+			tmp = tf.multiply(ebresh, alpha_resh)
+			norm_speech_sep = tf.reduce_sum(tf.square(tf.reduce_sum(tmp, [1])))
+		else:
+			norm_speech_sep = tf.reduce_sum(tf.square(tf.reduce_sum(sebresh, [1])))
+		norm_speech_sep = tf.maximum(norm_speech_sep, 1)
 
-			loss_utt_1=tf.add(term1,-2*term2,name='term1and2')
-			# Number of non noisy non silence cells squared
-			norm_1= tf.square(tf.to_float(tf.reduce_sum(tf.multiply(nbresh,ebresh))))
-			norm_1=tf.maximum(norm_1,1)
+		# determine noise bin identification loss
+		ideal_ratio = tf.multiply(ideal_ratio, energybins, name='ideal_ratio')
+		alpha = tf.multiply(alpha, energybins, name='ideal_ratio')
+		loss_noise_red = tf.reduce_sum(tf.square(ideal_ratio-alpha))
+		norm_noise_red = tf.reduce_sum(energybins)
 
-			# Ideal ratio masker reshape
-			ideal_ratio_utt_resh=tf.reshape(ideal_ratio_utt,[K,1],name='ideal_ratio')
-			# Alpha output network
-			noise_actual=tf.reshape(alpha_utt,[K,1],name='nactual')
-			loss_utt_2=tf.reduce_sum(tf.square(ideal_ratio_utt_resh-noise_actual))
+		loss = loss_speech_sep/norm_speech_sep + loss_noise_red/norm_noise_red
 
-			# Normalisation constant: number of cells in spectrogram
-			norm_2=tf.to_float(Nspec)
-			loss += loss_utt_1/norm_1 + loss_utt_2/norm_2
+		norm = tf.to_float(tf.constant(1))
+		return loss, norm
 
 
-	norm=tf.to_float(tf.constant(batch_size))
-	return loss , norm
+def deepclustering_noise_DC_only_loss(
+		binary_target, noise_partition, ideal_ratio, emb_vec, alpha, energybins, seq_length, batch_size,
+		rat_as_weight=False, alpha_as_weight=False):
+	"""
+	Disregard this loss, only for analysis purposes
 
-def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size,softmax=True,rescale_recs=False):
+	Args:
+		binary_target:      optimal binary partitioning of the bins                   [batch_size x time x (feat_dim (F)*nrS)]
+		noise_partition:       binary mask indicating the bins where noise dominates     [batch_size x time x feat_dim (F)]
+		ideal_ratio:        optimal ratio masker to filter the noise                  [batch_size x time x feat_dim (F)]
+		emb_vec:            resulting embeddingsvectors                               [batch_size x time x (feat_dim (F) *emb_dim(D))] tensor containing the embedding vectors
+		alpha:              resulting alpha                                           [batch_size x time x feature_dim (F)]
+		energybins:         indicating whether the bin has enough energy              [batch_size x time x feature_dim (F)]
+		seq_length:         sequence lengths                                          [batch_size]
+		batch_size:         number of utterances in this batch
+		rat_as_weight:		use ideal_ratio to weight importance of speech separation instead of hard cut of with noise paratition
+		alpha_as_weight:	use alpha to weight importance of speech separation instead of hard cut of with noise paratition
+	Returns:
+		loss: a scalar value containing the loss
+		norm: a scalar value containing the normalisation constant
+	"""
+
+	if rat_as_weight and alpha_as_weight:
+		raise Exception('Ideal ratio and alpha cannot both be used to weigh speech separation importance for bin')
+
+	with tf.name_scope('deepclustering_loss'):
+		feat_dim = energybins.get_shape()[2]
+		output_dim = emb_vec.get_shape()[2]
+		emb_dim = output_dim/feat_dim
+		target_dim = binary_target.get_shape()[2]
+		nrS = target_dim/feat_dim
+
+		# enough energy in bin
+		energybins = tf.to_float(energybins)
+		ebresh = tf.reshape(energybins, [batch_size, -1, 1], name='ebresh')
+
+		# noise dominates bin
+		noise_partition = tf.to_float(noise_partition)
+		nbresh = tf.reshape(noise_partition, [batch_size, -1, 1], name='nbresh')
+
+		# speech dominates bin
+		sbresh = 1-nbresh
+
+		# speech dominates bin and sufficient energy
+		sebresh = sbresh * ebresh
+
+		ideal_ratio_resh = tf.reshape(ideal_ratio, [batch_size, -1, 1])
+		ideal_ratio_sqrt_resh = tf.sqrt(ideal_ratio_resh)
+		alpha_resh = tf.reshape(alpha, [batch_size, -1, 1])
+		alpha_sqrt_resh = tf.sqrt(alpha_resh)
+
+		# determine speech separation loss
+		V = tf.reshape(emb_vec, [batch_size, -1, emb_dim], name='V')
+		Vnorm = tf.nn.l2_normalize(V, axis=2, epsilon=1e-12, name='Vnorm')
+		if rat_as_weight:
+			Vnorm = tf.multiply(Vnorm, ebresh)
+			Vnorm = tf.multiply(Vnorm, ideal_ratio_sqrt_resh)
+		elif alpha_as_weight:
+			Vnorm = tf.multiply(Vnorm, ebresh)
+			Vnorm = tf.multiply(Vnorm, alpha_sqrt_resh)
+		else:
+			Vnorm = tf.multiply(Vnorm, sebresh)
+		Y = tf.reshape(binary_target, [batch_size, -1, nrS], name='Y')
+		Y = tf.to_float(Y)
+		if rat_as_weight:
+			Y = tf.multiply(Y, ebresh)
+			Y = tf.multiply(Y, ideal_ratio_sqrt_resh)
+		elif alpha_as_weight:
+			Y = tf.multiply(Y, ebresh)
+			Y = tf.multiply(Y, alpha_sqrt_resh)
+		else:
+			Y = tf.multiply(Y, sebresh)
+
+		prod1 = tf.matmul(Vnorm, Vnorm, transpose_a=True, transpose_b=False, name='VTV')
+		prod2 = tf.matmul(Vnorm, Y, transpose_a=True, transpose_b=False, name='VTY')
+		prod3 = tf.matmul(Y, Y, transpose_a=True, transpose_b=False, name='YTY')
+		term1 = tf.reduce_sum(tf.square(prod1), name='frob_1')
+		term2 = tf.reduce_sum(tf.square(prod2), name='frob_2')
+		term3 = tf.reduce_sum(tf.square(prod3), name='frob_3')
+
+		term1and2 = tf.add(term1, -2*term2, name='term1and2')
+		loss_speech_sep = tf.add(term1and2, term3, name='term1and2and3')
+		if rat_as_weight:
+			tmp = tf.multiply(ebresh, ideal_ratio_resh)
+			norm_speech_sep = tf.reduce_sum(tf.square(tf.reduce_sum(tmp, [1])))
+		elif alpha_as_weight:
+			tmp = tf.multiply(ebresh, alpha_resh)
+			norm_speech_sep = tf.reduce_sum(tf.square(tf.reduce_sum(tmp, [1])))
+		else:
+			norm_speech_sep = tf.reduce_sum(tf.square(tf.reduce_sum(sebresh, [1])))
+		norm_speech_sep = tf.maximum(norm_speech_sep, 1)
+
+		loss = loss_speech_sep/norm_speech_sep
+
+		norm = tf.to_float(tf.constant(1))
+		return loss, norm
+
+
+def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size, activation='softmax', rescale_recs=False, overspeakerized=False):
 	"""
 	Compute the permutation invariant loss.
 	Remark: This is implementation is different from pit_loss as the last dimension of logits is
@@ -1527,42 +1835,105 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size,softmax=True,r
 		seq_length: a [batch_size] vector containing the
 			sequence lengths
 		batch_size: the batch size
+		activation: activation to apply to the logits
+		overspeakererized:		Whether possibly more reconstructions than source signals are available. If so the
+			last unnecessary reconstructions should be penalized if they are not just silence.
 
 	Returns:
 		a scalar value containing the loss
 	"""
 
 	with tf.name_scope('PIT_loss'):
-		feat_dim=targets.get_shape()[2]
-		output_dim=logits.get_shape()[2]
-		nrS=targets.get_shape()[3]
-		permutations=list(itertools.permutations(range(nrS),nrS))
-
-		logits_resh=tf.transpose(tf.reshape(tf.transpose(logits,[2,0,1]),[nrS,feat_dim,batch_size,-1]),[2,3,1,0])
-		if softmax:
-			Masks=tf.nn.softmax(logits_resh, axis=3)
+		feat_dim = targets.get_shape()[2]
+		nrS = targets.get_shape()[3]
+		if np.shape(logits.get_shape())[0] == 3:
+			logits_resh = tf.transpose(tf.reshape(tf.transpose(logits, [2, 0, 1]), [nrS, feat_dim, batch_size, -1]), [2, 3, 1, 0])
 		else:
-			Masks=tf.nn.sigmoid(logits_resh)
+			logits_resh = logits
 
-		mix_to_mask=tf.expand_dims(mix_to_mask,-1)
-		recs=tf.multiply(Masks, mix_to_mask)
+		if activation == 'softmax':
+			masks = tf.nn.softmax(logits_resh, axis=3)
+		elif activation in ['None', 'none', None]:
+			masks = logits_resh
+		elif activation == 'sigmoid':
+			masks = tf.nn.sigmoid(logits_resh)
+		else:
+			masks = tf.nn.sigmoid(logits_resh)
+
+		mix_to_mask = tf.expand_dims(mix_to_mask, -1)
+		recs = tf.multiply(masks, mix_to_mask)
 
 		if rescale_recs:
-			recs=recs / tf.reduce_max(tf.abs(recs),axis=[1,2],keepdims=True) * \
-			  tf.reduce_max(tf.abs(targets),axis=[1,2],keepdims=True)
+			recs = \
+				recs / tf.reduce_max(tf.abs(recs), axis=[1, 2], keepdims=True) * \
+				tf.reduce_max(tf.abs(targets), axis=[1, 2], keepdims=True)
 
-		targets_resh=tf.transpose(targets,perm=[3,0,1,2])
-		recs=tf.transpose(recs,perm=[3,0,1,2])
+		targets_resh = tf.transpose(targets, perm=[3, 0, 1, 2])
+		recs = tf.transpose(recs, perm=[3, 0, 1, 2])
 
-		norm=tf.to_float(tf.reduce_sum(seq_length)*nrS * feat_dim )
+		norm = tf.to_float(tf.reduce_sum(seq_length)*nrS * feat_dim)
 
-		perm_cost=[]
-		for perm in permutations:
-			tmp=tf.square(tf.norm(tf.gather(recs,perm)-targets_resh,ord='fro',axis=[2,3]))
-			perm_cost.append(tf.reduce_sum(tmp,0))
+		loss = base_pit_loss(recs, targets_resh, overspeakererized=overspeakerized)
 
-		loss_utt=tf.reduce_min(perm_cost,0)
-		loss=tf.reduce_sum(loss_utt)
+	return loss, norm
+
+
+def pit_noise_loss(targets, logits, noise_filter, mix_to_mask, seq_length, batch_size, activation='softmax', rescale_recs=False):
+	"""
+	Compute the permutation invariant loss, with additional mask for noise filtering.
+	Remark: This is implementation is different from pit_loss as the last dimension of logits is
+	still feat_dim*nrS, but the first feat_dim entries correspond to the first speaker and the
+	second feat_dim entries correspond to the second speaker and so on. In pit_loss, the first nrS
+	entries corresponded to the first feature dimension, the second nrS entries to the seocnd
+	feature dimension and so on.
+	Remark2: There is actually a more efficient approach to calculate this loss. First calculate
+	the loss for every reconstruction to every target ==> nrS^2 combinations and then add
+	together the losses to form every possible permutation.
+
+	Args:
+		targets: a [batch_size x time x feat_dim  x nrS] tensor containing the multiple targets
+		logits: a [batch_size x time x (feat_dim*nrS)] tensor containing the logits
+		noise_filter: a [batch_size x time x feat_dim] tensor containing an estimate for the noise filter mask
+		mix_to_mask: a [batch_size x time x feat_dim] tensor containing the mixture that will be masked
+		seq_length: a [batch_size] vector containing the
+			sequence lengths
+		batch_size: the batch size
+		activation: activation to apply to the logits
+
+	Returns:
+		a scalar value containing the loss
+	"""
+
+	with tf.name_scope('PIT_noise_loss'):
+		feat_dim = targets.get_shape()[2]
+		nrS = targets.get_shape()[3]
+
+		logits_resh = tf.transpose(tf.reshape(tf.transpose(logits, [2, 0, 1]), [nrS, feat_dim, batch_size, -1]), [2, 3, 1, 0])
+
+		if activation == 'softmax':
+			masks = tf.nn.softmax(logits_resh, axis=3)
+		elif activation in ['None', 'none', None]:
+			masks = logits_resh
+		elif activation == 'sigmoid':
+			masks = tf.nn.sigmoid(logits_resh)
+		else:
+			masks = tf.nn.sigmoid(logits_resh)
+
+		mix_to_mask_noise_filtered = tf.multiply(mix_to_mask, noise_filter)
+		mix_to_mask_noise_filtered = tf.expand_dims(mix_to_mask_noise_filtered, -1)
+		recs = tf.multiply(masks, mix_to_mask_noise_filtered)
+
+		if rescale_recs:
+			recs = \
+				recs / tf.reduce_max(tf.abs(recs), axis=[1, 2], keepdims=True) * \
+				tf.reduce_max(tf.abs(targets), axis=[1, 2], keepdims=True)
+
+		targets_resh = tf.transpose(targets, perm=[3, 0, 1, 2])
+		recs = tf.transpose(recs, perm=[3, 0, 1, 2])
+
+		norm = tf.to_float(tf.reduce_sum(seq_length)*nrS * feat_dim)
+
+		loss = base_pit_loss(recs, targets_resh, overspeakererized=False)
 
 	return loss, norm
 

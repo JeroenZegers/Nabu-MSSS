@@ -144,7 +144,7 @@ class HyperParamOptimizer(skopt.Optimizer):
 			if self.exp_proposal_watch_dir is not None:
 				self.use_proposal_run = self.watch_proposal_dir()
 
-			if False and self.start_new_run_flag or self.use_proposal_run:
+			if (False and self.start_new_run_flag) or self.use_proposal_run:
 				# start (a) new run(s) if allowed
 				self.start_new_runs()
 				self.checkpoint()

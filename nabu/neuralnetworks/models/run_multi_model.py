@@ -4,7 +4,9 @@ from nabu.neuralnetworks.models.framer import Framer, DeframerSelect
 import pdb
 
 
-def run_multi_model(models, model_nodes, model_links, inputs, inputs_links, output_names, seq_lengths, is_training):
+def run_multi_model(
+		models, model_nodes, model_links, inputs, inputs_links, nodes_output_names, output_names, seq_lengths,
+		is_training):
 	"""get the outputs by passing the inputs trough the requested models.
 	Model nodes are used to store intermediate results
 
@@ -14,6 +16,8 @@ def run_multi_model(models, model_nodes, model_links, inputs, inputs_links, outp
 	model_links: dict containing a model fo each node
 	inputs: the inputs to the hybrid model
 	inputs_links: dict containing the inputs to the model of the node
+	nodes_output_names: dict containing the output names of the node's model. It can thus be allowed to make a
+		'multi-node' node. Typically only one output name is expected, which is the name of the node itself.
 	seq_lengths: sequence lengths of the inputs.
 	is_training: whether or not the network is in training mode
 
@@ -25,6 +29,13 @@ def run_multi_model(models, model_nodes, model_links, inputs, inputs_links, outp
 	for node in model_nodes:
 		node_inputs = [node_tensors[x] for x in inputs_links[node]]
 		node_model = models[model_links[node]]
+		node_output_names = nodes_output_names[node]
+
+		# else condition is also for legacy models.
+		if hasattr(node_model, 'num_outputs'):
+			node_num_outputs = node_model.num_outputs
+		else:
+			node_num_outputs = 1
 
 		if isinstance(node_model, Framer):
 			# exceptional case
@@ -41,12 +52,16 @@ def run_multi_model(models, model_nodes, model_links, inputs, inputs_links, outp
 			# first input will be considered
 			node_seq_length = seq_lengths[inputs_links[node][0]]
 
-		model_output = node_model(
+		model_outputs = node_model(
 				inputs=node_inputs,
 				input_seq_length=node_seq_length,
 				is_training=is_training)
-		node_tensors[node] = model_output
-		seq_lengths[node] = node_seq_length
+		if node_num_outputs == 1:
+			node_tensors[node_output_names] = model_outputs
+			seq_lengths[node_output_names] = node_seq_length
+		else:
+			node_tensors.update({node_output_names[ind]: model_outputs[ind] for ind in range(node_num_outputs)})
+			seq_lengths.update({node_output_names[ind]: node_seq_length for ind in range(node_num_outputs)})
 
 	outputs = {name: node_tensors[name] for name in output_names}
 
@@ -63,7 +78,7 @@ def get_variables(models):
 	variables: variables of all models
 	"""
 
-	variables=[]
+	variables = []
 	for model in models.keys():
 		variables += models[model].variables
 

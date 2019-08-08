@@ -5,4 +5,4 @@ This package contains the functionality for post processing:
 - postprocessing of reconstructions
 '''
 
-from . import reconstructors, scorers, data_reader, postprocessors
+from . import reconstructors, scorers, data_reader

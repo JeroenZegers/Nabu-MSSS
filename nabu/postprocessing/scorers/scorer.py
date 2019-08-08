@@ -48,6 +48,9 @@ class Scorer(object):
 			base_dataconfs.append(dict(dataconf.items(base_name)))
 		self.base_reader = data_reader.DataReader(base_dataconfs, self.segment_lengths)
 
+		if 'nrs' in conf:
+			self.nrS = int(conf['nrs'])
+
 		# get the speaker info
 		self.utt_spkinfo = dict()
 		spkinfo_names = conf['spkinfo'].split(' ')
@@ -92,7 +95,10 @@ class Scorer(object):
 
 				# get the source signals
 				org_src_signals, utt_info = self.org_src_reader(utt_ind)
-				nrS = utt_info['nrSig']
+				if hasattr(self, 'nrS'):
+					nrS = self.nrS
+				else:
+					nrS = utt_info['nrSig']
 				utt_name = utt_info['utt_name']
 
 				# determine from which sample on to score. This should be mentioned at the
@@ -120,8 +126,14 @@ class Scorer(object):
 					rec_src_signals.append(utterance)
 					rec_src_filenames.append(filename)
 
-				# get the scores for the utterance (in dictionary format)
-				utt_score_dict = self._get_score(org_src_signals, base_signals, rec_src_signals)
+				if not hasattr(self, 'noise_reader'):
+					# get the scores for the utterance (in dictionary format)
+					utt_score_dict = self._get_score(org_src_signals, base_signals, rec_src_signals)
+				else:
+					noise_signal, _ = self.noise_reader(utt_ind)
+					if self.score_from:
+						noise_signal = noise_signal[score_from_sample+1:]
+					utt_score_dict = self._get_score(org_src_signals, base_signals, rec_src_signals, noise_signal)
 
 			elif self.score_expects == 'files':
 				# Gather the filnames for scoring
@@ -129,7 +141,10 @@ class Scorer(object):
 				splitline = self.org_src_reader.datafile_lines[utt_ind].strip().split(' ')
 				utt_name = splitline[0]
 				org_src_filenames = splitline[1:]
-				nrS = len(org_src_filenames)
+				if hasattr(self, 'nrS'):
+					nrS = self.nrS
+				else:
+					nrS = len(org_src_filenames)
 
 				splitline = self.base_reader.datafile_lines[utt_ind].strip().split(' ')
 				base_filename = splitline[1]
@@ -142,8 +157,13 @@ class Scorer(object):
 					filename = os.path.join(self.rec_dir, 's'+str(spk+1), utt_name+'.wav')
 					rec_src_filenames.append(filename)
 
-				# get the scores for the utterance (in dictionary format)
-				utt_score_dict = self._get_score(org_src_filenames, base_filenames, rec_src_filenames)
+				if not hasattr(self, 'noise_reader'):
+					# get the scores for the utterance (in dictionary format)
+					utt_score_dict = self._get_score(org_src_filenames, base_filenames, rec_src_filenames)
+				else:
+					splitline = self.noise_reader.datafile_lines[utt_ind].strip().split(' ')
+					noise_filename = splitline[1]
+					utt_score_dict = self._get_score(org_src_filenames, base_filenames, rec_src_filenames, noise_filename)
 
 			else:
 				raise Exception('unexpected input for scrorer_expects: %s' % self.score_expects)
@@ -229,21 +249,22 @@ class Scorer(object):
 
 		return result_summary
 
-	@abstractmethod
-	def _get_score(self, org_src_signals, base_signals, rec_src_signals):
-		"""score the reconstructed utterances with respect to the original source signals.
-		This score should be independent to permutations.
-
-		Args:
-			org_src_signals: the original source signals, as a list of numpy arrarys. May also be a list of audio
-				filenames
-			base_signals: the duplicated base signal (original mixture), as a list of numpy arrarys. May also be a list
-				of audio filenames
-			rec_src_signals: the reconstructed source signals, as a list of numpy arrarys. May also be a list of audio
-				filenames
-
-		Returns:
-			the score"""
+	# @abstractmethod
+	# def _get_score(self, org_src_signals, base_signals, rec_src_signals, *args):
+	# 	"""score the reconstructed utterances with respect to the original source signals.
+	# 	This score should be independent to permutations.
+	#
+	# 	Args:
+	# 		org_src_signals: the original source signals, as a list of numpy arrays. May also be a list of audio
+	# 			filenames
+	# 		base_signals: the duplicated base signal (original mixture), as a list of numpy arrays. May also be a list
+	# 			of audio filenames
+	# 		rec_src_signals: the reconstructed source signals, as a list of numpy arrays. May also be a list of audio
+	# 			filenames
+	# 		args: option aditonal signals, as a numpy arrays. May also be an audio filenames
+	#
+	# 	Returns:
+	# 		the score"""
 
 	# @abstractproperty
 	# def score_metrics():

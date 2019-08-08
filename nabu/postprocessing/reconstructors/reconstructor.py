@@ -69,8 +69,12 @@ class Reconstructor(object):
 
 			utt_output = dict()
 			for output_name in self.requested_output_names:
-				utt_output[output_name] = \
-					batch_outputs[output_name][utt_ind][:batch_sequence_lengths[output_name][utt_ind], :]
+				# anchor output for anchor_deepattractornet_softmax_reconstructor is special case
+				if output_name is 'anchors' and self.__class__.__name__ in ['AnchorDeepattractorSoftmaxReconstructor', 'WeightedAnchorDeepattractorSoftmaxReconstructor']:
+					utt_output[output_name] = batch_outputs[output_name]
+				else:
+					utt_output[output_name] = \
+						batch_outputs[output_name][utt_ind][:batch_sequence_lengths[output_name][utt_ind], :]
 
 			# reconstruct the signals
 			reconstructed_signals, utt_info = self.reconstruct_signals(utt_output)

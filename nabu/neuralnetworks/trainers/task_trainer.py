@@ -6,6 +6,7 @@ from nabu.neuralnetworks.loss_computers import loss_computer_factory
 from nabu.neuralnetworks.evaluators import evaluator_factory
 from nabu.processing import input_pipeline
 from nabu.neuralnetworks.models import run_multi_model
+import numpy as np
 
 
 class TaskTrainer(object):
@@ -48,13 +49,20 @@ class TaskTrainer(object):
 			set_names = taskconf['linkedsets'].split(' ')
 			self.linkedsets = dict()
 			for set_name in set_names:
-				inp_indices = map(int, taskconf['%s_inputs' % set_name].split(' '))
-				tar_indices = map(int, taskconf['%s_targets' % set_name].split(' '))
-				set_inputs = [inp for ind, inp in enumerate(self.input_names) if ind in inp_indices]
-				set_targets = [tar for ind, tar in enumerate(self.target_names) if ind in tar_indices]
-				self.linkedsets[set_name] = {'inputs': set_inputs, 'targets': set_targets}
+				set_input_names = ['%s_%s' % (set_name, in_name) for in_name in self.input_names]
+				set_target_names = ['%s_%s' % (set_name, tar_name) for tar_name in self.target_names]
+				self.linkedsets[set_name] = {'inputs': set_input_names, 'targets': set_target_names}
+
+			if 'linkedset_weighting' in taskconf:
+				linkedset_weighting = np.array(map(float, taskconf['linkedset_weighting'].split(' ')))
+				# the first set has the reference weight
+				linkedset_weighting /= linkedset_weighting[0]
+			else:
+				linkedset_weighting = np.array([1.0] * len(self.linkedsets))
+			self.linkedset_weighting = {set_name: weight for set_name, weight in zip(set_names, linkedset_weighting)}
 		else:
 			self.linkedsets = {'set0': {'inputs': self.input_names, 'targets': self.target_names}}
+			self.linkedset_weighting = {'set0': 1.0}
 
 		self.input_dataconfs = dict()
 		self.target_dataconfs = dict()
@@ -79,9 +87,14 @@ class TaskTrainer(object):
 
 		self.model_links = dict()
 		self.inputs_links = dict()
+		self.nodes_output_names = dict()
 		for node in self.model_nodes:
 			self.model_links[node] = taskconf['%s_model' % node]
 			self.inputs_links[node] = taskconf['%s_inputs' % node].split(' ')
+			if '%s_output_names' % node in taskconf:
+				self.nodes_output_names[node] = taskconf['%s_output_names' % node].split(' ')
+			else:
+				self.nodes_output_names[node] = node
 
 		# create the loss computer
 		self.loss_computer = loss_computer_factory.factory(
@@ -130,19 +143,31 @@ class TaskTrainer(object):
 
 		return num_steps, done_ops
 
-	def train(self, learning_rate):
-		"""set the training ops for this task"""
+	def gather_grads(self, optimizer):
+		""" Gather gradients for this task"""
 
 		with tf.variable_scope(self.task_name):
 
-			# create the optimizer
-			optimizer = tf.train.AdamOptimizer(learning_rate)
+			# a variable to hold the batch loss
+			self.batch_loss = tf.get_variable(
+				name='batch_loss', shape=[], dtype=tf.float32, initializer=tf.constant_initializer(0), trainable=False)
 
-			inputs = dict()
-			seq_lengths = dict()
-			targets = dict()
+			# a variable to hold the batch loss norm
+			self.batch_loss_norm = tf.get_variable(
+				name='batch_loss_norm', shape=[], dtype=tf.float32, initializer=tf.constant_initializer(0),
+				trainable=False)
 
-			for linkedset in self.linkedsets:
+			# normalize the loss
+			with tf.variable_scope('normalize_loss'):
+				self.normalized_loss = self.batch_loss / self.batch_loss_norm
+
+			self.process_minibatch = []
+			for set_ind, linkedset in enumerate(self.linkedsets):
+
+				inputs = dict()
+				seq_lengths = dict()
+				targets = dict()
+
 				# create the input pipeline
 				data, seq_length = input_pipeline.input_pipeline(
 					data_queue=self.data_queue[linkedset],
@@ -152,77 +177,66 @@ class TaskTrainer(object):
 				)
 
 				# split data into inputs and targets
-				for ind, input_name in enumerate(self.linkedsets[linkedset]['inputs']):
+				for ind, input_name in enumerate(self.input_names):
 					inputs[input_name] = data[ind]
 					seq_lengths[input_name] = seq_length[ind]
 
-				for ind, target_name in enumerate(self.linkedsets[linkedset]['targets']):
-					targets[target_name] = data[len(self.linkedsets[linkedset]['inputs'])+ind]
+				for ind, target_name in enumerate(self.target_names):
+					targets[target_name] = data[len(self.input_names) + ind]
 
-			# get the logits
-			logits = run_multi_model.run_multi_model(
-				models=self.models,
-				model_nodes=self.model_nodes,
-				model_links=self.model_links,
-				inputs=inputs,
-				inputs_links=self.inputs_links,
-				output_names=self.output_names,
-				seq_lengths=seq_lengths,
-				is_training=True)
+				# get the logits
+				logits = run_multi_model.run_multi_model(
+					models=self.models,
+					model_nodes=self.model_nodes,
+					model_links=self.model_links,
+					inputs=inputs,
+					inputs_links=self.inputs_links,
+					nodes_output_names=self.nodes_output_names,
+					output_names=self.output_names,
+					seq_lengths=seq_lengths,
+					is_training=True)
 
-			# a variable to hold the batch loss
-			self.batch_loss = tf.get_variable(
-				name='batch_loss', shape=[], dtype=tf.float32, initializer=tf.constant_initializer(0), trainable=False)
+				# compute the loss
+				task_minibatch_loss, task_minibatch_loss_norm = self.loss_computer(targets, logits, seq_lengths)
+				task_minibatch_loss *= self.linkedset_weighting[linkedset]
+				task_minibatch_loss_norm *= self.linkedset_weighting[linkedset]
+
+				task_minibatch_grads_and_vars = optimizer.compute_gradients(task_minibatch_loss)
+
+				(task_minibatch_grads, task_vars) = zip(*task_minibatch_grads_and_vars)
+
+				if set_ind == 0:
+					# This should have already been done before the loop, but then the trainable parameters where unknown
+					# gather all trainable parameters
+					self.params = tf.trainable_variables()
+
+					# a variable to hold all the gradients
+					self.grads = [tf.get_variable(
+						param.op.name, param.get_shape().as_list(), initializer=tf.constant_initializer(0),
+						trainable=False)
+						for param in self.params]
+
+				# update the batch gradients with the minibatch gradients.
+				# If a minibatchgradients is None, the loss does not depent on the specific
+				# variable(s) and it will thus not be updated
+				with tf.variable_scope('update_gradients_%s' % linkedset):
+					update_gradients = [
+						grad.assign_add(batchgrad) for batchgrad, grad in zip(task_minibatch_grads, self.grads)
+						if batchgrad is not None]
+
+				acc_loss = self.batch_loss.assign_add(task_minibatch_loss)
+				acc_loss_norm = self.batch_loss_norm.assign_add(task_minibatch_loss_norm)
+
+				# group all the operations together that need to be executed to process
+				# a minibatch
+				self.process_minibatch.append(tf.group(
+					*(update_gradients + [acc_loss] + [acc_loss_norm]), name='update_grads_loss_norm_%s' % linkedset))
 
 			reset_batch_loss = self.batch_loss.assign(0.0)
 
-			# a variable to hold the batch loss norm
-			self.batch_loss_norm = tf.get_variable(
-				name='batch_loss_norm', shape=[], dtype=tf.float32, initializer=tf.constant_initializer(0),
-				trainable=False)
-
 			reset_batch_loss_norm = self.batch_loss_norm.assign(0.0)
 
-			# gather all trainable parameters
-			self.params = tf.trainable_variables()
-
-			# a variable to hold all the gradients
-			self.grads = [tf.get_variable(
-				param.op.name, param.get_shape().as_list(), initializer=tf.constant_initializer(0), trainable=False)
-				for param in self.params]
-
 			reset_grad = tf.variables_initializer(self.grads)
-
-			# compute the loss
-			task_minibatch_loss, task_minibatch_loss_norm = self.loss_computer(targets, logits, seq_lengths)
-
-			task_minibatch_grads_and_vars = optimizer.compute_gradients(task_minibatch_loss)
-
-			(task_minibatch_grads, task_vars) = zip(*task_minibatch_grads_and_vars)
-
-			# update the batch gradients with the minibatch gradients.
-			# If a minibatchgradients is None, the loss does not depent on the specific
-			# variable(s) and it will thus not be updated
-			with tf.variable_scope('update_gradients'):
-				update_gradients = [
-					grad.assign_add(batchgrad) for batchgrad, grad in zip(task_minibatch_grads, self.grads)
-					if batchgrad is not None]
-
-			acc_loss = self.batch_loss.assign_add(task_minibatch_loss)
-			acc_loss_norm = self.batch_loss_norm.assign_add(task_minibatch_loss_norm)
-
-			# group all the operations together that need to be executed to process
-			# a minibatch
-			self.process_minibatch = tf.group(
-				*(update_gradients+[acc_loss] + [acc_loss_norm]), name='update_grads_loss_norm')
-
-			# an op to reset the grads, the loss and the loss norm
-			self.reset_grad_loss_norm = tf.group(*(
-				[reset_grad, reset_batch_loss, reset_batch_loss_norm]), name='reset_grad_loss_norm')
-
-			# normalize the loss
-			with tf.variable_scope('normalize_loss'):
-				self.normalized_loss = self.batch_loss/self.batch_loss_norm
 
 			# normalize the gradients if requested.
 			with tf.variable_scope('normalize_gradients'):
@@ -232,6 +246,10 @@ class TaskTrainer(object):
 				else:
 					self.normalize_gradients = [grad.assign(grad) for grad in self.grads]
 
+			# an op to reset the grads, the loss and the loss norm
+			self.reset_grad_loss_norm = tf.group(*(
+				[reset_grad, reset_batch_loss, reset_batch_loss_norm]), name='reset_grad_loss_norm')
+
 			batch_grads_and_vars = zip(self.grads, task_vars)
 
 			with tf.variable_scope('clip'):
@@ -240,10 +258,19 @@ class TaskTrainer(object):
 				batch_grads_and_vars = [
 					(tf.clip_by_value(grad, -clip_value, clip_value), var) for grad, var in batch_grads_and_vars]
 
-			# an op to apply the accumulated gradients to the variables
-			self.apply_gradients = optimizer.apply_gradients(
-							grads_and_vars=batch_grads_and_vars,
-							name='apply_gradients')
+		return batch_grads_and_vars
+
+	def train(self, learning_rate):
+		"""set the training ops for this task"""
+
+		# create the optimizer
+		optimizer = tf.train.AdamOptimizer(learning_rate)
+
+		# gather the gradients
+		batch_grads_and_vars = self.gather_grads(optimizer)
+
+		# an op to apply the accumulated gradients to the variables
+		self.apply_gradients = optimizer.apply_gradients(grads_and_vars=batch_grads_and_vars, name='apply_gradients')
 
 	def evaluate_evaluator(self):
 		"""set the evaluation ops for this task"""

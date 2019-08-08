@@ -63,9 +63,8 @@ def framesig(sig, frame_len, frame_step, winfunc=lambda x: numpy.ones((x, ))):
     zeros = numpy.zeros((padlen - slen,))
     padsignal = numpy.concatenate((sig, zeros))
 
-    indices = (numpy.tile(numpy.arange(0, frame_len), (numframes, 1))
-               + numpy.tile(numpy.arange(0, numframes*frame_step, frame_step),
-                            (frame_len, 1)).T)
+    indices = (numpy.tile(numpy.arange(0, frame_len), (numframes, 1)) +
+               numpy.tile(numpy.arange(0, numframes*frame_step, frame_step), (frame_len, 1)).T)
     indices = numpy.array(indices, dtype=numpy.int32)
     frames = padsignal[indices]
     win = numpy.tile(winfunc(frame_len), (numframes, 1))
@@ -172,6 +171,25 @@ def magspec(frames, nfft):
 
     complex_spec = numpy.fft.rfft(frames, nfft)
     return numpy.absolute(complex_spec)
+
+def angspec(frames, nfft):
+    '''
+    Compute the angular spectrum of each frame in frames.
+
+    If frames is an NxD matrix, output will be NxNFFT.
+
+    Args:
+        frames: the array of frames. Each row is a frame.
+        nfft: the FFT length to use. If NFFT > frame_len, the frames are
+            zero-padded.
+
+    Returns:
+        If frames is an NxD matrix, output will be NxNFFT. Each row will be the
+        magnitude spectrum of the corresponding frame.
+    '''
+
+    complex_spec = numpy.fft.rfft(frames, nfft)
+    return numpy.angle(complex_spec)
 
 def logmagspec(frames, nfft, norm=False):
     '''

@@ -5,7 +5,9 @@ from . import audio_feat_processor, onehotperfeature_target_processor, scorelabe
 audio_multi_signal_processor, audio_signal_processor, multi_target_processor, strlabel2index_processor, \
 matrix2vector_processor, fracscorelabelperfeature_processor, onehotperfeature_target_dummy_processor,\
 multi_target_dummy_processor, scorelabelperfeatureinmixture_processor, audio_feat_conc_processor,\
-scorelabelperfeature_multimic_processor, matrix2vector_processor, ideal_ratio_processor, zero_processor
+scorelabelperfeature_multimic_processor, matrix2vector_processor, ideal_ratio_processor, one_processor,\
+multi_averager_encapsulator, spatial_feat_processor, onehotperfeature_target_multimic_processor,\
+multi_target_multimic_processor, ideal_ratio_multimic_processor, vad_timings_processor
 
 
 def factory(processor):
@@ -21,8 +23,12 @@ def factory(processor):
         return audio_feat_processor.AudioFeatProcessor
     elif processor == 'onehotperfeature_target_processor':
         return onehotperfeature_target_processor.onehotperfeatureTargetProcessor
+    elif processor == 'onehotperfeature_target_multimic_processor':
+        return onehotperfeature_target_multimic_processor.onehotperfeatureTargetMultimicProcessor
     elif processor == 'multi_target_processor':
         return multi_target_processor.MultiTargetProcessor
+    elif processor == 'multi_target_multimic_processor':
+        return multi_target_multimic_processor.MultiTargetMultimicProcessor
     elif processor == 'scorelabelperfeature_processor':
         return scorelabelperfeature_processor.ScorelabelperfeatureProcessor
     elif processor == 'scorelabelperfeature_multimic_processor':
@@ -45,5 +51,21 @@ def factory(processor):
         return multi_target_dummy_processor.MultiTargetDummyProcessor
     elif processor == 'audio_feat_conc_processor':
         return audio_feat_conc_processor.AudioFeatConcProcessor
+    elif processor == 'multi_averager_encapsulator':
+        return multi_averager_encapsulator.MultiAveragerEncapsulator
+    elif processor == 'spatial_feat_processor':
+        return spatial_feat_processor.SpatialFeatProcessor
+    elif processor == 'ideal_ratio_processor':
+        return ideal_ratio_processor.IdealRatioProcessor
+    elif processor == 'ideal_ratio_multimic_processor':
+        return ideal_ratio_multimic_processor.IdealRatioMultimicProcessor
+    elif processor == 'snr_multimic_processor':
+        return ideal_ratio_multimic_processor.SnrMultimicProcessor
+    elif processor == 'one_processor':
+        return one_processor.OneProcessor
+    elif processor == 'zero_processor':
+        return one_processor.ZeroProcessor
+    elif processor == 'vad_timings_processor':
+        return vad_timings_processor.VadTimingsProcessor
     else:
         raise Exception('unknown processor type: %s' % processor)

@@ -2,7 +2,7 @@
 contains the Loss computer factory mehod"""
 
 from . import loss_computer_factory, loss_computer, deepclustering_loss, pit_loss,\
-  l41_loss, pit_loss_sigmoid, pit_loss_sigmoid_scaled, pit_l41_loss, \
+  l41_loss, pit_l41_loss, \
   deepclustering_L1_loss, dist2mean_rat_loss,\
   dist2mean_rat_squared_loss, intravar2centervar_rat_loss, dist2mean_rat_fracbins_loss,\
   crossentropy_multi_loss, dist2mean_closest_rat_loss, direct_loss,\

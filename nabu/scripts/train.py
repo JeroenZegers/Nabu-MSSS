@@ -97,14 +97,20 @@ def train(clusterfile, job_name, task_index, ssh_command, expdir):
 			print 'starting training for segment length: %s' % segment_length
 
 			# train the model
-			best_val_losses, all_tasks = tr.train()
+			best_val_loss = tr.train()
+			if best_val_loss is not None:
+				val_sum[segment_length] = best_val_loss
 
-			if best_val_losses is not None:
-				val_sum[segment_length] = {task: float(loss) for (loss, task) in zip(best_val_losses, all_tasks)}
+			# best_val_losses, all_tasks = tr.train()
+			# if best_val_losses is not None:
+			# 	val_sum[segment_length] = {task: float(loss) for (loss, task) in zip(best_val_losses, all_tasks)}
 
 	if val_sum and 'full' in val_sum:
 		out_file = os.path.join(expdir, 'val_sum.json')
 		with open(out_file, 'w') as fid:
+			print 'the validation loss ...'
+			print val_sum
+			print '... will be save to memory'
 			json.dump(val_sum, fid)
 	else:
 		print 'Did not find a validation loss to save'

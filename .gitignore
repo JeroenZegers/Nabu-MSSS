@@ -7,6 +7,7 @@ sweeps
 *debug*
 *_backup
 *Old*
+*old*
 *kate-swp*
 config/recipes_Jeroen*/*
 config/recipes_Pieter
@@ -35,3 +36,5 @@ aanpassingen_code_Pieter.txt
 nabu/scripts/oracle_no_noise.py
 nabu/scripts/oracle_noise.py
 nabu/scripts/visualise_embedding_vectors.py
+
+all_spk_counts*

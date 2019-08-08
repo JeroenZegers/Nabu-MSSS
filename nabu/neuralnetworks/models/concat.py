@@ -41,41 +41,47 @@ class Concat(model.Model):
 		else:
 			expand_dim_to_first_input = [False] + [True] * (len(inputs)-1)
 
+		if is_training and 'input_noise' in self.conf:
+			inputs_noise = map(float, self.conf['input_noise'].split(' '))
+			inputs = [
+				inp + tf.random_normal(tf.shape(inp), stddev=inp_noise) for inp, inp_noise in zip(inputs, inputs_noise)]
+
 		# The dimension that will be expanded, if requested, is the one to last dimension
 		expand_dimension = -2
 
-		inputs = [inputs[ind] for ind, sel in enumerate(select_inputs) if sel]
-		flatten_last_2_dims = [flatten_last_2_dims[ind] for ind, sel in enumerate(select_inputs) if sel]
-		expand_dim_to_first_input = [expand_dim_to_first_input[ind] for ind, sel in enumerate(select_inputs) if sel]
+		with tf.variable_scope(self.scope):
+			inputs = [inputs[ind] for ind, sel in enumerate(select_inputs) if sel]
+			flatten_last_2_dims = [flatten_last_2_dims[ind] for ind, sel in enumerate(select_inputs) if sel]
+			expand_dim_to_first_input = [expand_dim_to_first_input[ind] for ind, sel in enumerate(select_inputs) if sel]
 
-		for ind, inp in enumerate(inputs):
-			if flatten_last_2_dims[ind]:
-				inp_shape = tf.shape(inp)
-				inp_stat_shape = inp.get_shape().as_list()
-				if None in inp_stat_shape[-2:]:
-					raise ValueError('Last two dimensions of tensor should be known before flattening.')
-				new_last_shape = inp_stat_shape[-2] * inp_stat_shape[-1]
-				new_shape = tf.concat([inp_shape[:-2], [new_last_shape]], axis=0)
-				inputs[ind] = tf.reshape(inp, new_shape)
+			for ind, inp in enumerate(inputs):
+				if flatten_last_2_dims[ind]:
+					inp_shape = tf.shape(inp)
+					inp_stat_shape = inp.get_shape().as_list()
+					if None in inp_stat_shape[-2:]:
+						raise ValueError('Last two dimensions of tensor should be known before flattening.')
+					new_last_shape = inp_stat_shape[-2] * inp_stat_shape[-1]
+					new_shape = tf.concat([inp_shape[:-2], [new_last_shape]], axis=0)
+					inputs[ind] = tf.reshape(inp, new_shape)
 
-		if len(inputs) == 1:
-			return inputs[0]
+			if len(inputs) == 1:
+				return inputs[0]
 
-		if expand_dim_to_first_input[0]:
-			raise ValueError(
-				'The expanded dimension is tiled to match the first input. This is not possible for the first input')
-		else:
-			size_of_expanded_dim = tf.shape(inputs[0])[expand_dimension]
-			out_dim = len(inputs[0].get_shape())
-			multiplicates = np.ones(out_dim, np.int).tolist()
-			multiplicates[-2] = size_of_expanded_dim
-			multiplicates = tf.stack(multiplicates)
+			if expand_dim_to_first_input[0]:
+				raise ValueError(
+					'The expanded dimension is tiled to match the first input. This is not possible for the first input')
+			else:
+				size_of_expanded_dim = tf.shape(inputs[0])[expand_dimension]
+				out_dim = len(inputs[0].get_shape())
+				multiplicates = np.ones(out_dim, np.int).tolist()
+				multiplicates[-2] = size_of_expanded_dim
+				multiplicates = tf.stack(multiplicates)
 
-		for ind, inp in enumerate(inputs):
-			if expand_dim_to_first_input[ind]:
-				inp = tf.expand_dims(inp, expand_dimension)
-				inputs[ind] = tf.tile(inp, multiplicates)
+			for ind, inp in enumerate(inputs):
+				if expand_dim_to_first_input[ind]:
+					inp = tf.expand_dims(inp, expand_dimension)
+					inputs[ind] = tf.tile(inp, multiplicates)
 
-		output = tf.concat(inputs, -1)
+			output = tf.concat(inputs, -1)
 
 		return output

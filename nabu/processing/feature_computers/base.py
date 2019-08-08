@@ -138,6 +138,33 @@ def frames(signal, samplerate, conf):
     return frames
 
 
+def powspec(signal, samplerate, conf):
+    """
+    Compute squared magnitude spectrogram features from an audio signal.
+
+    Args:
+        signal: the audio signal from which to compute features. Should be an
+            N*1 array
+        samplerate: the samplerate of the signal we are working with.
+        conf: feature configuration
+
+    Returns:
+        A numpy array of size (NUMFRAMES by numfreq) containing features. Each
+        row holds 1 feature vector, a numpy vector containing the magnitude
+        spectrum of the corresponding frame
+    """
+    signal = sigproc.preemphasis(signal, float(conf['preemph']))
+
+    winfunc = _get_winfunc(conf['winfunc'])
+
+    frames = sigproc.framesig(signal, float(conf['winlen'])*samplerate,
+                              float(conf['winstep'])*samplerate,
+                              winfunc)
+    powspec = sigproc.powspec(frames, int(conf['nfft']))
+
+    return powspec
+
+
 def magspec(signal, samplerate, conf):
     """
     Compute magnitude spectrogram features from an audio signal.
@@ -163,6 +190,33 @@ def magspec(signal, samplerate, conf):
     magspec = sigproc.magspec(frames, int(conf['nfft']))
 
     return magspec
+
+
+def angspec(signal, samplerate, conf):
+    """
+    Compute angular spectrogram features from an audio signal.
+
+    Args:
+        signal: the audio signal from which to compute features. Should be an
+            N*1 array
+        samplerate: the samplerate of the signal we are working with.
+        conf: feature configuration
+
+    Returns:
+        A numpy array of size (NUMFRAMES by numfreq) containing features. Each
+        row holds 1 feature vector, a numpy vector containing the angular
+        spectrum of the corresponding frame
+    """
+    signal = sigproc.preemphasis(signal, float(conf['preemph']))
+
+    winfunc = _get_winfunc(conf['winfunc'])
+
+    frames = sigproc.framesig(signal, float(conf['winlen'])*samplerate,
+                              float(conf['winstep'])*samplerate,
+                              winfunc)
+    angspec = sigproc.angspec(frames, int(conf['nfft']))
+
+    return angspec
 
 
 def logspec(signal, samplerate, conf):

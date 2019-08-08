@@ -30,7 +30,11 @@ class onehotperfeatureTargetProcessor(processor.Processor):
 
 		# initialize the metadata
 		self.nrS = int(conf['nrs'])
-		self.dim = self.comp.get_dim() * self.nrS
+		if 'spk_select' in conf:
+			self.nrS_select = map(int, conf['spk_select'].split(' '))
+		else:
+			self.nrS_select = range(0, self.nrS)
+		self.dim = self.comp.get_dim() * len(self.nrS_select)
 		self.nontime_dims = [self.dim]
 
 		super(onehotperfeatureTargetProcessor, self).__init__(conf)
@@ -65,8 +69,8 @@ class onehotperfeatureTargetProcessor(processor.Processor):
 
 		winner = np.argmax(clean_features, axis=2)
 		targets = np.empty([features.shape[0], self.dim], dtype=bool)
-		for s_ind in range(self.nrS):
-			targets[:, s_ind::self.nrS] = winner == s_ind
+		for s_ind, spk_id in enumerate(self.nrS_select):
+			targets[:, s_ind::len(self.nrS_select)] = winner == spk_id
 
 		# split the data for all desired segment lengths
 		segmented_data = self.segment_data(targets)
@@ -82,7 +86,7 @@ class onehotperfeatureTargetProcessor(processor.Processor):
 		for i, seg_length in enumerate(self.segment_lengths):
 			seg_dir = os.path.join(datadir, seg_length)
 			with open(os.path.join(seg_dir, 'nrS'), 'w') as fid:
-				fid.write(str(self.nrS))
+				fid.write(str(self.nrS_select))
 			with open(os.path.join(seg_dir, 'dim'), 'w') as fid:
 				fid.write(str(self.dim))
 			with open(os.path.join(seg_dir, 'nontime_dims'), 'w') as fid:

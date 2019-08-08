@@ -10,7 +10,7 @@ from nabu.neuralnetworks.evaluators import evaluator_factory
 from nabu.neuralnetworks.components.hooks import LoadAtBegin, SummaryHook
 from nabu.postprocessing.reconstructors import reconstructor_factory
 from nabu.postprocessing.scorers import scorer_factory
-from nabu.postprocessing.postprocessors import postprocessor_factory
+# from nabu.postprocessing.postprocessors import postprocessor_factory
 import json
 import time
 sys.path.append(os.getcwd())
@@ -217,7 +217,7 @@ def test(expdir):
 					with open(os.path.join(expdir, 'results_%s_%s_summary.json' % (scorer_name, score_type)), 'w') as fid:
 						json.dump(result_summary, fid)
 
-		if postprocessor_cfg != None:  # && postprocessing is not done yet for this task
+		if False and postprocessor_cfg != None:  # && postprocessing is not done yet for this task
 			task_postprocessor_cfg = dict(postprocessor_cfg.items(task))
 			task_processor_cfg = dict(postprocessor_cfg.items('processor_'+task))
 			postprocess_types = task_postprocessor_cfg['postprocess_type'].split(' ')

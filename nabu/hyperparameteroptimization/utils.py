@@ -122,6 +122,214 @@ def check_parameter_count(vals_dict, param_thr, par_cnt_scheme='enc_dec_cnn_lstm
 
 		par_cnt_dict = {'total': par_cnt, 'cnn': par_cnt_cnn, 'lstm': par_cnt_lstm, 'ff': par_cnt_ff}
 
+	elif par_cnt_scheme == 'cnn_lstm_ff_seq':
+
+		par_cnt_cnn = 0
+		par_cnt_red = 0
+		par_cnt_lstm = 0
+		par_cnt_ff = 0
+
+		#
+		n_lstm = \
+			vals_dict['lstm_num_un_lay1'] * \
+			(vals_dict['lstm_fac_per_lay'] ** np.arange(vals_dict['lstm_num_lay']))
+		n_lstm = [int(np.ceil(n)) for n in n_lstm]
+		lstm_bidir = int(vals_dict['lstm_bidir'] == 'dblstm') + 1  # 1 if single direction, 2 if bidirectional
+
+		reduction_layer = vals_dict['reduction_layer'] == 'True'
+		n_red = vals_dict['n_red']
+
+		n_ff = \
+			vals_dict['ff_num_un_lay1'] * \
+			(vals_dict['ff_fac_per_lay'] ** np.arange(vals_dict['ff_num_lay']))
+		n_ff = [int(np.ceil(n)) for n in n_ff]
+
+		F = 129  # number of frequency bins
+		D = 20  # embedding dimension
+		n_out = F*D
+
+		kernel_shape = [vals_dict['cnn_kernel_size_t'], vals_dict['cnn_kernel_size_f']]
+		kernel_shapes = [kernel_shape] * vals_dict['cnn_num_lay']
+		kernel_sizes = [kern[0] * kern[1] for kern in kernel_shapes]
+		f_stride = vals_dict['cnn_f_stride']
+		t_stride = vals_dict['cnn_t_stride']
+		if t_stride != 1:
+			raise ValueError('stride among time dimension should be 1 if cnn is folowed by LSTM')
+
+		#
+		n_channels = vals_dict['cnn_num_un_lay1'] * (vals_dict['cnn_fac_per_lay'] ** np.arange(vals_dict['cnn_num_lay']))
+
+		# cnn_param_cnt style: kernel_size * n_un * n_inputs + n_un (last term for bias)
+		# cnn parameter count
+		new_F = F
+		for l_ind in range(vals_dict['cnn_num_lay']):
+			if l_ind == 0:
+				par_cnt_cnn += kernel_sizes[l_ind] * (n_channels[l_ind] * 1) + n_channels[l_ind]
+			else:
+				par_cnt_cnn += kernel_sizes[l_ind] * (n_channels[l_ind] * n_channels[l_ind - 1]) + n_channels[l_ind]
+			new_F = int(np.ceil(new_F/f_stride))
+
+		# reduction layer parameter count
+		if vals_dict['cnn_num_lay'] == 0:
+			inputs_red = F
+		else:
+			inputs_red = new_F * n_channels[-1]
+		if reduction_layer:
+			par_cnt_red = n_red * inputs_red + n_red
+			inputs_lstm = n_red
+		else:
+			inputs_lstm = inputs_red
+
+		# lstm parameter count
+
+		for l_ind in range(vals_dict['lstm_num_lay']):
+			if l_ind == 0:
+				par_cnt_lstm += lstm_bidir * (4 * n_lstm[l_ind] * (n_lstm[l_ind] + inputs_lstm + 1))
+			else:
+				par_cnt_lstm += lstm_bidir * (4 * n_lstm[l_ind] * (n_lstm[l_ind] + lstm_bidir * n_lstm[l_ind - 1] + 1))
+
+		# feedforward and output layer parameter count
+		if vals_dict['lstm_num_lay'] == 0:
+			inputs_ff = inputs_lstm
+		else:
+			inputs_ff = lstm_bidir * n_lstm[-1]
+
+		for l_ind in range(vals_dict['ff_num_lay']):
+			if l_ind == 0:
+				par_cnt_ff += n_ff[l_ind] * inputs_ff + n_ff[l_ind]
+
+			else:
+				par_cnt_ff += n_ff[l_ind] * n_ff[l_ind - 1] + n_ff[l_ind]
+
+		if vals_dict['ff_num_lay'] > 0:
+			par_cnt_ff += n_out * n_ff[-1] + n_out
+		else:
+			par_cnt_ff += n_out * inputs_ff + n_out
+
+		par_cnt = par_cnt_lstm + par_cnt_red + par_cnt_cnn + par_cnt_ff
+
+		if par_cnt > param_thr or par_cnt < param_thr * (1 - 0.05):
+			values_suitable = False
+		else:
+			values_suitable = True
+
+		par_cnt_dict = {'total': par_cnt, 'cnn': par_cnt_cnn, 'red': par_cnt_red, 'lstm': par_cnt_lstm, 'ff': par_cnt_ff}
+
+	elif par_cnt_scheme == 'ff_lstm':
+		par_cnt_ff = 0
+		par_cnt_lstm = 0
+		par_cnt_out = 0
+
+		n_ff = \
+			vals_dict['ff_num_un_lay1'] * \
+			(vals_dict['ff_fac_per_lay'] ** np.arange(vals_dict['ff_num_lay']))
+		n_ff = [int(np.ceil(n)) for n in n_ff]
+
+		n_lstm = \
+			vals_dict['lstm_num_un_lay1'] * \
+			(vals_dict['lstm_fac_per_lay'] ** np.arange(vals_dict['lstm_num_lay']))
+		n_lstm = [int(np.ceil(n)) for n in n_lstm]
+		lstm_bidir = int(vals_dict['lstm_bidir'] == 'dblstm') + 1  # 1 if single direction, 2 if bidirectional
+
+		F = 129  # number of frequency bins
+		D = 20  # embedding dimension
+		n_out = F*D
+
+		# feedforward parameter count
+		for l_ind in range(vals_dict['ff_num_lay']):
+			if l_ind == 0:
+				par_cnt_ff += n_ff[l_ind] * F + n_ff[l_ind]
+
+			else:
+				par_cnt_ff += n_ff[l_ind] * n_ff[l_ind - 1] + n_ff[l_ind]
+
+		# lstm parameter count
+		if vals_dict['ff_num_lay'] == 0:
+			input_lstm = F
+		else:
+			input_lstm = n_ff[-1]
+		for l_ind in range(vals_dict['lstm_num_lay']):
+			if l_ind == 0:
+				par_cnt_lstm += lstm_bidir * (4 * n_lstm[l_ind] * (n_lstm[l_ind] + input_lstm + 1))
+			else:
+				par_cnt_lstm += lstm_bidir * (
+							4 * n_lstm[l_ind] * (n_lstm[l_ind] + lstm_bidir * n_lstm[l_ind - 1] + 1))
+
+		# output layer
+		if vals_dict['lstm_num_lay'] == 0:
+			input_outlayer = input_lstm
+		else:
+			input_outlayer = lstm_bidir * n_lstm[-1]
+
+		par_cnt_out += n_out * input_outlayer + n_out
+
+		par_cnt = par_cnt_ff + par_cnt_lstm + par_cnt_out
+
+		if par_cnt > param_thr or par_cnt < param_thr * (1 - 0.05):
+			values_suitable = False
+		else:
+			values_suitable = True
+
+		par_cnt_dict = {'total': par_cnt, 'ff': par_cnt_ff, 'lstm': par_cnt_lstm, 'out': par_cnt_out}
+
+	elif par_cnt_scheme == 'lstm_ff':
+		par_cnt_lstm = 0
+		par_cnt_ff = 0
+		par_cnt_out = 0
+
+		n_lstm = \
+			vals_dict['lstm_num_un_lay1'] * \
+			(vals_dict['lstm_fac_per_lay'] ** np.arange(vals_dict['lstm_num_lay']))
+		n_lstm = [int(np.ceil(n)) for n in n_lstm]
+		lstm_bidir = int(vals_dict['lstm_bidir'] == 'dblstm') + 1  # 1 if single direction, 2 if bidirectional
+
+		n_ff = \
+			vals_dict['ff_num_un_lay1'] * \
+			(vals_dict['ff_fac_per_lay'] ** np.arange(vals_dict['ff_num_lay']))
+		n_ff = [int(np.ceil(n)) for n in n_ff]
+
+		F = 129  # number of frequency bins
+		D = 20  # embedding dimension
+		n_out = F*D
+
+		# lstm parameter count
+		for l_ind in range(vals_dict['lstm_num_lay']):
+			if l_ind == 0:
+				par_cnt_lstm += lstm_bidir * (4 * n_lstm[l_ind] * (n_lstm[l_ind] + F + 1))
+			else:
+				par_cnt_lstm += lstm_bidir * (
+							4 * n_lstm[l_ind] * (n_lstm[l_ind] + lstm_bidir * n_lstm[l_ind - 1] + 1))
+
+		# feedforward parameter count
+		if vals_dict['lstm_num_lay'] == 0:
+			input_ff = F
+		else:
+			input_ff = lstm_bidir * n_lstm[-1]
+
+		for l_ind in range(vals_dict['ff_num_lay']):
+			if l_ind == 0:
+				par_cnt_ff += n_ff[l_ind] * input_ff + n_ff[l_ind]
+
+			else:
+				par_cnt_ff += n_ff[l_ind] * n_ff[l_ind - 1] + n_ff[l_ind]
+
+		# output layer
+		if vals_dict['ff_num_lay'] == 0:
+			input_outlayer = input_ff
+		else:
+			input_outlayer = n_ff[-1]
+
+		par_cnt_out += n_out * input_outlayer + n_out
+
+		par_cnt = par_cnt_lstm + par_cnt_ff + par_cnt_out
+
+		if par_cnt > param_thr or par_cnt < param_thr * (1 - 0.05):
+			values_suitable = False
+		else:
+			values_suitable = True
+
+		par_cnt_dict = {'total': par_cnt, 'ff': par_cnt_ff, 'lstm': par_cnt_lstm, 'out': par_cnt_out}
+
 	else:
 		raise ValueError('Parameter count scheme %s is unknown', par_cnt_scheme)
 
@@ -161,6 +369,57 @@ def check_parameter_count_for_sample(dim_values, hyper_param_names, param_thr, p
 
 		return all_values_suitable, all_par_cnt_dict
 
+
+def adapt_hyper_param(vals_dict, adapt_param, verbose=True):
+	adapt_hyper_param_name = adapt_param['param_name']
+	min_adapt_param = int(adapt_param['min'])
+	max_adapt_param = int(adapt_param['max'])
+	par_cnt_scheme = adapt_param['par_cnt_scheme']
+	param_thr = adapt_param['param_thr']
+
+	adapt_param_value = min_adapt_param
+	prev_par_cnt_dict = dict()
+
+	while True:
+		vals_dict[adapt_hyper_param_name] = adapt_param_value
+
+		values_suitable, par_cnt_dict = check_parameter_count(vals_dict, param_thr, par_cnt_scheme)
+
+		if not values_suitable:
+			if par_cnt_dict is None:
+				best_adapt_param_value = adapt_param_value - 1
+				break
+			elif par_cnt_dict['total'] > param_thr:
+				# went over allowed parameter count, best value for adaptation parameter is previous value
+				best_adapt_param_value = adapt_param_value - 1
+				break
+
+		if adapt_param_value > max_adapt_param:
+			# reached maximum value vor adaptation parameter and still did not go over allowed_parameter_count*0.95
+			best_adapt_param_value = max_adapt_param + 1
+			break
+		adapt_param_value += 1
+		prev_par_cnt_dict = par_cnt_dict
+
+	actual_par_cnt_dict = prev_par_cnt_dict
+
+	if best_adapt_param_value < min_adapt_param or best_adapt_param_value > max_adapt_param or \
+			actual_par_cnt_dict['total'] < param_thr*0.95:
+		fixed_values_suitable = False
+	else:
+		fixed_values_suitable = True
+		if verbose:
+			print_str = 'Found suitable hyper parameter values, leading to %d number of trainable parameters (' % \
+						actual_par_cnt_dict['total']
+			for par_type, par_type_cnt in actual_par_cnt_dict.iteritems():
+				if par_type != 'total':
+					print_str += '%s: %d; ' % (par_type, par_type_cnt)
+			print_str += ')'
+			print print_str
+
+	vals_dict[adapt_hyper_param_name] = best_adapt_param_value
+
+	return vals_dict, fixed_values_suitable
 
 def partial_dependence_valid_samples(
 		space, model, param_thr, hyper_param_names, i, j=None, par_cnt_scheme='enc_dec_cnn_lstm_ff', sample_points=None,

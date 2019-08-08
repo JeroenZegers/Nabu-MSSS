@@ -1,12 +1,13 @@
 """@file reconstructor_factory.py
 contains the Reconstructor factory"""
 
-from . import  deepclustering_reconstructor, stackedmasks_reconstructor, \
-    deepXclustering_reconstructor, deepattractornet_reconstructor, pit_l41_reconstructor, \
-    deepclusteringnoise_reconstructor, deepattractornetnoise_hard_reconstructor, \
-    deepattractornetnoise_soft_reconstructor, oracle_reconstructor_noise, \
-    deepattractornet_softmax_reconstructor,noisefilter_reconstructor, \
-    deepattractornet_noisefilter_reconstructor, parallel_deepclustering_reconstructor
+from . import deepclustering_reconstructor, stackedmasks_reconstructor, deepXclustering_reconstructor, \
+    deepattractornet_reconstructor, pit_l41_reconstructor, deepclusteringnoise_reconstructor, \
+    deepattractornetnoise_hard_reconstructor, deepattractornetnoise_soft_reconstructor, oracle_reconstructor_noise, \
+    deepattractornet_softmax_reconstructor, noisefilter_reconstructor, deepattractornet_noisefilter_reconstructor, \
+    parallel_deepclustering_reconstructor, stackedmasks_noise_reconstructor, \
+    anchor_deepattractornet_softmax_reconstructor, time_anchor_deepattractornet_softmax_reconstructor, \
+    time_anchor_read_heads_deepattractornet_softmax_reconstructor, weighted_anchor_deepattractornet_softmax_reconstructor
 
 
 def factory(reconstructor):
@@ -28,6 +29,14 @@ def factory(reconstructor):
         return deepattractornet_reconstructor.DeepattractorReconstructor
     elif reconstructor == 'deepattractornet_softmax':
         return deepattractornet_softmax_reconstructor.DeepattractorSoftmaxReconstructor
+    elif reconstructor == 'anchor_deepattractornet_softmax':
+        return anchor_deepattractornet_softmax_reconstructor.AnchorDeepattractorSoftmaxReconstructor
+    elif reconstructor == 'time_anchor_deepattractornet_softmax':
+        return time_anchor_deepattractornet_softmax_reconstructor.TimeAnchorDeepattractorSoftmaxReconstructor
+    elif reconstructor == 'time_anchor_read_heads_deepattractornet_softmax':
+        return time_anchor_read_heads_deepattractornet_softmax_reconstructor.TimeAnchorReadHeadsDeepattractorSoftmaxReconstructor
+    elif reconstructor == 'weighted_anchor_deepattractornet_softmax':
+        return weighted_anchor_deepattractornet_softmax_reconstructor.WeightedAnchorDeepattractorSoftmaxReconstructor
     elif reconstructor == 'stackedmasks':
         return stackedmasks_reconstructor.StackedmasksReconstructor
     elif reconstructor == 'pit_l41':
@@ -46,5 +55,7 @@ def factory(reconstructor):
         return noisefilter_reconstructor.NoiseFilterReconstructor
     elif reconstructor == 'deepattractornet_noisefilter':
         return deepattractornet_noisefilter_reconstructor.DeepattractornoisefilterReconstructor
+    elif reconstructor == 'stackedmasks_noise':
+        return stackedmasks_noise_reconstructor.StackedmasksNoiseReconstructor
     else:
         raise Exception('Undefined reconstructor type: %s' % reconstructor)

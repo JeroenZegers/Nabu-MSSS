@@ -128,7 +128,7 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 
 		if computing == 'standard':
 			# manualy set for machine
-			os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+			os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 			train(clusterfile=None, job_name='local', task_index=0, ssh_command='None', expdir=expdir_run)
 
@@ -188,7 +188,7 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 						(expdir_run, minmemory, condor_prio))
 					fid.write("SCRIPT POST  A  copy_outputs_retry.sh %s $RETRY" % expdir_run)
 
-			subprocess.call(['condor_submit_dag', '-usedagdir', '%s/non_distributed.dag' % dagman_files_dir])
+			subprocess.call(['condor_submit_dag', '-f', '-usedagdir', '%s/non_distributed.dag' % dagman_files_dir])
 
 		elif computing == 'torque':
 			# read the computing config file

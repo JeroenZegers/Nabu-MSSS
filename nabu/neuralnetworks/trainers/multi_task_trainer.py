@@ -10,7 +10,7 @@ import tensorflow as tf
 from nabu.neuralnetworks.models import model_factory
 from nabu.neuralnetworks.components import hooks
 from nabu.neuralnetworks.trainers import task_trainer as task_trainer_script
-import pdb
+from tensorflow.core.protobuf import rewriter_config_pb2
 
 
 class MultiTaskTrainer(object):
@@ -50,6 +50,16 @@ class MultiTaskTrainer(object):
 
 		self.batch_size = int(conf['batch_size'])
 		self.tasks = self.conf['tasks'].split(' ')
+		if 'acc_steps' in self.conf and self.conf['acc_steps'] == 'True':
+			self.acc_steps = True
+		else:
+			self.acc_steps = False
+		if 'task_weights' in self.conf:
+			self.task_weights = map(float, self.conf['task_weights'].split(' '))
+			if len(self.tasks) != len(self.task_weights):
+				raise Exception('Number of task weights must equal number of tasks.')
+		else:
+			self.task_weights = [1.0] * len(self.tasks)
 
 		# create the graph
 		self.graph = tf.Graph()
@@ -162,13 +172,28 @@ class MultiTaskTrainer(object):
 					decay_rate=float(conf['learning_rate_decay'])) * learning_rate_fact)
 
 				# For each task, set the task specific training ops
-				for task_trainer in self.task_trainers:
-					task_trainer.train(self.learning_rate)
+				if self.acc_steps:
+					for task_trainer in self.task_trainers:
+						task_trainer.train(self.learning_rate)
+				else:
+					optimizer = tf.train.AdamOptimizer(self.learning_rate)
+					all_batch_grads_and_vars = []
+					for task_trainer in self.task_trainers:
+						all_batch_grads_and_vars.append(task_trainer.gather_grads(optimizer))
+					batch_grads_and_vars_dict = dict()
+					for batch_grads_and_vars in all_batch_grads_and_vars:
+						for grad, var in batch_grads_and_vars:
+							if var in batch_grads_and_vars_dict:
+								batch_grads_and_vars_dict[var] += grad
+							else:
+								batch_grads_and_vars_dict[var] = grad
+					batch_grads_and_vars = zip(batch_grads_and_vars_dict.values(), batch_grads_and_vars_dict.keys())
+					self.batch_grads_and_vars = batch_grads_and_vars
 
 				# Group ops over tasks
-				self.process_minibatch = tf.group(
-					*([task_trainer.process_minibatch for task_trainer in self.task_trainers]),
-					name='process_minibatch_all_tasks')
+				# self.process_minibatch = tf.group(
+				# 	*([task_trainer.process_minibatch for task_trainer in self.task_trainers]),
+				# 	name='process_minibatch_all_tasks')
 
 				self.reset_grad_loss_norm = tf.group(
 					*([task_trainer.reset_grad_loss_norm for task_trainer in self.task_trainers]),
@@ -182,11 +207,17 @@ class MultiTaskTrainer(object):
 				# accumulate losses from tasks
 				with tf.variable_scope('accumulate_losses_from_tasks'):
 					self.loss_all_tasks = [task_trainer.normalized_loss for task_trainer in self.task_trainers]
-					self.total_loss = tf.reduce_mean(self.loss_all_tasks, name='acc_loss')
-
-				tmp = []
-				for task_trainer in self.task_trainers:
-					tmp.append(task_trainer.apply_gradients)
+					self.total_loss = tf.reduce_sum(
+						[loss*weight for loss, weight in zip(self.loss_all_tasks, self.task_weights)], name='acc_loss')
+				# an op to apply the gradients
+				if self.acc_steps:
+					tmp = []
+					for task_trainer in self.task_trainers:
+						tmp.append(task_trainer.apply_gradients)
+				else:
+					# an op to apply the accumulated gradients to the variables
+					self.apply_gradients = optimizer.apply_gradients(
+						grads_and_vars=self.batch_grads_and_vars, name='apply_gradients')
 
 				# all remaining operations with the UPDATE_OPS GraphKeys
 				update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -247,7 +278,8 @@ class MultiTaskTrainer(object):
 					self.val_loss_all_tasks = []
 					for task_trainer in self.val_task_trainers:
 						self.val_loss_all_tasks.append(task_trainer.val_loss_normalized)
-						self.validation_loss = tf.reduce_mean(self.val_loss_all_tasks)
+					self.validation_loss = tf.reduce_sum(
+						[loss*weight for loss, weight in zip(self.val_loss_all_tasks, self.task_weights)])
 
 					# update the learning rate factor
 					self.half_lr = learning_rate_fact.assign(learning_rate_fact/2).op
@@ -255,70 +287,121 @@ class MultiTaskTrainer(object):
 					# create an operation to updated the validated step
 					self.update_validated_step = validated_step.assign(self.global_step).op
 
-					# variable to hold the best validation loss so far
-					self.best_validation_all_tasks = [tf.get_variable(
-						name='best_validation_task_%i' % ind,
-						shape=[],
-						dtype=tf.float32,
-						initializer=tf.constant_initializer(1.79e+308),
-						trainable=False)
-						for ind in range(len(self.val_task_trainers))]
+					if self.acc_steps:
+						# variable to hold the best validation loss so far
+						self.best_validation_all_tasks = [tf.get_variable(
+							name='best_validation_task_%i' % ind,
+							shape=[],
+							dtype=tf.float32,
+							initializer=tf.constant_initializer(1.79e+308),
+							trainable=False)
+							for ind in range(len(self.val_task_trainers))]
 
-					# op to update the best validation loss
-					self.update_best_all_tasks = [
-						best_val_task.assign(self.val_loss_all_tasks[ind])
-						for ind, best_val_task in enumerate(self.best_validation_all_tasks)]
+						# op to update the best validation loss
+						self.update_best_all_tasks = [
+							best_val_task.assign(self.val_loss_all_tasks[ind])
+							for ind, best_val_task in enumerate(self.best_validation_all_tasks)]
 
-					# variable to hold the previous validation loss
-					self.previous_validation_all_tasks = [tf.get_variable(
-						name='previous_validation_task_%i' % ind,
-						shape=[],
-						dtype=tf.float32,
-						initializer=tf.constant_initializer(1.79e+308),
-						trainable=False) for ind in range(len(self.val_task_trainers))]
+						# variable to hold the previous validation loss
+						self.previous_validation_all_tasks = [tf.get_variable(
+							name='previous_validation_task_%i' % ind,
+							shape=[],
+							dtype=tf.float32,
+							initializer=tf.constant_initializer(1.79e+308),
+							trainable=False) for ind in range(len(self.val_task_trainers))]
 
-					# op to update the previous validation loss
-					self.update_prev_all_tasks = [
-						prev_val_task.assign(self.val_loss_all_tasks[ind])
-						for ind, prev_val_task in enumerate(self.previous_validation_all_tasks)]
+						# op to update the previous validation loss
+						self.update_prev_all_tasks = [
+							prev_val_task.assign(self.val_loss_all_tasks[ind])
+							for ind, prev_val_task in enumerate(self.previous_validation_all_tasks)]
 
-					# variable to hold the last x relative loss improvements. x=num_tries
-					self.rel_validation_all_tasks = [tf.get_variable(
-						name='rel_validation_task_%i' % ind,
-						shape=[int(self.conf['num_tries'])],
-						dtype=tf.float32,
-						initializer=tf.constant_initializer(1.79e+308),
-						trainable=False) for ind in range(len(self.val_task_trainers))]
+						# variable to hold the last x relative loss improvements. x=num_tries
+						self.rel_validation_all_tasks = [tf.get_variable(
+							name='rel_validation_task_%i' % ind,
+							shape=[int(self.conf['num_tries'])],
+							dtype=tf.float32,
+							initializer=tf.constant_initializer(1.79e+308),
+							trainable=False) for ind in range(len(self.val_task_trainers))]
 
-					# op to update the relative loss improvements
-					rel_impr = [
-						(self.previous_validation_all_tasks[ind]-self.val_loss_all_tasks[ind]) /
-						self.previous_validation_all_tasks[ind] for ind in range(nr_tasks)]
-					all_rel_imprs = [
-						tf.concat([rel_val_task[1:],  tf.expand_dims(rel_impr[ind], -1)], axis=0)
-						for ind, rel_val_task in enumerate(self.rel_validation_all_tasks)]
-					self.update_rel_all_tasks = [
-						tf.assign(rel_val_task, all_rel_imprs[ind])
-						for ind, rel_val_task in enumerate(self.rel_validation_all_tasks)]
+						# op to update the relative loss improvements
+						rel_impr = [
+							(self.previous_validation_all_tasks[ind]-self.val_loss_all_tasks[ind]) /
+							self.previous_validation_all_tasks[ind] for ind in range(nr_tasks)]
+						all_rel_imprs = [
+							tf.concat([rel_val_task[1:],  tf.expand_dims(rel_impr[ind], -1)], axis=0)
+							for ind, rel_val_task in enumerate(self.rel_validation_all_tasks)]
+						self.update_rel_all_tasks = [
+							tf.assign(rel_val_task, all_rel_imprs[ind])
+							for ind, rel_val_task in enumerate(self.rel_validation_all_tasks)]
 
-					# variable to hold the number of times validation performance was worse
-					self.num_tries_all_tasks = [tf.get_variable(
-						name='num_tries_task_%i' % ind,
-						shape=[],
-						dtype=tf.int32,
-						initializer=tf.constant_initializer(0),
-						trainable=False)
-						for ind in range(len(self.val_task_trainers))]
+						# variable to hold the number of times validation performance was worse
+						self.num_tries_all_tasks = [tf.get_variable(
+							name='num_tries_task_%i' % ind,
+							shape=[],
+							dtype=tf.int32,
+							initializer=tf.constant_initializer(0),
+							trainable=False)
+							for ind in range(len(self.val_task_trainers))]
 
-					# op to increment the number of times validation performance was worse
-					self.incr_num_tries_all_tasks = [
-						num_tries.assign(num_tries+1)
-						for ind, num_tries in enumerate(self.num_tries_all_tasks)]
+						# op to increment the number of times validation performance was worse
+						self.incr_num_tries_all_tasks = [
+							num_tries.assign(num_tries+1)
+							for ind, num_tries in enumerate(self.num_tries_all_tasks)]
 
-					# op to reset the number of times validation performance was worse
-					self.reset_num_tries_all_tasks = [
-						num_tries.assign(0)
-						for ind, num_tries in enumerate(self.num_tries_all_tasks)]
+						# op to reset the number of times validation performance was worse
+						self.reset_num_tries_all_tasks = [
+							num_tries.assign(0)
+							for ind, num_tries in enumerate(self.num_tries_all_tasks)]
+
+					else:
+						# variable to hold the best validation loss so far
+						self.best_validation = tf.get_variable(
+							name='best_validation',
+							shape=[],
+							dtype=tf.float32,
+							initializer=tf.constant_initializer(1.79e+308),
+							trainable=False)
+
+						# op to update the best validation loss
+						self.update_best = self.best_validation.assign(self.validation_loss)
+
+						# variable to hold the previous validation loss
+						self.previous_validation = tf.get_variable(
+							name='previous_validation',
+							shape=[],
+							dtype=tf.float32,
+							initializer=tf.constant_initializer(1.79e+308),
+							trainable=False)
+
+						# op to update the previous validation loss
+						self.update_prev = self.previous_validation.assign(self.validation_loss)
+
+						# variable to hold the last x relative loss improvements. x=num_tries
+						self.rel_validation = tf.get_variable(
+							name='rel_validation',
+							shape=[int(self.conf['num_tries'])],
+							dtype=tf.float32,
+							initializer=tf.constant_initializer(1.79e+308),
+							trainable=False)
+
+						# op to update the relative loss improvements
+						rel_impr = (self.previous_validation-self.validation_loss)/self.previous_validation
+						all_rel_imprs = tf.concat([self.rel_validation[1:],  tf.expand_dims(rel_impr, -1)], axis=0)
+						self.update_rel = tf.assign(self.rel_validation, all_rel_imprs)
+
+						# variable to hold the number of times validation performance was worse
+						self.num_tries = tf.get_variable(
+							name='num_tries',
+							shape=[],
+							dtype=tf.int32,
+							initializer=tf.constant_initializer(0),
+							trainable=False)
+
+						# op to increment the number of times validation performance was worse
+						self.incr_num_tries = self.num_tries.assign(self.num_tries + 1)
+
+						# op to reset the number of times validation performance was worse
+						self.reset_num_tries = self.num_tries.assign(0)
 
 					# a variable that holds the amount of workers at the
 					# validation point
@@ -360,6 +443,13 @@ class MultiTaskTrainer(object):
 		config.gpu_options.allow_growth = True
 		config.allow_soft_placement = True
 		# config.log_device_placement = True
+
+		# added this 2 lines to fix a "AlreadyExistsError" encountered when training
+		# "config/recipes_Jeroen_Default17/DBLSTM/dialogue_sepNTMAnch_DANet_4spk".
+		# See https://github.com/tensorflow/tensorflow/issues/23780
+		# off = rewriter_config_pb2.RewriterConfig.OFF
+		# config.graph_options.rewrite_options.arithmetic_optimization = off
+		# config.graph_options.rewrite_options.memory_optimization = off
 
 		chief_only_hooks = []
 
@@ -424,7 +514,10 @@ class MultiTaskTrainer(object):
 					pass
 
 				# get the previous best validation loss for each validation task
-				prev_best_val_loss_all_tasks = sess.run(self.best_validation_all_tasks)
+				if self.acc_steps:
+					prev_best_val_loss_all_tasks = sess.run(self.best_validation_all_tasks)
+				else:
+					prev_best_val_loss = sess.run(self.best_validation)
 
 				# start the training loop
 				# pylint: disable=E1101
@@ -433,10 +526,13 @@ class MultiTaskTrainer(object):
 					# check if validation is due
 					if self.process_val_batch is not None and self.should_validate.eval(session=sess):
 						if self.is_chief:
-							print ('WORKER %d: validating model' % self.task_index)
+							print 'Validating model'
 
 							# get the previous best validation loss for each validation task
-							prev_best_val_loss_all_tasks = sess.run(self.best_validation_all_tasks)
+							if self.acc_steps:
+								prev_best_val_loss_all_tasks = sess.run(self.best_validation_all_tasks)
+							else:
+								prev_best_val_loss = sess.run(self.best_validation)
 
 							# reset the validation loss
 							self.reset_val_loss_norm.run(session=sess)
@@ -453,8 +549,8 @@ class MultiTaskTrainer(object):
 								[self.validation_loss, self.val_loss_all_tasks])
 
 							print_str = (
-									'WORKER %d: validation loss:%.6g, time: %f sec' %
-									(self.task_index, validation_loss, time.time()-start))
+									'validation loss:%.6g, time: %f sec' %
+									(validation_loss, time.time()-start))
 							# if multiple tasks, also print individual task losses
 							if len(val_loss_all_tasks) > 1:
 								for ind, loss_task in enumerate(val_loss_all_tasks):
@@ -463,33 +559,71 @@ class MultiTaskTrainer(object):
 											(self.task_trainers[ind].task_name, loss_task))
 							print print_str
 
-							# update the relative validation improvements
-							sess.run(self.update_rel_all_tasks)
-							rel_val_loss_all_tasks = sess.run(self.rel_validation_all_tasks)
+							if self.acc_steps:
+								# update the relative validation improvements
+								sess.run(self.update_rel_all_tasks)
+								rel_val_loss_all_tasks = sess.run(self.rel_validation_all_tasks)
 
-							# check if the validation loss is better, for every task
-							terminate_train = False
-							restore_validation = False
-							continue_validation = True
-							do_halve_lr = False
-							for task_ind, val_task in enumerate(self.val_task_trainers):
-								if val_loss_all_tasks[task_ind] >= prev_best_val_loss_all_tasks[task_ind]:
-									print (
-											'WORKER %d: validation loss is worse for %s!' %
-											(self.task_index, val_task.task_name))
+								# check if the validation loss is better, for every task
+								terminate_train = False
+								restore_validation = False
+								continue_validation = True
+								do_halve_lr = False
+								for task_ind, val_task in enumerate(self.val_task_trainers):
+									if val_loss_all_tasks[task_ind] >= prev_best_val_loss_all_tasks[task_ind]:
+										print 'Validation loss is worse for %s!' % val_task.task_name
 
-									# check how many times validation performance was
-									# worse
-									sess.run(self.incr_num_tries_all_tasks[task_ind])
+										# check how many times validation performance was
+										# worse
+										sess.run(self.incr_num_tries_all_tasks[task_ind])
+										if self.conf['num_tries'] != 'None':
+											num_tries = sess.run(self.num_tries_all_tasks[task_ind])
+											if num_tries == int(self.conf['num_tries']):
+												terminate_train = True
+										global_step = sess.run(self.global_step)
+										if global_step > 1000 and np.sum(np.abs(rel_val_loss_all_tasks[task_ind])) < 0.004:
+											print 'Relative improvements are becoming to small. Terminating training.'
+											terminate_train = True
+
+										if self.conf['go_back'] == 'True':
+											continue_validation = False
+											restore_validation = True
+										else:
+											continue_validation = True
+
+										if self.conf['valid_adapt'] == 'True':
+											do_halve_lr = True
+
+									else:
+										sess.run(self.update_best_all_tasks[task_ind])
+										prev_best_val_loss_all_tasks[task_ind] = val_loss_all_tasks[task_ind]
+										if self.conf['reset_tries'] == 'True':
+											sess.run(self.reset_num_tries_all_tasks[task_ind])
+
+								sess.run(self.update_prev_all_tasks)
+							else:
+								# update the relative validation improvement
+								sess.run(self.update_rel)
+								rel_val_loss = sess.run(self.rel_validation)
+
+								# check if the validation loss is better
+								terminate_train = False
+								restore_validation = False
+								continue_validation = True
+								do_halve_lr = False
+
+								if validation_loss >= prev_best_val_loss:
+									print 'Validation loss is worse!'
+
+									# check how many times validation performance was worse
+									sess.run(self.incr_num_tries)
 									if self.conf['num_tries'] != 'None':
-										num_tries = sess.run(self.num_tries_all_tasks[task_ind])
+										num_tries = sess.run(self.num_tries)
 										if num_tries == int(self.conf['num_tries']):
 											terminate_train = True
 									global_step = sess.run(self.global_step)
-									if global_step > 1000 and np.sum(np.abs(rel_val_loss_all_tasks[task_ind])) < 0.004:
-										print \
-											'WORKER %d: Relative improvements are becoming to small. Terminating ' \
-											'training' % self.task_index
+									if global_step > 1000 and np.sum(np.abs(rel_val_loss)) < 0.004:
+										print 'Relative improvements are becoming to small. Terminating training.'
 										terminate_train = True
 
 									if self.conf['go_back'] == 'True':
@@ -502,17 +636,17 @@ class MultiTaskTrainer(object):
 										do_halve_lr = True
 
 								else:
-									sess.run(self.update_best_all_tasks[task_ind])
-									prev_best_val_loss_all_tasks[task_ind] = val_loss_all_tasks[task_ind]
+									sess.run(self.update_best)
+									prev_best_val_loss = validation_loss
 									if self.conf['reset_tries'] == 'True':
-										sess.run(self.reset_num_tries_all_tasks[task_ind])
+										sess.run(self.reset_num_tries)
 
-							sess.run(self.update_prev_all_tasks)
+								sess.run(self.update_prev)
 
 							# decide what to do for training based on the above task validations
 							if terminate_train:
 								validation_hook.restore()
-								print ('WORKER %d: terminating training' % self.task_index)
+								print 'Terminating training'
 								self.terminate.run(session=sess)
 								break
 
@@ -524,7 +658,7 @@ class MultiTaskTrainer(object):
 									time.sleep(1)
 								self.reset_waiting.run(session=sess)
 
-								print ('WORKER %d: loading previous model' % self.task_index)
+								print 'Loading previous model'
 
 								# load the previous model
 								validation_hook.restore()
@@ -533,16 +667,23 @@ class MultiTaskTrainer(object):
 								self.update_validated_step.run(session=sess)
 
 							if do_halve_lr:
-								print ('WORKER %d: halving learning rate' % self.task_index)
+								print 'Halving learning rate'
 								self.half_lr.run(session=sess)
 								validation_hook.save()
 
 							#
-							if np.sum(sess.run(self.num_tries_all_tasks)) == 0:
-								self.reset_waiting.run(session=sess)
+							if self.acc_steps:
+								if np.sum(sess.run(self.num_tries_all_tasks)) == 0:
+									self.reset_waiting.run(session=sess)
 
-								# store the validated model
-								validation_hook.save()
+									# store the validated model
+									validation_hook.save()
+							else:
+								if sess.run(self.num_tries) == 0:
+									self.reset_waiting.run(session=sess)
+
+									# store the validated model
+									validation_hook.save()
 
 						else:
 							if self.conf['go_back'] == 'True' and self.process_val_batch is not None:
@@ -564,83 +705,87 @@ class MultiTaskTrainer(object):
 
 					old_param_values = sess.run(all_params)
 
-					# First, accumulate the gradients
+					# First, accumulate the gradients as often as requested for each linkedset in each task trainer.
 					for _ in range(int(self.conf['numbatches_to_aggregate'])):
-						_ = sess.run([self.process_minibatch])
+						for task_trainer in self.task_trainers:
+							for set_ind, linkedset in enumerate(task_trainer.linkedsets):
+								_ = sess.run([task_trainer.process_minibatch[set_ind]])
+
+					# # First, accumulate the gradients
+					# for _ in range(int(self.conf['numbatches_to_aggregate'])):
+					# 	_ = sess.run([self.process_minibatch])
 
 					# Then, normalize the gradients
 					_ = sess.run([self.normalize_gradients])
 
-					# Finally, apply the gradients for each task optimizer. Get the variable values before
-					# and after the update, so stepsizes for each task can be displayed.
-					old_task_param_values = []
-					new_task_param_values = []
-					task_params_diff = []
-					loss_all_tasks = []
+					if self.acc_steps:
+						# Finally, apply the gradients for each task optimizer. Get the variable values before
+						# and after the update, so stepsizes for each task can be displayed.
+						old_task_param_values = []
+						new_task_param_values = []
+						task_params_diff = []
+						loss_all_tasks = []
 
-					for ind, task_trainer in enumerate(self.task_trainers):
-						# get the variable values before update
-						if ind == 0:
-							old_task_param_values.append(old_param_values)
-						else:
-							old_task_param_values.append(new_task_param_values[ind-1])
+						for ind, task_trainer in enumerate(self.task_trainers):
+							# get the variable values before update
+							if ind == 0:
+								old_task_param_values.append(old_param_values)
+							else:
+								old_task_param_values.append(new_task_param_values[ind-1])
 
-						# Apply the gradients in the task optimizer and get the task loss. If it is the last
-						# task, also get some other stuff
-						if ind+1 < len(self.task_trainers):
-							[_, task_loss] = sess.run([task_trainer.apply_gradients, task_trainer.normalized_loss])
-						else:
-							_, _, task_loss, lr, global_step, num_steps = \
-								sess.run(fetches=[
-									task_trainer.apply_gradients,
-									self.other_update_op,
-									task_trainer.normalized_loss,
-									self.learning_rate,
-									self.global_step,
-									self.num_steps])
-						loss_all_tasks.append(task_loss)
-						# get the variable values after update
-						new_task_param_values.append(sess.run(all_params))
+							# Apply the gradients in the task optimizer and get the task loss. If it is the last
+							# task, also get some other stuff
+							if ind+1 < len(self.task_trainers):
+								[_, task_loss] = sess.run([task_trainer.apply_gradients, task_trainer.normalized_loss])
+							else:
+								_, _, task_loss, lr, global_step, num_steps = \
+									sess.run(fetches=[
+										task_trainer.apply_gradients,
+										self.other_update_op,
+										task_trainer.normalized_loss,
+										self.learning_rate,
+										self.global_step,
+										self.num_steps])
+							loss_all_tasks.append(task_loss)
+							# get the variable values after update
+							new_task_param_values.append(sess.run(all_params))
 
-						# Calculate the stepsize for each variable by calculating the difference between old
-						# and new variable values. Average this per variable type (eg weights layer 1) and average.
-						# Also multiply with 10000 (this is just for printing format purposes)
-						task_params_diff.append([
-							10000.0*np.mean(np.abs(new_task_param_values[ind][par_ind]-old_task_param_values[ind][par_ind]))
-							for par_ind in range(len(new_task_param_values[ind]))])
+							# Calculate the stepsize for each variable by calculating the difference between old
+							# and new variable values. Average this per variable type (eg weights layer 1) and average.
+							# Also multiply with 10000 (this is just for printing format purposes)
+							task_params_diff.append([
+								10000.0*np.mean(np.abs(new_task_param_values[ind][par_ind]-old_task_param_values[ind][par_ind]))
+								for par_ind in range(len(new_task_param_values[ind]))])
+
+						# Calculate loss and step size over all task optimizations
+						loss = np.sum(loss_all_tasks)
+						new_param_values = new_task_param_values[-1]
+						params_diff = [
+							10000.0*np.mean(np.abs(new_param_values[ind]-old_param_values[ind]))
+							for ind in range(len(new_param_values))]
+
+					else:
+						grads, _, _, loss, loss_all_tasks, lr, global_step, num_steps = \
+							sess.run(fetches=[
+								[grad for grad, var in self.batch_grads_and_vars],
+								self.apply_gradients,
+								self.other_update_op,
+								self.total_loss,
+								[task_trainer.normalized_loss for task_trainer in self.task_trainers],
+								self.learning_rate,
+								self.global_step,
+								self.num_steps])
 
 					if any(np.isnan(loss_all_tasks)):
-						print (
-								'WORKER %d: terminating training because loss became "Not A Number". '
-								'Best model will not be saved' % self.task_index)
+						print 'Terminating training because loss became "Not A Number". Best model will not be saved.'
 						self.dont_save_final_model.run(session=sess)
 						self.terminate.run(session=sess)
 
-					# Calculate loss and step size over all task optimizations
-					loss = np.mean(loss_all_tasks)
-					new_param_values = new_task_param_values[-1]
-					params_diff = [
-						10000.0*np.mean(np.abs(new_param_values[ind]-old_param_values[ind]))
-						for ind in range(len(new_param_values))]
-
-					# _, loss,loss_all_tasks, lr, global_step, num_steps,new_param_values = sess.run(
-					# fetches=[self.update_op,
-					# self.total_loss,
-					# self.loss_all_tasks,
-					# self.learning_rate,
-					# self.global_step,
-					# self.num_steps,
-					# all_params])
-
-					# # Output prompt
+					## Output prompt
 					# Start the printing string with most important information
-					print_str = (
-							'WORKER %d: step %d/%d loss: %.6g, learning rate: %f, time: %.2f sec' %
-							(
-								self.task_index,
-								global_step,
-								num_steps,
-								loss, lr, time.time()-start))
+					print_str = \
+						'step %d/%d loss: %.6g, learning rate: %f, time: %.2f sec' % \
+						(global_step, num_steps, loss, lr, time.time()-start)
 
 					# if multiple tasks, also print individual task losses
 					if len(loss_all_tasks) > 1:
@@ -677,7 +822,45 @@ class MultiTaskTrainer(object):
 								print_str += '} '
 						print_str += ')'
 
+					if 'print_grads_stats' in self.conf and self.conf['print_grads_stats'] == 'True':
+						print_str += get_grad_stats(grads, var_names=[var.name for _, var in self.batch_grads_and_vars])
+
+
 					# print the complete string
 					print(print_str)
 
-		return prev_best_val_loss_all_tasks, self.tasks
+		if self.acc_steps:
+			print prev_best_val_loss_all_tasks
+			return prev_best_val_loss_all_tasks
+		else:
+			print prev_best_val_loss
+			return prev_best_val_loss
+		# return prev_best_val_loss_all_tasks, self.tasks
+
+
+def get_grad_stats(grads, var_names):
+	print_str = ""
+	abs_flat_grads = [np.reshape(np.abs(grad), -1) for grad in grads]
+	all_abs_grads = np.concatenate(abs_flat_grads)
+
+	min_all_abs_grad = np.min(all_abs_grads)
+	max_all_abs_grad = np.max(all_abs_grads)
+	mean_all_abs_grad = np.mean(all_abs_grads)
+	std_all_abs_grad = np.std(all_abs_grads)
+
+	print_str += \
+		'\n all: min_abs=%.2E, max_abs=%.2E, mean_abs=%.2E, std_abs=%.2E \n' % \
+		(min_all_abs_grad, max_all_abs_grad, mean_all_abs_grad, std_all_abs_grad)
+
+	for grad, var_name in zip(grads, var_names):
+		abs_grad = np.abs(grad)
+		min_abs_grad = np.min(abs_grad)
+		max_abs_grad = np.max(abs_grad)
+		mean_abs_grad = np.mean(abs_grad)
+		std_abs_grad = np.std(abs_grad)
+
+		print_str += \
+			'\t %s: min_abs=%.2E, max_abs=%.2E, mean_abs=%.2E, std_abs=%.2E \n' % \
+			(var_name, min_abs_grad, max_abs_grad, mean_abs_grad, std_abs_grad)
+
+	return print_str

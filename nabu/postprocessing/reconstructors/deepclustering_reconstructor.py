@@ -60,16 +60,11 @@ class DeepclusteringReconstructor(mask_reconstructor.MaskReconstructor):
 		embeddings = output['bin_emb']
 		# only the non-silence bins will be used for the clustering
 		usedbins, _ = self.usedbins_reader(self.pos)
-		print np.mean(usedbins)
 		[T, F] = np.shape(usedbins)
-		print T
-		print F
 		if self.flat:
 			emb_dim = np.shape(embeddings)[-1]
 		else:
 			emb_dim = np.shape(embeddings)[-1]/F
-		print emb_dim
-		print self.flat
 		if np.shape(embeddings)[0] != T:
 			raise Exception('Number of frames in usedbins does not match the sequence length')
 	
