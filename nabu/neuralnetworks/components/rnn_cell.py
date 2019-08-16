@@ -14,6 +14,7 @@ from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import rnn_cell_impl
+from tensorflow.contrib.rnn import LayerRNNCell, LayerNormBasicLSTMCell, BasicRNNCell
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util import nest
@@ -28,7 +29,7 @@ import collections
 _alphabet_str = string.ascii_lowercase
 
 
-class RecCapsuleCell(rnn_cell_impl.LayerRNNCell):
+class RecCapsuleCell(LayerRNNCell):
 	""" Combination of RNN cell with capsule cell
 
 	"""
@@ -500,8 +501,8 @@ class LSTMCapsuleCellRecOnlyVoteOutputMatrix(LSTMCapsuleCellRecOnlyVote):
 		return new_h, new_state
 
 
-class RNNCellLinearOut(rnn_cell_impl.BasicRNNCell):
-	"""Same cell as rnn_cell_impl.BasicRNNCell, except that the activation function will
+class RNNCellLinearOut(BasicRNNCell):
+	"""Same cell as BasicRNNCell, except that the activation function will
 	only be applied to the recurrent output and not the feedforward output
 	"""
 
@@ -514,8 +515,8 @@ class RNNCellLinearOut(rnn_cell_impl.BasicRNNCell):
 		return gate_inputs, output
 
 
-class LayerNormBasicLSTMCellLineairOut(tf.contrib.rnn.LayerNormBasicLSTMCell):
-	"""Same cell as rnn_cell_impl.BasicRNNCell, except that the activation function will
+class LayerNormBasicLSTMCellLineairOut(LayerNormBasicLSTMCell):
+	"""Same cell as BasicRNNCell, except that the activation function will
 	only be applied to the recurrent output and not the feedforward output
 	"""
 
@@ -551,7 +552,7 @@ _BIAS_VARIABLE_NAME = "bias"
 _WEIGHTS_VARIABLE_NAME = "kernel"
 
 
-class LeakGRUCell(rnn_cell_impl.LayerRNNCell):
+class LeakGRUCell(LayerRNNCell):
 	"""Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078).
 	Args:
 	num_units: int, The number of units in the GRU cell.

@@ -8,6 +8,7 @@ import subprocess
 from six.moves import configparser
 import tensorflow as tf
 from test import test
+import warnings
 sys.path.append(os.getcwd())
 
 
@@ -21,42 +22,47 @@ FLAGS = tf.app.flags.FLAGS
 
 def main(_):
     """main"""
-    
+
     if FLAGS.expdir is None:
         raise Exception('no expdir specified. Command usage: '
                         'nabu data --expdir=/path/to/recipe '
                         '--recipe=/path/to/recipe')
-    
+
     if not os.path.isdir(FLAGS.expdir):
         raise Exception('cannot find expdir %s' % FLAGS.expdir)
-    
+
     if FLAGS.recipe is None:
         raise Exception('no recipe specified. Command usage: '
                         'nabu data --expdir=/path/to/recipe '
                         '--recipe=/path/to/recipe')
-    
+
     if not os.path.isdir(FLAGS.recipe):
         raise Exception('cannot find recipe %s' % FLAGS.recipe)
-    
+
     evaluator_cfg_file = os.path.join(FLAGS.recipe, 'test_evaluator.cfg')
     database_cfg_file = os.path.join(FLAGS.recipe, 'database.conf')
     reconstructor_cfg_file = os.path.join(FLAGS.recipe, 'reconstructor.cfg')
     scorer_cfg_file = os.path.join(FLAGS.recipe, 'scorer.cfg')
     postprocessor_cfg_file = os.path.join(FLAGS.recipe, 'postprocessor.cfg')
     model_cfg_file = os.path.join(FLAGS.recipe, 'model.cfg')
-    
+    losses_cfg_file = os.path.join(FLAGS.recipe, 'loss.cfg')
+    losses_cfg_available = True
+    if not os.path.isfile(losses_cfg_file):
+        warnings.warn('In following versions it will be required to provide a loss config file', Warning)
+        losses_cfg_available = False
+
     # Assuming only one (the last one) training stage needs testing
     parsed_evaluator_cfg = configparser.ConfigParser()
     parsed_evaluator_cfg.read(evaluator_cfg_file)
     training_stage = parsed_evaluator_cfg.get('evaluator', 'segment_length')
-              
+
     ## create the testing dir
     # if os.path.isdir(os.path.join(FLAGS.expdir, 'test')):
         # shutil.rmtree(os.path.join(FLAGS.expdir, 'test'))
     # os.makedirs(os.path.join(FLAGS.expdir, 'test'))
     if not os.path.isdir(os.path.join(FLAGS.expdir, 'test')):
         os.makedirs(os.path.join(FLAGS.expdir, 'test'))
-    
+
     # copy the config files
     parsed_database_cfg = configparser.ConfigParser()
     parsed_database_cfg.read(database_cfg_file)
@@ -69,7 +75,7 @@ def main(_):
                                                    training_stage))
     with open(os.path.join(FLAGS.expdir, 'test', 'database.cfg'), 'w') as fid:
         segment_parsed_database_cfg.write(fid)
-    
+
     # shutil.copyfile(database_cfg_file,
                     # os.path.join(FLAGS.expdir, 'test', 'database.cfg'))
     shutil.copyfile(evaluator_cfg_file,
@@ -78,7 +84,7 @@ def main(_):
                     os.path.join(FLAGS.expdir, 'test', 'reconstructor.cfg'))
     shutil.copyfile(scorer_cfg_file,
                     os.path.join(FLAGS.expdir, 'test', 'scorer.cfg'))
-    
+
     try:
         shutil.copyfile(postprocessor_cfg_file,
                         os.path.join(FLAGS.expdir, 'test', 'postprocessor.cfg'))
@@ -86,7 +92,10 @@ def main(_):
         pass
     shutil.copyfile(model_cfg_file,
                     os.path.join(FLAGS.expdir, 'test', 'model.cfg'))
-    
+    if losses_cfg_available:
+        shutil.copyfile(losses_cfg_file,
+                        os.path.join(FLAGS.expdir, 'test', 'loss.cfg'))
+
     # create a link to the model that will be used for testing. Assuming
     # it is stored in the 'full' directory of expdir
     if not os.path.isdir(os.path.join(FLAGS.expdir, 'test', 'model')):

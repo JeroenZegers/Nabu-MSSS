@@ -13,6 +13,7 @@ from nabu.postprocessing.scorers import scorer_factory
 # from nabu.postprocessing.postprocessors import postprocessor_factory
 import json
 import time
+import warnings
 sys.path.append(os.getcwd())
 
 
@@ -32,6 +33,14 @@ def test(expdir):
 	evaluator_cfg.read(os.path.join(expdir, 'evaluator.cfg'))
 	# quick fix
 	# evaluator_cfg.set('evaluator','batch_size','5')
+
+	losses_cfg_file = os.path.join(expdir, 'loss.cfg')
+	if not os.path.isfile(losses_cfg_file):
+		warnings.warn('In following versions it will be required to provide a loss config file', Warning)
+		loss_cfg = None
+	else:
+		loss_cfg = configparser.ConfigParser()
+		loss_cfg.read(losses_cfg_file)
 
 	# read the reconstructor config file
 	reconstructor_cfg = configparser.ConfigParser()
@@ -85,6 +94,7 @@ def test(expdir):
 			evaltype = evaluator_cfg.get(task, 'evaluator')
 			evaluator = evaluator_factory.factory(evaltype)(
 				conf=evaluator_cfg,
+				lossconf=loss_cfg,
 				dataconf=database_cfg,
 				models=models,
 				task=task)

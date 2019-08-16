@@ -84,7 +84,10 @@ class MultiTaskTrainer(object):
 		self.task_trainers = []
 		for task in self.tasks:
 			taskconf = self.tasksconf[task]
-			lossconf = dict(lossesconf.items(taskconf['loss_type']))
+			if lossesconf:
+				lossconf = dict(lossesconf.items(taskconf['loss_type']))
+			else:
+				lossconf = None
 			task_trainer = task_trainer_script.TaskTrainer(
 				task, conf, taskconf, self.models, modelconf, dataconf, evaluatorconf, lossconf, self.batch_size)
 
