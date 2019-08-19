@@ -16,4 +16,4 @@ cd $PBS_O_WORKDIR
 source ~/.bashrc
 conda activate my_gpu_env
 
-nabu/computing/torque/create_environment.sh python -u  ${script} --expdir=${expdir}
+nabu/computing/torque/create_environment.sh python -u  ${script} --expdir=${expdir} --task=${task}

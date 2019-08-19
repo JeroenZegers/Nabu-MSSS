@@ -14,6 +14,7 @@ Requirements =  has_avx\
   && (machine != "zulte.esat.kuleuven.be") \
   && (machine != "bandai.esat.kuleuven.be") \
   && (machine != "spchcl21.esat.kuleuven.be") \
+  && (machine != "spchcl23.esat.kuleuven.be") \
   # I removed the following machines because I think cosic members kill them manually (not confirmed) \
   && (machine != "bryggja.esat.kuleuven.be")\
   && (machine != "koninck.esat.kuleuven.be")\
@@ -28,16 +29,16 @@ Notification = Error
 initialdir = .
 
 #Run he build cluster script for the parameter server
-Arguments = "python -u $(script) --expdir=$(expdir)"
+Arguments = "python -u $(script) --expdir=$(expdir) --task=$(task)"
 # This is the executable or script I want to run
 executable = nabu/computing/condor/create_environment.sh
 
 #Output of condors handling of the jobs, will be in 'initialdir'
-Log          = $(expdir)/outputs/main.log
+Log          = $(expdir)/outputs/main_$(task).log
 #Standard output of the 'executable', in 'initialdir'
-Output       = $(expdir)/outputs/main.out
+Output       = $(expdir)/outputs/main_$(task).out
 #Standard error of the 'executable', in 'initialdir'
-Error        = $(expdir)/outputs/main.err
+Error        = $(expdir)/outputs/main_$(task).err
 
 priority = -15
 

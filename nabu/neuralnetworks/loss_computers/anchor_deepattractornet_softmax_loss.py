@@ -3,6 +3,8 @@ contains the AnchorDeepattractornetSoftmaxLoss"""
 
 import loss_computer
 from nabu.neuralnetworks.components import ops
+import warnings
+import tensorflow as tf
 
 
 class AnchorDeepattractornetSoftmaxLoss(loss_computer.LossComputer):
@@ -25,6 +27,7 @@ class AnchorDeepattractornetSoftmaxLoss(loss_computer.LossComputer):
 			loss: a scalar value containing the loss
 			norm: a scalar value indicating how to normalize the loss
 		"""
+		warnings.warn('In following versions it will be required to use the AnchorDeepattractornetLoss', Warning)
 		# Clean spectograms of sources
 		spectrogram_targets = targets['multi_targets']
 
@@ -64,6 +67,7 @@ class AnchorNormDeepattractornetSoftmaxLoss(loss_computer.LossComputer):
 			loss: a scalar value containing the loss
 			norm: a scalar value indicating how to normalize the loss
 		"""
+		warnings.warn('In following versions it will be required to use the AnchorDeepattractornetLoss', Warning)
 		# Clean spectograms of sources
 		spectrogram_targets = targets['multi_targets']
 
@@ -104,6 +108,7 @@ class WeightedAnchorNormDeepattractornetSoftmaxLoss(loss_computer.LossComputer):
 			loss: a scalar value containing the loss
 			norm: a scalar value indicating how to normalize the loss
 		"""
+		warnings.warn('In following versions it will be required to use the AnchorDeepattractornetLoss', Warning)
 		# Clean spectograms of sources
 		spectrogram_targets = targets['multi_targets']
 
@@ -144,6 +149,7 @@ class TimeAnchorDeepattractornetSoftmaxLoss(loss_computer.LossComputer):
 			loss: a scalar value containing the loss
 			norm: a scalar value indicating how to normalize the loss
 		"""
+		warnings.warn('In following versions it will be required to use the AnchorDeepattractornetLoss', Warning)
 		# Clean spectograms of sources
 		spectrogram_targets = targets['multi_targets']
 
@@ -194,14 +200,73 @@ class AnchorDeepattractornetLoss(loss_computer.LossComputer):
 		emb_vec = logits['bin_emb']
 		anchors = logits['anchors']
 
+		if 'speaker_logits' in logits:
+			# Assuming dimensions are B x T x S
+			speaker_logits = logits['speaker_logits']
+			av_speaker_logits_time_flag = self.lossconf['av_speaker_logits_time_flag'] == 'True'
+		else:
+			speaker_logits = None
+
 		time_anchors_flag = self.lossconf['time_anchors_flag'] == 'True'
 		av_anchors_time_flag = (self.lossconf['av_anchors_time_flag'] == 'True') and time_anchors_flag
 		activation = self.lossconf['activation']
 		normalize_embs = self.lossconf['normalize_embs'] == 'True'
-		# calculate loss and normalisation factor of mini-batch
-		loss, norm = ops.anchor_deepattractornet_loss(
-			spectrogram_targets, mix_to_mask, emb_vec, anchors, seq_length, self.batch_size, activation=activation,
-			normalize=normalize_embs, time_anchors_flag=time_anchors_flag, av_anchors_time_flag=av_anchors_time_flag)
+		normalize_anchors = self.lossconf['normalize_anchors'] == 'True'
+		tune_anchors_scale = self.lossconf['tune_anchors_scale'] == 'True'
+
+		with tf.name_scope('anchor_deepattractornet_loss'):
+
+			feat_dim = spectrogram_targets.get_shape()[2]
+			emb_dim = anchors.get_shape()[-1]
+			nrS = spectrogram_targets.get_shape()[3]
+
+			V = tf.reshape(emb_vec, [self.batch_size, -1, feat_dim, emb_dim], name='V')  # dim: (B x T x F x D)
+			if normalize_embs:
+				V = V / (tf.norm(V, axis=-1, keepdims=True) + 1e-12)
+			time_dim = tf.shape(V)[1]
+
+			if not time_anchors_flag:
+				anchors = tf.tile(tf.expand_dims(tf.expand_dims(anchors, 0), 0), [self.batch_size, time_dim, 1, 1])  # dim: (B x T x S x D)
+
+			if normalize_anchors:
+				anchors = anchors / (tf.norm(anchors, axis=-1, keepdims=True) + 1e-12)
+
+			if speaker_logits:
+				speaker_logits = tf.expand_dims(speaker_logits, -1)
+				if av_speaker_logits_time_flag:
+					speaker_logits = tf.reduce_mean(speaker_logits, 1, keepdims=True)
+				anchors *= speaker_logits
+
+			if tune_anchors_scale:
+				scale = tf.get_variable(
+					name='anchors_scale', shape=[], dtype=tf.float32, initializer=tf.constant_initializer,
+					trainable=True)
+				anchors *= scale
+
+			if av_anchors_time_flag:
+				anchors = tf.reduce_mean(anchors, axis=1, keepdims=True)
+				anchors = tf.tile(anchors, [1, time_dim, 1, 1])
+
+			prod_1 = tf.matmul(V, anchors, transpose_a=False, transpose_b=True, name='AVT')
+
+			if activation == 'softmax':
+				masks = tf.nn.softmax(prod_1, axis=-1, name='M')  # dim: (B x T x F x nrS)
+			elif activation in ['None', 'none', None]:
+				masks = prod_1
+			elif activation == 'sigmoid':
+				masks = tf.nn.sigmoid(prod_1, name='M')
+			else:
+				masks = tf.nn.sigmoid(prod_1, name='M')
+
+			X = tf.expand_dims(mix_to_mask, -1, name='X')  # dim: (B x T x F x 1)
+			reconstructions = tf.multiply(masks, X)  # dim: (B x T x F x nrS)
+			reconstructions = tf.transpose(reconstructions, perm=[3, 0, 1, 2])  # dim: (nrS x B x T x F)
+
+			S = tf.transpose(spectrogram_targets, [3, 0, 1, 2])  # nrS x B x T x F
+
+			loss = ops.base_pit_loss(reconstructions, S, overspeakererized=False)
+
+			norm = tf.to_float(tf.reduce_sum(seq_length) * feat_dim)
 
 		return loss, norm
 
@@ -227,6 +292,7 @@ class TimeAnchorNormDeepattractornetSoftmaxLoss(loss_computer.LossComputer):
 			loss: a scalar value containing the loss
 			norm: a scalar value indicating how to normalize the loss
 		"""
+		warnings.warn('In following versions it will be required to use the AnchorDeepattractornetLoss', Warning)
 		# Clean spectograms of sources
 		spectrogram_targets = targets['multi_targets']
 
@@ -267,6 +333,7 @@ class TimeAnchorReadHeadsNormDeepattractornetSoftmaxLoss(loss_computer.LossCompu
 			loss: a scalar value containing the loss
 			norm: a scalar value indicating how to normalize the loss
 		"""
+		warnings.warn('In following versions it will be required to use the AnchorDeepattractornetLoss', Warning)
 		# Clean spectograms of sources
 		spectrogram_targets = targets['multi_targets']
 
@@ -308,6 +375,7 @@ class TimeAnchorReadHeadsNormDeepattractornetSoftmaxFramebasedLoss(loss_computer
 			loss: a scalar value containing the loss
 			norm: a scalar value indicating how to normalize the loss
 		"""
+		warnings.warn('In following versions it will be required to use the AnchorDeepattractornetLoss', Warning)
 		# Clean spectograms of sources
 		spectrogram_targets = targets['multi_targets']
 

@@ -4,6 +4,7 @@ contains a reader class for data"""
 from six.moves import configparser
 from nabu.processing.processors import processor_factory
 import gzip
+import os
 
 
 class DataReader(object):
@@ -36,6 +37,8 @@ class DataReader(object):
 		for dataconf in dataconfs:
 			# read the processor config
 			proc_cfg_file = dataconf['processor_config']
+			if not os.path.isfile(proc_cfg_file):
+				raise BaseException('%s does not exist' % proc_cfg_file)
 			parsed_proc_cfg = configparser.ConfigParser()
 			parsed_proc_cfg.read(proc_cfg_file)
 			proc_cfg = dict(parsed_proc_cfg.items('processor'))

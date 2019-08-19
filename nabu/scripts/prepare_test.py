@@ -100,26 +100,37 @@ def main(_):
     # it is stored in the 'full' directory of expdir
     if not os.path.isdir(os.path.join(FLAGS.expdir, 'test', 'model')):
         os.symlink(os.path.join(FLAGS.expdir, training_stage, 'model'), os.path.join(FLAGS.expdir, 'test', 'model'))
-    
+
+    # Get all tasks
+    evaluator_cfg = configparser.ConfigParser()
+    evaluator_cfg.read(os.path.join(FLAGS.expdir, 'test', 'evaluator.cfg'))
+    if evaluator_cfg.get('evaluator', 'evaluator') == 'multi_task':
+        tasks = evaluator_cfg.get('evaluator', 'tasks').split(' ')
+    else:
+        raise Exception('unkown type of evaluation %s' % evaluator_cfg.get('evaluator', 'evaluator'))
+
     if FLAGS.computing == 'condor':
-    
+
         computing_cfg_file = 'config/computing/condor/non_distributed.cfg'
         parsed_computing_cfg = configparser.ConfigParser()
         parsed_computing_cfg.read(computing_cfg_file)
         computing_cfg = dict(parsed_computing_cfg.items('computing'))
-    
+
         if not os.path.isdir(os.path.join(FLAGS.expdir, 'test', 'outputs')):
             os.makedirs(os.path.join(FLAGS.expdir, 'test', 'outputs'))
-    
-        # minmemory = computing_cfg['minmemory']
-        # subprocess.call([
-        #     'condor_submit', 'expdir=%s/test' % FLAGS.expdir, 'script=nabu/scripts/test.py', 'memory=%s' % minmemory,
-        #                      'condor_prio=%s' % -10, 'nabu/computing/condor/non_distributed.job'])
 
-        subprocess.call(['condor_submit',
-                      'expdir=%s' % os.path.join(FLAGS.expdir, 'test'),
-                      'script=nabu/scripts/test.py',
-                      'nabu/computing/condor/non_distributed_cpu.job'])
+        # for each task, launch a test job
+        for task in tasks:
+            # minmemory = computing_cfg['minmemory']
+            # subprocess.call([
+            #     'condor_submit', 'expdir=%s/test' % FLAGS.expdir, 'script=nabu/scripts/test.py', 'memory=%s' % minmemory,
+            #                      'condor_prio=%s' % -10, 'nabu/computing/condor/non_distributed.job'])
+
+            subprocess.call(['condor_submit',
+                          'expdir=%s' % os.path.join(FLAGS.expdir, 'test'),
+                          'task=%s' % task,
+                          'script=nabu/scripts/test.py',
+                          'nabu/computing/condor/non_distributed_cpu.job'])
 
     elif FLAGS.computing == 'torque':
 
@@ -131,26 +142,31 @@ def main(_):
         if not os.path.isdir(os.path.join(FLAGS.expdir, 'test', 'outputs')):
             os.makedirs(os.path.join(FLAGS.expdir, 'test', 'outputs'))
 
-        # minmemory = computing_cfg['minmemory']
-        call_str = \
-            'qsub -v expdir=%s/test,script=nabu/scripts/test.py -e %s/test/outputs/main.err -o %s/test/outputs/main.out ' \
-            'nabu/computing/torque/%s' % (FLAGS.expdir, FLAGS.expdir, FLAGS.expdir, 'non_distributed_short.pbs')
-        process = subprocess.Popen(call_str, stdout=subprocess.PIPE, shell=True)
-        proc_stdout = process.communicate()[0].strip()
-        print proc_stdout
-        # subprocess.call([
-        #     'condor_submit', 'expdir=%s' % FLAGS.expdir, 'script=nabu/scripts/test.py', 'memory=%s' % minmemory,
-        #                      'condor_prio=%s' % -10, 'nabu/computing/condor/non_distributed_short.pbs'])
 
-        #  subprocess.call(['condor_submit',
-        #                   'expdir=%s' % os.path.join(FLAGS.expdir, 'test'),
-        #                   'script=nabu/scripts/test.py',
-        #                   'nabu/computing/condor/non_distributed_cpu.job'])
-    
+        # for each task, launch a test job
+        for task in tasks:
+            # minmemory = computing_cfg['minmemory']
+            call_str = \
+                'qsub -v expdir=%s/test task=%s,script=nabu/scripts/test.py -e %s/test/outputs/main_%s.err -o %s/test/outputs/main_%s.out ' \
+                'nabu/computing/torque/%s' % (FLAGS.expdir, task, FLAGS.expdir, task, FLAGS.expdir, task, 'non_distributed_short.pbs')
+            process = subprocess.Popen(call_str, stdout=subprocess.PIPE, shell=True)
+            proc_stdout = process.communicate()[0].strip()
+            print proc_stdout
+            # subprocess.call([
+            #     'condor_submit', 'expdir=%s' % FLAGS.expdir, 'script=nabu/scripts/test.py', 'memory=%s' % minmemory,
+            #                      'condor_prio=%s' % -10, 'nabu/computing/condor/non_distributed_short.pbs'])
+
+            #  subprocess.call(['condor_submit',
+            #                   'expdir=%s' % os.path.join(FLAGS.expdir, 'test'),
+            #                   'script=nabu/scripts/test.py',
+            #                   'nabu/computing/condor/non_distributed_cpu.job'])
+
     elif FLAGS.computing == 'standard':
         os.environ['CUDA_VISIBLE_DEVICES'] = '2'
-        test(expdir=os.path.join(FLAGS.expdir, 'test'))
-    
+        # for each task, launch a test job
+        for task in tasks:
+            test(expdir=os.path.join(FLAGS.expdir, 'test'), task=task)
+
     else:
         raise Exception('Unknown computing type %s' % FLAGS.computing)
 
