@@ -17,7 +17,7 @@ import warnings
 sys.path.append(os.getcwd())
 
 
-def test(expdir, task):
+def test(expdir, test_model_checkpoint, task):
 	"""does everything for testing"""
 	# read the database config file
 	database_cfg = configparser.ConfigParser()
@@ -30,8 +30,6 @@ def test(expdir, task):
 	# read the evaluator config file
 	evaluator_cfg = configparser.ConfigParser()
 	evaluator_cfg.read(os.path.join(expdir, 'evaluator.cfg'))
-	# quick fix
-	# evaluator_cfg.set('evaluator','batch_size','5')
 
 	losses_cfg_file = os.path.join(expdir, 'loss.cfg')
 	if not os.path.isfile(losses_cfg_file):
@@ -81,6 +79,8 @@ def test(expdir, task):
 		print 'Evaluating task %s' % task
 
 		# create the evaluator
+		if loss_cfg:
+			loss_cfg = dict(loss_cfg.items(evaluator_cfg.get(task, 'loss_type')))
 		evaltype = evaluator_cfg.get(task, 'evaluator')
 		evaluator = evaluator_factory.factory(evaltype)(
 			conf=evaluator_cfg,
@@ -133,9 +133,7 @@ def test(expdir, task):
 				if seq_name in reconstructor.requested_output_names}
 
 			# create a hook that will load the model
-			load_hook = LoadAtBegin(
-				os.path.join(expdir, 'model', 'network.ckpt'),
-				models)
+			load_hook = LoadAtBegin(test_model_checkpoint, models)
 
 			# create a hook for summary writing
 			summary_hook = SummaryHook(os.path.join(expdir, 'logdir'))
@@ -175,6 +173,8 @@ def test(expdir, task):
 				loss = loss/loss_norm
 
 		print 'task %s: loss = %0.6g' % (task, loss)
+
+		reconstructor.scp_file.close()
 
 		# write the loss to disk
 		with open(os.path.join(expdir, 'loss_%s' % task), 'w') as fid:
@@ -242,7 +242,8 @@ def test(expdir, task):
 if __name__ == '__main__':
 
 	tf.app.flags.DEFINE_string('expdir', 'expdir', 'the experiments directory that was used for training')
+	tf.app.flags.DEFINE_string('test_model_checkpoint', 'test_model_checkpoint', 'the checkpointed model that will be tested')
 	tf.app.flags.DEFINE_string('task', 'task', 'the name of the task to evaluate')
 	FLAGS = tf.app.flags.FLAGS
 
-	test(FLAGS.expdir, FLAGS.task)
+	test(FLAGS.expdir, FLAGS.test_model_checkpoint, FLAGS.task)

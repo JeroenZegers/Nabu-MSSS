@@ -82,9 +82,19 @@ def train(clusterfile, job_name, task_index, ssh_command, expdir):
 		else:
 			segment_tasks_cfg = None
 
-		# If there was no previously validated training sessions, use the model of the
-		# previous segment length as initialization for the current one
-		if seg_len_ind > 0 and not os.path.exists(os.path.join(segment_expdir, 'logdir', 'validated.ckpt.index')):
+		# If this is first segment length, and there is no previously validated training session for this segment length,
+		# we can allow to use a different trained model to be used for bootstrapping the current model
+		if seg_len_ind == 0 and \
+			not os.path.exists(os.path.join(segment_expdir, 'logdir', 'validated.ckpt.index')) and \
+			'init_file' in segment_trainer_cfg:
+			if not os.path.exists(segment_trainer_cfg['init_file'] + '.index'):
+				raise BaseException('The requested bootstrapping model does not exist: %s' % segment_trainer_cfg['init_file'])
+			init_filename = segment_trainer_cfg['init_file']
+			print('Using the following model for bootstrapping: %s' % init_filename)
+
+		# If the above bootstrapping does not apply and there was no previously validated training sessions, use the
+		# model of the previous segment length as initialization for the current one
+		elif seg_len_ind > 0 and not os.path.exists(os.path.join(segment_expdir, 'logdir', 'validated.ckpt.index')):
 			init_filename = os.path.join(expdir, segment_lengths[seg_len_ind-1], 'model', 'network.ckpt')
 			if not os.path.exists(init_filename + '.index'):
 				init_filename = None
@@ -92,9 +102,10 @@ def train(clusterfile, job_name, task_index, ssh_command, expdir):
 		else:
 			init_filename = None
 
-		# if this training stage has already succesfully finished, skipt it
-		if os.path.exists(os.path.join(expdir, segment_lengths[seg_len_ind], 'model', 'network.ckpt.index')):
-			print 'Already found a fully trained model for segment length %s' % segment_length
+		# if this training stage has already successfully finished, skip it
+		if segment_lengths[seg_len_ind] != 'full' \
+			and os.path.exists(os.path.join(expdir, segment_lengths[seg_len_ind], 'model', 'network.ckpt.index')):
+			print('Already found a fully trained model for segment length %s' % segment_length)
 		else:
 			tr = trainer_factory.factory(segment_trainer_cfg['trainer'])(
 				conf=segment_trainer_cfg,
@@ -107,12 +118,15 @@ def train(clusterfile, job_name, task_index, ssh_command, expdir):
 				init_filename=init_filename,
 				task_index=task_index)
 
-			print 'starting training for segment length: %s' % segment_length
+			print('starting training for segment length: %s' % segment_length)
 
 			# train the model
 			best_val_loss = tr.train()
 			if best_val_loss is not None:
-				val_sum[segment_length] = best_val_loss
+				if tr.acc_steps:
+					val_sum[segment_length] = {task: round(loss*1e5)/1e5 for loss, task in zip(best_val_loss, tr.tasks)}
+				else:
+					val_sum[segment_length] = round(best_val_loss*1e5)/1e5
 
 			# best_val_losses, all_tasks = tr.train()
 			# if best_val_losses is not None:
@@ -121,12 +135,12 @@ def train(clusterfile, job_name, task_index, ssh_command, expdir):
 	if val_sum and 'full' in val_sum:
 		out_file = os.path.join(expdir, 'val_sum.json')
 		with open(out_file, 'w') as fid:
-			print 'the validation loss ...'
-			print val_sum
-			print '... will be save to memory'
+			print('the validation loss ...')
+			print(val_sum)
+			print('... will be saved to memory')
 			json.dump(val_sum, fid)
 	else:
-		print 'Did not find a validation loss to save'
+		print('Did not find a validation loss to save')
 
 
 if __name__ == '__main__':

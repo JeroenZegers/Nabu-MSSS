@@ -9,19 +9,20 @@ import tensorflow as tf
 from six.moves import configparser
 from train import train
 import warnings
+from datetime import date
 sys.path.append(os.getcwd())
 
 
-def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
+def main(expdir, recipe, computing, resume, duplicates, duplicates_ind_offset, sweep_flag, test_when_finished):
 	"""main function"""
 
 	if expdir is None:
 		raise Exception(
-			'no expdir specified. Command usage: nabu data --expdir=/path/to/recipe --recipe=/path/to/recipe')
+			'no expdir specified. Command usage: run train --expdir=/path/to/recipe --recipe=/path/to/recipe')
 
 	if recipe is None:
 		raise Exception(
-			'no recipe specified. Command usage: nabu data --expdir=/path/to/recipe --recipe=/path/to/recipe')
+			'no recipe specified. Command usage: run train --expdir=/path/to/recipe --recipe=/path/to/recipe')
 
 	if not os.path.isdir(recipe):
 		raise Exception('cannot find recipe %s' % recipe)
@@ -29,6 +30,7 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 		raise Exception('unknown computing mode: %s' % computing)
 
 	duplicates = int(duplicates)
+	duplicates_ind_offset = int(duplicates_ind_offset)
 
 	database_cfg_file = os.path.join(recipe, 'database.conf')
 	model_cfg_file = os.path.join(recipe, 'model.cfg')
@@ -44,9 +46,9 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 	parsed_trainer_cfg = configparser.ConfigParser()
 	parsed_trainer_cfg.read(trainer_cfg_file)
 	trainer_cfg = dict(parsed_trainer_cfg.items('trainer'))
-	
-	for dupl_ind in range(duplicates):
-		if duplicates > 1:
+
+	for dupl_ind in range(duplicates_ind_offset, duplicates+duplicates_ind_offset):
+		if duplicates > 1 or duplicates_ind_offset > 1:
 			expdir_run = expdir+'_dupl%i' % dupl_ind
 		else:
 			expdir_run = expdir
@@ -132,11 +134,26 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 					with open(os.path.join(seg_expdir_run, 'database.cfg'), 'w') as fid:
 						segment_parsed_database_cfg.write(fid)
 
+		# saving job command to file if the the user has made the 'train_files_to_resume' or 'train_files_to_restart' dir.
+		if computing != 'standard':
+			today = date.today()
+			today = today.strftime("%Y%m%d")
+			if os.path.isdir('train_files_to_resume'):
+				to_run = "run train --expdir=%s --recipe=%s --computing=%s --resume=True" % (expdir_run, recipe, computing)
+				with open(os.path.join('train_files_to_resume', 'train' + today + expdir_run.replace('/', '')), 'w') as fid:
+					fid.write('%s: %s \n %s:%s' % ('file_to_check', 'None', 'to_run', to_run))
+
+			if os.path.isdir('train_files_to_restart'):
+				to_run = "run train --expdir=%s --recipe=%s --computing=%s --resume=False" % (expdir_run, recipe, computing)
+				with open(os.path.join('train_files_to_restart', 'train' + today + expdir_run.replace('/', '')), 'w') as fid:
+					fid.write('%s: %s \n %s:%s' % ('file_to_check', 'None', 'to_run', to_run))
+
+		#
 		computing_cfg_file = 'config/computing/%s/%s.cfg' % (computing, 'non_distributed')
 
 		if computing == 'standard':
 			# manualy set for machine
-			os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+			os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 			train(clusterfile=None, job_name='local', task_index=0, ssh_command='None', expdir=expdir_run)
 
@@ -161,6 +178,13 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 
 			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
 				os.makedirs(os.path.join(expdir_run, 'outputs'))
+
+			if test_when_finished == 'True':
+				# write file of what is expected after training has completed
+				file_to_check = os.path.join(expdir_run, 'full', 'model', 'network.ckpt.index')
+				to_run = "run test --expdir=%s --recipe=%s --computing=%s" % (expdir_run, recipe, computing)
+				with open(os.path.join('files_to_run', expdir_run.replace('/', '')), 'w') as fid:
+					fid.write('%s: %s \n %s:%s' % ('file_to_check', file_to_check, 'to_run', to_run))
 
 			subprocess.call([
 				'condor_submit', 'expdir=%s' % expdir_run, 'script=nabu/scripts/train.py', 'memory=%s' % minmemory,
@@ -187,16 +211,21 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
 				os.makedirs(os.path.join(expdir_run, 'outputs'))
 
+			if test_when_finished == 'True':
+				# write file of what is expected after training has completed
+				file_to_check = os.path.join(expdir_run, 'full', 'model', 'network.ckpt.index')
+				to_run = "run test --expdir=%s --recipe=%s --computing=%s" % (expdir_run, recipe, computing)
+				with open(os.path.join('files_to_run', expdir_run.replace('/', '')), 'w') as fid:
+					fid.write('%s: %s \n %s:%s' % ('file_to_check', file_to_check, 'to_run', to_run))
+
+			# dagman stuff
 			dagman_files_dir = os.path.join(expdir_run, 'dagman_files')
 			if not os.path.isdir(dagman_files_dir):
 				shutil.copytree('nabu/computing/condor_dag', dagman_files_dir)
 				with open(os.path.join(dagman_files_dir, 'non_distributed.dag'), 'a') as fid:
-					fid.write(
-						'VARS  A  script="nabu/scripts/train.py" expdir="%s" memory="%s" condor_prio="%s"\n' %
-						(expdir_run, minmemory, condor_prio))
-					fid.write("SCRIPT POST  A  copy_outputs_retry.sh %s $RETRY" % expdir_run)
+					fid.write('VARS  A  script="nabu/scripts/train.py" expdir="%s" memory="%s" condor_prio="%s"' % (expdir_run, minmemory, condor_prio))
 
-			subprocess.call(['condor_submit_dag', '-f', '-usedagdir', '%s/non_distributed.dag' % dagman_files_dir])
+			subprocess.call(['condor_submit_dag', '-usedagdir', '%s/non_distributed.dag' % dagman_files_dir])
 
 		elif computing == 'torque':
 			# read the computing config file
@@ -207,14 +236,9 @@ def main(expdir, recipe, computing, resume, duplicates, sweep_flag):
 			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
 				os.makedirs(os.path.join(expdir_run, 'outputs'))
 
-			if resume == 'True':
-				job_file = 'non_distributed_short.pbs'
-			else:
-				job_file = 'non_distributed_long.pbs'
-
 			call_str = \
 				'qsub -v expdir=%s,script=nabu/scripts/train.py -e %s/outputs/main.err -o %s/outputs/main.out ' \
-				'nabu/computing/torque/%s' % (expdir_run, expdir_run, expdir_run, job_file)
+				'nabu/computing/torque/non_distributed.pbs' % (expdir_run, expdir_run, expdir_run)
 			# call_str = \
 			# 	'export expdir=%s; export script=nabu/scripts/train.py; ' \
 			# 	'qsub nabu/computing/torque/non_distributed.pbs' % expdir_run
@@ -232,8 +256,13 @@ if __name__ == '__main__':
 	tf.app.flags.DEFINE_string('computing', 'standard', 'the distributed computing system one of condor')
 	tf.app.flags.DEFINE_string('resume', 'False', 'whether the experiment in expdir, if available, has to be resumed')
 	tf.app.flags.DEFINE_string('duplicates', '1', 'How many duplicates of the same experiment should be run')
-	tf.app.flags.DEFINE_string('sweep_flag', 'False', 'wheter the script was called from a sweep')
+	tf.app.flags.DEFINE_string('duplicates_ind_offset', '0', 'Index offset for duplicates')
+	tf.app.flags.DEFINE_string('sweep_flag', 'False', 'whether the script was called from a sweep')
+	tf.app.flags.DEFINE_string(
+		'test_when_finished', 'False', 'whether the test script should be started upon finishing training')
 
 	FLAGS = tf.app.flags.FLAGS
 
-	main(FLAGS.expdir, FLAGS.recipe, FLAGS.computing, FLAGS.resume, FLAGS.duplicates, FLAGS.sweep_flag)
+	main(
+		FLAGS.expdir, FLAGS.recipe, FLAGS.computing, FLAGS.resume, FLAGS.duplicates, FLAGS.duplicates_ind_offset,
+		FLAGS.sweep_flag, FLAGS.test_when_finished)
