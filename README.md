@@ -54,7 +54,7 @@ the condor option uses HTCondor. More information can be found
 - The minimum requested RAM memory in MB when using HTCondor. If not specified, it uses the value in nabu/config/your_computing_type/non_distributed.cfg
  
 **Warning: if a data storage directory (see database.conf in recipe) already exists, Nabu-MSSS assumes that data was 
-already successfully created and will therefore skip this data section. If it was not successful or you want to redo data
+already successfully created before and will therefore skip this data section. If it was not successful or you want to redo data
 creation, then first remove the storage directory.** 
 
 **Warning: There can be data dependencies between different data section (e.g. mean and variance computed on the 
@@ -206,6 +206,9 @@ to use.
 - Add your file to the package in \_\_init\_\_.py
 - create a configuration file for your class and put it in whichever recipe you
 want to use it for.
+
+## Step-by-step procedure to create your first model
+
 
 ## Acknowledgments
 This work is part of a research project funded by the SB PhD grant of the Research Foundation Flanders 

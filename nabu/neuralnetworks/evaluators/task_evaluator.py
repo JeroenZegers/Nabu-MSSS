@@ -122,7 +122,7 @@ class TaskEvaluator(object):
 				number_of_elements = numbatches*self.batch_size
 				if number_of_elements == 0:
 					raise BaseException('The number of elements used for validation must be larger than 0.')
-				print '%d utterances will be used for evaluation' % number_of_elements
+				print('%d utterances will be used for evaluation' % number_of_elements)
 
 				# cut the data so it has a whole number of batches
 				data_queue_elements = data_queue_elements[start_utt_ind:number_of_elements]
