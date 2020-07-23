@@ -208,12 +208,60 @@ to use.
 want to use it for.
 
 ## Step-by-step procedure to create your first model
+We'll be using the *config/recipes/papers/ICASSP2018/MERL_DC_2spk* recipe to build your first model.
 
 ### Prior stuff
-- put the Nabu directory in your python path
+- Put the Nabu directory in your python path
 
 ### Data creation
+- Create datafiles for the train set, the validation set and the test set.
+    - the mix_wav.scp file which is of the form
+        ```
+        mix_1_name path_to_mix1.wav
+        mix_2_name path_to_mix2.wav
+        mix_3_name path_to_mix3.wav
+        ...
+        ```
+    - the allS_wav.scp file which is of the form
+        ```
+        mix_1_name path_to_speech_of_speaker1_for_mix1.wav path_to_speech_of_speaker2_for_mix1.wav
+        mix_2_name path_to_speech_of_speaker1_for_mix2.wav path_to_speech_of_speaker2_for_mix2.wav
+        mix_3_name path_to_speech_of_speaker1_for_mix3.wav path_to_speech_of_speaker2_for_mix3.wav
+        ...
+        ```
+    - the utt_spkinfo file which is of the form
+        ```
+        mix_1_name path_to_mix1.wav id_of_speaker1_for_mix1 gender_of_speaker1 (M or F) id_of_speaker2_for_mix1 gender_of_speaker2
+        mix_2_name path_to_mix2.wav id_of_speaker1_for_mix2 gender_of_speaker1 (M or F) id_of_speaker2_for_mix2 gender_of_speaker2
+        mix_3_name path_to_mix3.wav id_of_speaker1_for_mix3 gender_of_speaker1 (M or F) id_of_speaker2_for_mix3 gender_of_speaker2
+        ...
+        ```
+- Modify the *datafiles* fields in *config/recipes/papers/ICASSP2018/MERL_DC_2spk/database.conf* such that they point to
+ your datafiles.
+- In *config/recipes/papers/ICASSP2018/MERL_DC_2spk/database.conf*, change 
+*/esat/spchtemp/scratch/jzegers/dataforTF/MERL_segmented/* in the *store_dir* fields to *path_to_your_datastore_dir* 
+    
+- Run the following:
+```
+run data --computing=condor --expdir=your_nabu_experiment_directory/MERL_DC_2spk --recipe=config/recipes/papers/ICASSP2018/MERL_DC_2spk
+```
+The jobs for testspec en devspec should fail, as they rely on trainspec which is not yet finished. Once trainspec is
+finished, remove *path_to_your_datastore_dir/features/dev* and *path_to_your_datastore_dir/features/test* and rerun the above command.
+If data creation was successful the following files should exist 
+*path_to_your_datastore_dir/{features,targets,usedbins}/{tr,dev,test}/{100,full}/pointers.scp*
 
+### Model training
+- Run the following:
+```
+run train --test_when_finished=False --computing=condor --expdir=your_nabu_experiment_directory/MERL_DC_2spk --recipe=config/recipes/papers/ICASSP2018/MERL_DC_2spk
+```
+### Model evaluation
+- Run the following:
+```
+run test --test_when_finished=False --computing=condor --expdir=your_nabu_experiment_directory/MERL_DC_2spk --recipe=config/recipes/papers/ICASSP2018/MERL_DC_2spk
+```
+The separation score can then be observed in *your_nabu_experiment_directory/MERL_DC_2spk/test/outputs/main_task_2spk.out*
+and in *your_nabu_experiment_directory/MERL_DC_2spk/test/results_task_2spk_sdr_summary.json*
 
 ## Acknowledgments
 This work is part of a research project funded by the SB PhD grant of the Research Foundation Flanders 
