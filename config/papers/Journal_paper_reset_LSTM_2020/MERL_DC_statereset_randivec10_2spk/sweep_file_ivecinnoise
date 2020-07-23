@@ -1,0 +1,5 @@
+ivec_inp_noise_00
+model.cfg concat input_noise 0.2 0.0
+
+ivec_inp_noise_02
+model.cfg concat input_noise 0.2 0.2

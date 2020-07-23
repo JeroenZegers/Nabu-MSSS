@@ -1,0 +1,59 @@
+ivec10
+trainer.cfg task_2spk ivecs trainivec10
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_estivec_sweep/ivec10_dupl2/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs devivec10
+test_evaluator.cfg task_2spk ivecs testivec10
+
+ivec5
+trainer.cfg task_2spk ivecs trainivec5
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_estivec_sweep/ivec5_dupl1/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs devivec5
+test_evaluator.cfg task_2spk ivecs testivec5
+
+ivec20
+trainer.cfg task_2spk ivecs trainivec20
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_estivec_sweep/ivec20_dupl1/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs devivec20
+test_evaluator.cfg task_2spk ivecs testivec20
+
+ivec30
+trainer.cfg task_2spk ivecs trainivec30
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_estivec_sweep/ivec30_dupl2/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs devivec30
+test_evaluator.cfg task_2spk ivecs testivec30
+
+ivec40
+trainer.cfg task_2spk ivecs trainivec40
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_estivec_sweep/ivec40_dupl2/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs devivec40
+test_evaluator.cfg task_2spk ivecs testivec40
+
+iveclda10
+trainer.cfg task_2spk ivecs trainiveclda10
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_estivec_sweep/iveclda10/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs deviveclda10
+test_evaluator.cfg task_2spk ivecs testiveclda10
+
+iveclda5
+trainer.cfg task_2spk ivecs trainiveclda5
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_estivec_sweep/iveclda5/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs deviveclda5
+test_evaluator.cfg task_2spk ivecs testiveclda5
+
+iveclda20
+trainer.cfg task_2spk ivecs trainiveclda20
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_estivec_sweep/iveclda20_dupl1/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs deviveclda20
+test_evaluator.cfg task_2spk ivecs testiveclda20
+
+iveclda30
+trainer.cfg task_2spk ivecs trainiveclda30
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_estivec_sweep/iveclda30/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs deviveclda30
+test_evaluator.cfg task_2spk ivecs testiveclda30
+
+iveclda40
+trainer.cfg task_2spk ivecs trainiveclda40
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_estivec_sweep/iveclda40/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs deviveclda40
+test_evaluator.cfg task_2spk ivecs testivec40

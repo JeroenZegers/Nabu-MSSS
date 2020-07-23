@@ -1,0 +1,41 @@
+reset1_only_bw_sep_dirs
+model.cfg main num_units 678
+model.cfg main t_reset 1
+model.cfg main forward_reset False
+model.cfg main separate_directions True
+
+reset5_only_bw_sep_dirs
+model.cfg main num_units 678
+model.cfg main t_reset 5
+model.cfg main forward_reset False
+model.cfg main separate_directions True
+
+reset15_only_bw_sep_dirs
+model.cfg main num_units 678
+model.cfg main t_reset 15
+model.cfg main forward_reset False
+model.cfg main separate_directions True
+trainer.cfg trainer batch_size 40 4
+trainer.cfg trainer numbatches_to_aggregate 20 32
+validation_evaluator.cfg evaluator batch_size 5
+test_evaluator.cfg task_2spk batch_size 2
+
+reset30_only_bw_sep_dirs
+model.cfg main num_units 678
+model.cfg main t_reset 30
+model.cfg main forward_reset False
+model.cfg main separate_directions True
+trainer.cfg trainer batch_size 20 2
+trainer.cfg trainer numbatches_to_aggregate 40 64
+validation_evaluator.cfg evaluator batch_size 5
+test_evaluator.cfg task_2spk batch_size 2
+
+reset50_only_bw_sep_dirs
+model.cfg main num_units 678
+model.cfg main t_reset 50
+model.cfg main forward_reset False
+model.cfg main separate_directions True
+trainer.cfg trainer batch_size 20 2
+trainer.cfg trainer numbatches_to_aggregate 40 64
+validation_evaluator.cfg evaluator batch_size 5
+test_evaluator.cfg task_2spk batch_size 2

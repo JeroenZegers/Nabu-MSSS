@@ -1,0 +1,109 @@
+ivec10
+trainer.cfg task_2spk ivecs trainivec10
+validation_evaluator.cfg task_2spk ivecs devivec10
+test_evaluator.cfg task_2spk ivecs testivec10
+postprocessor.cfg task_2spk tv_dim 10
+postprocessor.cfg task_2spk lda False
+postprocessor.cfg task_2spk_tr tv_dim 10
+postprocessor.cfg task_2spk_tr lda False
+postprocessor.cfg task_2spk_dev tv_dim 10
+postprocessor.cfg task_2spk_dev lda False
+
+ivec5
+trainer.cfg task_2spk ivecs trainivec5
+validation_evaluator.cfg task_2spk ivecs devivec5
+test_evaluator.cfg task_2spk ivecs testivec5
+postprocessor.cfg task_2spk tv_dim 5
+postprocessor.cfg task_2spk lda False
+postprocessor.cfg task_2spk_tr tv_dim 5
+postprocessor.cfg task_2spk_tr lda False
+postprocessor.cfg task_2spk_dev tv_dim 5
+postprocessor.cfg task_2spk_dev lda False
+
+ivec20
+trainer.cfg task_2spk ivecs trainivec20
+validation_evaluator.cfg task_2spk ivecs devivec20
+test_evaluator.cfg task_2spk ivecs testivec20
+postprocessor.cfg task_2spk tv_dim 20
+postprocessor.cfg task_2spk lda False
+postprocessor.cfg task_2spk_tr tv_dim 20
+postprocessor.cfg task_2spk_tr lda False
+postprocessor.cfg task_2spk_dev tv_dim 20
+postprocessor.cfg task_2spk_dev lda False
+
+ivec30
+trainer.cfg task_2spk ivecs trainivec30
+validation_evaluator.cfg task_2spk ivecs devivec30
+test_evaluator.cfg task_2spk ivecs testivec30
+postprocessor.cfg task_2spk tv_dim 30
+postprocessor.cfg task_2spk lda False
+postprocessor.cfg task_2spk_tr tv_dim 30
+postprocessor.cfg task_2spk_tr lda False
+postprocessor.cfg task_2spk_dev tv_dim 30
+postprocessor.cfg task_2spk_dev lda False
+
+ivec40
+trainer.cfg task_2spk ivecs trainivec40
+validation_evaluator.cfg task_2spk ivecs devivec40
+test_evaluator.cfg task_2spk ivecs testivec40
+postprocessor.cfg task_2spk tv_dim 40
+postprocessor.cfg task_2spk lda False
+postprocessor.cfg task_2spk_tr tv_dim 40
+postprocessor.cfg task_2spk_tr lda False
+postprocessor.cfg task_2spk_dev tv_dim 40
+postprocessor.cfg task_2spk_dev lda False
+
+iveclda10
+trainer.cfg task_2spk ivecs trainiveclda10
+validation_evaluator.cfg task_2spk ivecs deviveclda10
+test_evaluator.cfg task_2spk ivecs testiveclda10
+postprocessor.cfg task_2spk tv_dim 10
+postprocessor.cfg task_2spk lda True
+postprocessor.cfg task_2spk_tr tv_dim 10
+postprocessor.cfg task_2spk_tr lda True
+postprocessor.cfg task_2spk_dev tv_dim 10
+postprocessor.cfg task_2spk_dev lda True
+
+iveclda5
+trainer.cfg task_2spk ivecs trainiveclda5
+validation_evaluator.cfg task_2spk ivecs deviveclda5
+test_evaluator.cfg task_2spk ivecs testiveclda5
+postprocessor.cfg task_2spk tv_dim 5
+postprocessor.cfg task_2spk lda True
+postprocessor.cfg task_2spk_tr tv_dim 5
+postprocessor.cfg task_2spk_tr lda True
+postprocessor.cfg task_2spk_dev tv_dim 5
+postprocessor.cfg task_2spk_dev lda True
+
+iveclda20
+trainer.cfg task_2spk ivecs trainiveclda20
+validation_evaluator.cfg task_2spk ivecs deviveclda20
+test_evaluator.cfg task_2spk ivecs testiveclda20
+postprocessor.cfg task_2spk tv_dim 20
+postprocessor.cfg task_2spk lda True
+postprocessor.cfg task_2spk_tr tv_dim 20
+postprocessor.cfg task_2spk_tr lda True
+postprocessor.cfg task_2spk_dev tv_dim 20
+postprocessor.cfg task_2spk_dev lda True
+
+iveclda30
+trainer.cfg task_2spk ivecs trainiveclda30
+validation_evaluator.cfg task_2spk ivecs deviveclda30
+test_evaluator.cfg task_2spk ivecs testiveclda30
+postprocessor.cfg task_2spk tv_dim 30
+postprocessor.cfg task_2spk lda True
+postprocessor.cfg task_2spk_tr tv_dim 30
+postprocessor.cfg task_2spk_tr lda True
+postprocessor.cfg task_2spk_dev tv_dim 30
+postprocessor.cfg task_2spk_dev lda True
+
+iveclda40
+trainer.cfg task_2spk ivecs trainiveclda40
+validation_evaluator.cfg task_2spk ivecs deviveclda40
+test_evaluator.cfg task_2spk ivecs testivec40
+postprocessor.cfg task_2spk tv_dim 40
+postprocessor.cfg task_2spk lda True
+postprocessor.cfg task_2spk_tr tv_dim 40
+postprocessor.cfg task_2spk_tr lda True
+postprocessor.cfg task_2spk_dev tv_dim 40
+postprocessor.cfg task_2spk_dev lda True

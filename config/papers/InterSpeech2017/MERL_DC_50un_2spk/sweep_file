@@ -1,0 +1,13 @@
+3lay_1200units
+model.cfg main num_layers 3
+model.cfg main num_units 1200
+trainer.cfg trainer batch_size 20 4
+trainer.cfg trainer numbatches_to_aggregate 40 26
+
+4lay_600units
+model.cfg main num_layers 4
+model.cfg main num_units 600
+trainer.cfg trainer batch_size 20 4
+trainer.cfg trainer numbatches_to_aggregate 40 26
+
+

@@ -1,0 +1,58 @@
+reset1
+model.cfg main t_reset 1
+
+reset2
+model.cfg main t_reset 2
+
+reset3
+model.cfg main t_reset 3
+
+reset4
+model.cfg main t_reset 4
+
+reset5
+model.cfg main t_reset 5
+
+reset10
+model.cfg main t_reset 10
+
+reset15
+model.cfg main t_reset 15
+
+reset20
+model.cfg main t_reset 20
+
+reset30
+model.cfg main t_reset 30
+
+reset40
+model.cfg main t_reset 40
+
+reset50
+model.cfg main t_reset 50
+
+reset75
+model.cfg main t_reset 75
+trainer.cfg trainer batch_size 16 8
+trainer.cfg trainer numbatches_to_aggregate 50 16
+
+reset100
+model.cfg main t_reset 100
+trainer.cfg trainer batch_size 10 8
+trainer.cfg trainer numbatches_to_aggregate 80 16
+
+reset150
+model.cfg main t_reset 150
+trainer.cfg trainer batch_size 5 8
+trainer.cfg trainer numbatches_to_aggregate 160 16
+
+reset200
+model.cfg main t_reset 200
+trainer.cfg trainer batch_size 5 8
+trainer.cfg trainer numbatches_to_aggregate 160 16
+
+reset500
+model.cfg main t_reset 500
+trainer.cfg trainer batch_size 1 8
+trainer.cfg trainer numbatches_to_aggregate 800 16
+

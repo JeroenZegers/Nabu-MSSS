@@ -1,0 +1,11 @@
+gamma_1
+trainer.cfg task_2spk linkedset_weighting 1.0 1.0
+validation_evaluator.cfg task_2spk linkedset_weighting 1.0 1.0
+
+gamma_05
+trainer.cfg task_2spk linkedset_weighting 1.0 0.5
+validation_evaluator.cfg task_2spk linkedset_weighting 1.0 0.5
+
+gamma_01
+trainer.cfg task_2spk linkedset_weighting 1.0 0.1
+validation_evaluator.cfg task_2spk linkedset_weighting 1.0 0.1

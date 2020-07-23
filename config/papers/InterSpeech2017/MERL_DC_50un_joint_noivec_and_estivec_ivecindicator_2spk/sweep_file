@@ -1,0 +1,139 @@
+ivec10
+trainer.cfg task_2spk ivecs trainivec10
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_ivec_sweep/ivec10/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs devivec10
+test_evaluator.cfg task_2spk ivecs testivec10
+test_evaluator.cfg task_2spk_tr ivecs trainivec10
+test_evaluator.cfg task_2spk_dev ivecs devivec10
+postprocessor.cfg task_2spk tv_dim 10
+postprocessor.cfg task_2spk lda False
+postprocessor.cfg task_2spk_tr tv_dim 10
+postprocessor.cfg task_2spk_tr lda False
+postprocessor.cfg task_2spk_dev tv_dim 10
+postprocessor.cfg task_2spk_dev lda False
+
+ivec5
+trainer.cfg task_2spk ivecs trainivec5
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_ivec_sweep/ivec5/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs devivec5
+test_evaluator.cfg task_2spk ivecs testivec5
+test_evaluator.cfg task_2spk_tr ivecs trainivec5
+test_evaluator.cfg task_2spk_dev ivecs devivec5
+postprocessor.cfg task_2spk tv_dim 5
+postprocessor.cfg task_2spk lda False
+postprocessor.cfg task_2spk_tr tv_dim 5
+postprocessor.cfg task_2spk_tr lda False
+postprocessor.cfg task_2spk_dev tv_dim 5
+postprocessor.cfg task_2spk_dev lda False
+
+ivec20
+trainer.cfg task_2spk ivecs trainivec20
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_ivec_sweep/ivec20/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs devivec20
+test_evaluator.cfg task_2spk ivecs testivec20
+test_evaluator.cfg task_2spk_tr ivecs trainivec20
+test_evaluator.cfg task_2spk_dev ivecs devivec20
+postprocessor.cfg task_2spk tv_dim 20
+postprocessor.cfg task_2spk lda False
+postprocessor.cfg task_2spk_tr tv_dim 20
+postprocessor.cfg task_2spk_tr lda False
+postprocessor.cfg task_2spk_dev tv_dim 20
+postprocessor.cfg task_2spk_dev lda False
+
+ivec30
+trainer.cfg task_2spk ivecs trainivec30
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_ivec_sweep/ivec30/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs devivec30
+test_evaluator.cfg task_2spk ivecs testivec30
+test_evaluator.cfg task_2spk_tr ivecs trainivec30
+test_evaluator.cfg task_2spk_dev ivecs devivec30
+postprocessor.cfg task_2spk tv_dim 30
+postprocessor.cfg task_2spk lda False
+postprocessor.cfg task_2spk_tr tv_dim 30
+postprocessor.cfg task_2spk_tr lda False
+postprocessor.cfg task_2spk_dev tv_dim 30
+postprocessor.cfg task_2spk_dev lda False
+
+ivec40
+trainer.cfg task_2spk ivecs trainivec40
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_ivec_sweep/ivec40/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs devivec40
+test_evaluator.cfg task_2spk ivecs testivec40
+test_evaluator.cfg task_2spk_tr ivecs trainivec40
+test_evaluator.cfg task_2spk_dev ivecs devivec40
+postprocessor.cfg task_2spk tv_dim 40
+postprocessor.cfg task_2spk lda False
+postprocessor.cfg task_2spk_tr tv_dim 40
+postprocessor.cfg task_2spk_tr lda False
+postprocessor.cfg task_2spk_dev tv_dim 40
+postprocessor.cfg task_2spk_dev lda False
+
+iveclda10
+trainer.cfg task_2spk ivecs trainiveclda10
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_ivec_sweep/iveclda10/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs deviveclda10
+test_evaluator.cfg task_2spk ivecs testiveclda10
+test_evaluator.cfg task_2spk_tr ivecs trainiveclda10
+test_evaluator.cfg task_2spk_dev ivecs deviveclda10
+postprocessor.cfg task_2spk tv_dim 10
+postprocessor.cfg task_2spk lda True
+postprocessor.cfg task_2spk_tr tv_dim 10
+postprocessor.cfg task_2spk_tr lda True
+postprocessor.cfg task_2spk_dev tv_dim 10
+postprocessor.cfg task_2spk_dev lda True
+
+iveclda5
+trainer.cfg task_2spk ivecs trainiveclda5
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_ivec_sweep/iveclda5/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs deviveclda5
+test_evaluator.cfg task_2spk ivecs testiveclda5
+test_evaluator.cfg task_2spk_tr ivecs trainiveclda5
+test_evaluator.cfg task_2spk_dev ivecs deviveclda5
+postprocessor.cfg task_2spk tv_dim 5
+postprocessor.cfg task_2spk lda True
+postprocessor.cfg task_2spk_tr tv_dim 5
+postprocessor.cfg task_2spk_tr lda True
+postprocessor.cfg task_2spk_dev tv_dim 5
+postprocessor.cfg task_2spk_dev lda True
+
+iveclda20
+trainer.cfg task_2spk ivecs trainiveclda20
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_ivec_sweep/iveclda20/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs deviveclda20
+test_evaluator.cfg task_2spk ivecs testiveclda20
+test_evaluator.cfg task_2spk_tr ivecs trainiveclda20
+test_evaluator.cfg task_2spk_dev ivecs deviveclda20
+postprocessor.cfg task_2spk tv_dim 20
+postprocessor.cfg task_2spk lda True
+postprocessor.cfg task_2spk_tr tv_dim 20
+postprocessor.cfg task_2spk_tr lda True
+postprocessor.cfg task_2spk_dev tv_dim 20
+postprocessor.cfg task_2spk_dev lda True
+
+iveclda30
+trainer.cfg task_2spk ivecs trainiveclda30
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_ivec_sweep/iveclda30/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs deviveclda30
+test_evaluator.cfg task_2spk ivecs testiveclda30
+test_evaluator.cfg task_2spk_tr ivecs trainiveclda30
+test_evaluator.cfg task_2spk_dev ivecs deviveclda30
+postprocessor.cfg task_2spk tv_dim 30
+postprocessor.cfg task_2spk lda True
+postprocessor.cfg task_2spk_tr tv_dim 30
+postprocessor.cfg task_2spk_tr lda True
+postprocessor.cfg task_2spk_dev tv_dim 30
+postprocessor.cfg task_2spk_dev lda True
+
+iveclda40
+trainer.cfg task_2spk ivecs trainiveclda40
+trainer.cfg trainer init_file /esat/spchtemp/scratch/jzegers/Nabu-SS2.0/Default17_MERL_DC_ivec_sweep/iveclda40/full/model/network.ckpt
+validation_evaluator.cfg task_2spk ivecs deviveclda40
+test_evaluator.cfg task_2spk ivecs testivec40
+test_evaluator.cfg task_2spk_tr ivecs trainiveclda40
+test_evaluator.cfg task_2spk_dev ivecs deviveclda40
+postprocessor.cfg task_2spk tv_dim 40
+postprocessor.cfg task_2spk lda True
+postprocessor.cfg task_2spk_tr tv_dim 40
+postprocessor.cfg task_2spk_tr lda True
+postprocessor.cfg task_2spk_dev tv_dim 40
+postprocessor.cfg task_2spk_dev lda True

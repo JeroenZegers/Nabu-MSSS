@@ -1,0 +1,13 @@
+reset10
+model.cfg main t_reset 10
+trainer.cfg trainer batch_size 40 4
+trainer.cfg trainer numbatches_to_aggregate 20 32
+validation_evaluator.cfg evaluator batch_size 15
+test_evaluator.cfg task_2spk batch_size 5
+
+reset20
+model.cfg main t_reset 20
+trainer.cfg trainer batch_size 40 2
+trainer.cfg trainer numbatches_to_aggregate 20 64
+validation_evaluator.cfg evaluator batch_size 10
+test_evaluator.cfg task_2spk batch_size 2

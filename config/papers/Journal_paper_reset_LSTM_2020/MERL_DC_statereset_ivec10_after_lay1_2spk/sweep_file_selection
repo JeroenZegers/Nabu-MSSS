@@ -1,0 +1,69 @@
+reset2
+model.cfg main t_reset 2
+test_evaluator.cfg task_2spk batch_size 15
+
+reset5
+model.cfg main t_reset 5
+trainer.cfg trainer batch_size 40 4
+trainer.cfg trainer numbatches_to_aggregate 20 32
+validation_evaluator.cfg evaluator batch_size 30
+test_evaluator.cfg task_2spk batch_size 10
+
+reset10
+model.cfg main t_reset 10
+trainer.cfg trainer batch_size 40 4
+trainer.cfg trainer numbatches_to_aggregate 20 32
+validation_evaluator.cfg evaluator batch_size 15
+test_evaluator.cfg task_2spk batch_size 5
+
+reset15
+model.cfg main t_reset 15
+trainer.cfg trainer batch_size 40 2
+trainer.cfg trainer numbatches_to_aggregate 20 64
+validation_evaluator.cfg evaluator batch_size 15
+test_evaluator.cfg task_2spk batch_size 5
+
+reset20
+model.cfg main t_reset 20
+trainer.cfg trainer batch_size 40 2
+trainer.cfg trainer numbatches_to_aggregate 20 64
+validation_evaluator.cfg evaluator batch_size 10
+test_evaluator.cfg task_2spk batch_size 2
+
+reset30
+model.cfg main t_reset 30
+trainer.cfg trainer batch_size 20 1
+trainer.cfg trainer numbatches_to_aggregate 40 128
+validation_evaluator.cfg evaluator batch_size 5
+test_evaluator.cfg task_2spk batch_size 2
+
+reset50
+model.cfg main t_reset 50
+trainer.cfg trainer batch_size 10 1
+trainer.cfg trainer numbatches_to_aggregate 80 128
+validation_evaluator.cfg evaluator batch_size 2
+test_evaluator.cfg task_2spk batch_size 1
+
+reset75_group5
+model.cfg main t_reset 75
+model.cfg main group_size 5
+trainer.cfg trainer batch_size 40 2
+trainer.cfg trainer numbatches_to_aggregate 20 64
+validation_evaluator.cfg evaluator batch_size 10
+test_evaluator.cfg task_2spk batch_size 5
+
+reset100_group5
+model.cfg main t_reset 100
+model.cfg main group_size 5
+trainer.cfg trainer batch_size 20 2
+trainer.cfg trainer numbatches_to_aggregate 40 64
+validation_evaluator.cfg evaluator batch_size 10
+test_evaluator.cfg task_2spk batch_size 5
+
+reset200_group5
+model.cfg main t_reset 200
+model.cfg main group_size 5
+trainer.cfg trainer batch_size 10 1
+trainer.cfg trainer numbatches_to_aggregate 80 128
+validation_evaluator.cfg evaluator batch_size 5
+test_evaluator.cfg task_2spk batch_size 2

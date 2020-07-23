@@ -1,0 +1,36 @@
+reset1
+model.cfg main t_reset 1
+
+reset5
+model.cfg main t_reset 5
+trainer.cfg trainer batch_size 160 8
+trainer.cfg trainer numbatches_to_aggregate 8 16
+validation_evaluator.cfg evaluator batch_size 30
+test_evaluator.cfg task_2spk batch_size 30
+computing.cfg computing mintestmemory 31000
+
+reset15
+model.cfg main t_reset 15
+trainer.cfg trainer batch_size 50 4
+trainer.cfg trainer numbatches_to_aggregate 16 32
+validation_evaluator.cfg evaluator batch_size 15
+test_evaluator.cfg task_2spk batch_size 15
+computing.cfg computing mintestmemory 31000
+
+reset30_group3
+model.cfg main t_reset 30
+model.cfg main group_size 3
+trainer.cfg trainer batch_size 100 4
+trainer.cfg trainer numbatches_to_aggregate 8 32
+validation_evaluator.cfg evaluator batch_size 15
+test_evaluator.cfg task_2spk batch_size 15
+computing.cfg computing mintestmemory 31000
+
+reset50_group5
+model.cfg main t_reset 50
+model.cfg main group_size 5
+trainer.cfg trainer batch_size 100 4
+trainer.cfg trainer numbatches_to_aggregate 8 32
+validation_evaluator.cfg evaluator batch_size 15
+test_evaluator.cfg task_2spk batch_size 15
+computing.cfg computing mintestmemory 31000

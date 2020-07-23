@@ -1,0 +1,37 @@
+reset1_full
+model.cfg reset_lstm t_reset 1
+
+reset3_full
+model.cfg reset_lstm t_reset 3
+
+reset5_full
+model.cfg reset_lstm t_reset 5
+
+reset15_full
+model.cfg reset_lstm t_reset 15
+trainer.cfg trainer batch_size 40 4
+trainer.cfg trainer numbatches_to_aggregate 20 32
+validation_evaluator.cfg evaluator batch_size 5
+test_evaluator.cfg task_2spk batch_size 2
+
+reset30_full
+model.cfg reset_lstm t_reset 30
+trainer.cfg trainer batch_size 40 4
+trainer.cfg trainer numbatches_to_aggregate 20 32
+validation_evaluator.cfg evaluator batch_size 5
+test_evaluator.cfg task_2spk batch_size 2
+
+reset50_full
+model.cfg reset_lstm t_reset 50
+trainer.cfg trainer batch_size 20 2
+trainer.cfg trainer numbatches_to_aggregate 40 64
+validation_evaluator.cfg evaluator batch_size 5
+test_evaluator.cfg task_2spk batch_size 2
+
+reset100_group5_full
+model.cfg reset_lstm t_reset 100
+model.cfg reset_lstm group_size 5
+trainer.cfg trainer batch_size 40 4
+trainer.cfg trainer numbatches_to_aggregate 20 32
+validation_evaluator.cfg evaluator batch_size 10
+test_evaluator.cfg task_2spk batch_size 5
