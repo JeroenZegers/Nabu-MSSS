@@ -42,7 +42,7 @@ class TaskLossEvaluator(task_evaluator.TaskEvaluator):
 			the logits"""
 
 		with tf.name_scope('evaluate_logits'):
-			logits = run_multi_model.run_multi_model(
+			logits, _ = run_multi_model.run_multi_model(
 				models=self.models,
 				model_nodes=self.model_nodes,
 				model_links=self.model_links,

@@ -7,7 +7,8 @@ from . import deepclustering_reconstructor, stackedmasks_reconstructor, deepXclu
     deepattractornet_softmax_reconstructor, noisefilter_reconstructor, deepattractornet_noisefilter_reconstructor, \
     parallel_deepclustering_reconstructor, stackedmasks_noise_reconstructor, \
     anchor_deepattractornet_softmax_reconstructor, time_anchor_deepattractornet_softmax_reconstructor, \
-    time_anchor_read_heads_deepattractornet_softmax_reconstructor, weighted_anchor_deepattractornet_softmax_reconstructor
+    time_anchor_read_heads_deepattractornet_softmax_reconstructor, weighted_anchor_deepattractornet_softmax_reconstructor, \
+    dummy_reconstructor, oraclemask_reconstructor
 
 
 def factory(reconstructor):
@@ -33,6 +34,10 @@ def factory(reconstructor):
         return anchor_deepattractornet_softmax_reconstructor.AnchorDeepattractorSoftmaxReconstructor
     elif reconstructor == 'time_anchor_deepattractornet_softmax':
         return time_anchor_deepattractornet_softmax_reconstructor.TimeAnchorDeepattractorSoftmaxReconstructor
+    elif reconstructor == 'time_anchor_scalar_deepattractornet_softmax':
+        return time_anchor_deepattractornet_softmax_reconstructor.TimeAnchorScalarDeepattractorSoftmaxReconstructor
+    elif reconstructor == 'time_anchor_spk_weights_deepattractornet_softmax':
+        return time_anchor_deepattractornet_softmax_reconstructor.TimeAnchorSpkWeightsDeepattractorSoftmaxReconstructor
     elif reconstructor == 'time_anchor_read_heads_deepattractornet_softmax':
         return time_anchor_read_heads_deepattractornet_softmax_reconstructor.TimeAnchorReadHeadsDeepattractorSoftmaxReconstructor
     elif reconstructor == 'weighted_anchor_deepattractornet_softmax':
@@ -49,6 +54,8 @@ def factory(reconstructor):
         return deepattractornetnoise_hard_reconstructor.DeepattractornoisehardReconstructor
     elif reconstructor == 'deepattractornetnoisesoft':
         return deepattractornetnoise_soft_reconstructor.DeepattractornoisesoftReconstructor
+    elif reconstructor == 'oraclemask':
+        return oraclemask_reconstructor.OracleMaskReconstructor
     elif reconstructor == 'oraclenoise':
         return oracle_reconstructor_noise.OracleReconstructor
     elif reconstructor == 'noisefilter':
@@ -57,5 +64,7 @@ def factory(reconstructor):
         return deepattractornet_noisefilter_reconstructor.DeepattractornoisefilterReconstructor
     elif reconstructor == 'stackedmasks_noise':
         return stackedmasks_noise_reconstructor.StackedmasksNoiseReconstructor
+    elif reconstructor == 'dummy':
+        return dummy_reconstructor.DummyReconstructor
     else:
         raise Exception('Undefined reconstructor type: %s' % reconstructor)

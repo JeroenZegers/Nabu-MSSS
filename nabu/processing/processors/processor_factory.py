@@ -7,7 +7,7 @@ matrix2vector_processor, fracscorelabelperfeature_processor, onehotperfeature_ta
 multi_target_dummy_processor, scorelabelperfeatureinmixture_processor, audio_feat_conc_processor,\
 scorelabelperfeature_multimic_processor, matrix2vector_processor, ideal_ratio_processor, one_processor,\
 multi_averager_encapsulator, spatial_feat_processor, onehotperfeature_target_multimic_processor,\
-multi_target_multimic_processor, ideal_ratio_multimic_processor, vad_timings_processor
+multi_target_multimic_processor, ideal_ratio_multimic_processor, vad_timings_processor, index_processor
 
 
 def factory(processor):
@@ -45,6 +45,8 @@ def factory(processor):
         return strlabel2index_processor.Strlabel2indexProcessor
     elif processor == 'matrix2vector_processor':
         return matrix2vector_processor.Matrix2VectorProcessor
+    elif processor == 'matrix2matrix_processor':
+        return matrix2vector_processor.Matrix2MatrixProcessor
     elif processor == 'onehotperfeature_target_dummy_processor':
         return onehotperfeature_target_dummy_processor.onehotperfeatureTargetDummyProcessor
     elif processor == 'multi_target_dummy_processor':
@@ -67,5 +69,9 @@ def factory(processor):
         return one_processor.ZeroProcessor
     elif processor == 'vad_timings_processor':
         return vad_timings_processor.VadTimingsProcessor
+    elif processor == 'vad_timings_samples_processor':
+        return vad_timings_processor.VadTimings2SamplesProcessor
+    elif processor == 'index_processor':
+        return index_processor.indexProcessor
     else:
         raise Exception('unknown processor type: %s' % processor)

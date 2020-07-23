@@ -38,6 +38,7 @@ from scipy.fftpack import dct
 from scipy.ndimage import convolve1d
 import scipy.signal
 import scipy
+import numpy as np
 
 
 def raw(signal):
@@ -81,6 +82,36 @@ def spec(signal, samplerate, conf):
 
     return spec
 
+#
+def spec_scipy(signal, samplerate, conf):
+    """
+    Compute complex spectrogram features from an audio signal., via scipy (I hope this takes into account the edge effect
+    that is being considered by Emmanuel Vincent in stft_multi.m
+
+    Args:
+        signal: the audio signal from which to compute features. Should be an
+            N*1 array
+        samplerate: the samplerate of the signal we are working with.
+        conf: feature configuration
+
+    Returns:
+        A numpy array of size (NUMFRAMES by numfreq) containing features. Each
+        row holds 1 feature vector, a numpy vector containing the complex
+        spectrum of the corresponding frame
+    """
+
+    frame_len = int(round(float(conf['winlen'])*samplerate))
+    frame_step = int(round(float(conf['winstep'])*samplerate))
+    frame_overlap = frame_len - frame_step
+    # winfunc = _get_winfunc(conf['winfunc'])
+    # win = winfunc(frame_len)
+
+    [_, _, spec] = scipy.signal.stft(
+        signal, window=conf['winfunc'], nperseg=frame_len, noverlap=frame_overlap, nfft=frame_len, detrend=False,
+        return_onesided=True, boundary='zeros', padded=True, axis=-1)
+    spec = np.transpose(spec)
+    return spec
+
 
 def spec2time(spec, samplerate, siglen, conf):
     """
@@ -109,6 +140,40 @@ def spec2time(spec, samplerate, siglen, conf):
 
     # Limit the range of the signal between -1.0 and 1.0
     signal = signal/numpy.max(numpy.abs(signal))
+
+    return signal
+
+
+def spec2time_scipy(spec, samplerate, siglen, conf):
+    """
+    Compute the time domain signal from the complex spectrogram. No preemphasis is assumed.
+
+    Args:
+    spec: A numpy array of size (NUMFRAMES by numfreq) containing features. Each
+        row holds 1 feature vector, a numpy vector containing the complex
+        spectrum of the corresponding frame
+        samplerate: the samplerate of the signal we are working with.
+        siglen the: length of the desired signal, use 0 if unknown. Output will
+            be truncated to siglen samples.
+        conf: feature configuration
+
+    Returns:
+        signal: the audio signal from which to compute features. This is an
+            N*1 array
+    """
+
+    frame_len = int(round(float(conf['winlen'])*samplerate))
+    frame_step = int(round(float(conf['winstep'])*samplerate))
+    frame_overlap = frame_len - frame_step
+    # winfunc = _get_winfunc(conf['winfunc'])
+    # win = winfunc(frame_len)
+
+    [_, signal] = scipy.signal.istft(
+        spec, window=conf['winfunc'], nperseg=frame_len, noverlap=frame_overlap, nfft=frame_len, input_onesided=True, boundary=True,
+        time_axis=0, freq_axis=1)
+
+    if siglen != 0:
+        signal = signal[:siglen]
 
     return signal
 
@@ -165,6 +230,28 @@ def powspec(signal, samplerate, conf):
     return powspec
 
 
+def powspec_scipy(signal, samplerate, conf):
+    """
+    Compute squared magnitude spectrogram features from an audio signal.
+
+    Args:
+        signal: the audio signal from which to compute features. Should be an
+            N*1 array
+        samplerate: the samplerate of the signal we are working with.
+        conf: feature configuration
+
+    Returns:
+        A numpy array of size (NUMFRAMES by numfreq) containing features. Each
+        row holds 1 feature vector, a numpy vector containing the magnitude
+        spectrum of the corresponding frame
+    """
+    signal = sigproc.preemphasis(signal, float(conf['preemph']))
+    spec = spec_scipy(signal, samplerate, conf)
+    powspec = np.square(spec)
+
+    return powspec
+
+
 def magspec(signal, samplerate, conf):
     """
     Compute magnitude spectrogram features from an audio signal.
@@ -188,6 +275,28 @@ def magspec(signal, samplerate, conf):
                               float(conf['winstep'])*samplerate,
                               winfunc)
     magspec = sigproc.magspec(frames, int(conf['nfft']))
+
+    return magspec
+
+
+def magspec_scipy(signal, samplerate, conf):
+    """
+    Compute magnitude spectrogram features from an audio signal.
+
+    Args:
+        signal: the audio signal from which to compute features. Should be an
+            N*1 array
+        samplerate: the samplerate of the signal we are working with.
+        conf: feature configuration
+
+    Returns:
+        A numpy array of size (NUMFRAMES by numfreq) containing features. Each
+        row holds 1 feature vector, a numpy vector containing the magnitude
+        spectrum of the corresponding frame
+    """
+    signal = sigproc.preemphasis(signal, float(conf['preemph']))
+    spec = spec_scipy(signal, samplerate, conf)
+    magspec = np.abs(spec)
 
     return magspec
 
@@ -219,6 +328,28 @@ def angspec(signal, samplerate, conf):
     return angspec
 
 
+def angspec_scipy(signal, samplerate, conf):
+    """
+    Compute angular spectrogram features from an audio signal.
+
+    Args:
+        signal: the audio signal from which to compute features. Should be an
+            N*1 array
+        samplerate: the samplerate of the signal we are working with.
+        conf: feature configuration
+
+    Returns:
+        A numpy array of size (NUMFRAMES by numfreq) containing features. Each
+        row holds 1 feature vector, a numpy vector containing the angular
+        spectrum of the corresponding frame
+    """
+    signal = sigproc.preemphasis(signal, float(conf['preemph']))
+    spec = spec_scipy(signal, samplerate, conf)
+    angspec = np.angle(spec)
+
+    return angspec
+
+
 def logspec(signal, samplerate, conf):
     """
     Compute log magnitude spectrogram features from an audio signal.
@@ -242,6 +373,30 @@ def logspec(signal, samplerate, conf):
                               float(conf['winstep'])*samplerate,
                               winfunc)
     logspec = sigproc.logmagspec(frames, int(conf['nfft']))
+
+    return logspec
+
+
+def logspec_scipy(signal, samplerate, conf):
+    """
+    Compute log magnitude spectrogram features from an audio signal.
+
+    Args:
+        signal: the audio signal from which to compute features. Should be an
+            N*1 array
+        samplerate: the samplerate of the signal we are working with.
+        conf: feature configuration
+
+    Returns:
+        A numpy array of size (NUMFRAMES by numfreq) containing features. Each
+        row holds 1 feature vector, a numpy vector containing the log magnitude
+        spectrum of the corresponding frame
+    """
+    signal = sigproc.preemphasis(signal, float(conf['preemph']))
+    spec = spec_scipy(signal, samplerate, conf)
+    magspec = np.abs(spec)
+    magspec[magspec <= 1e-30] = 1e-30
+    logspec = 10*np.log10(magspec)
 
     return logspec
 

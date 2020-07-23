@@ -7,8 +7,8 @@ import tensorflow as tf
 
 
 def main(
-		sweep, command, expdir, recipe, computing, resume, duplicates, duplicates_ind_offset, test_when_finished,
-		allow_early_testing):
+		sweep, command, expdir, recipe, computing, minmemory, mincudamemory, resume, duplicates, duplicates_ind_offset,
+		test_when_finished, allow_early_testing, test_task):
 	"""main function"""
 	if expdir is None:
 		raise BaseException(
@@ -41,6 +41,8 @@ def main(
 	for i, expname in enumerate(expnames):
 		run_string = 'run %s --expdir=%s --recipe=%s --computing=%s' % (
 				command, os.path.join(expdir, expname), os.path.join(expdir, 'recipes', expname), computing)
+		if computing != 'standard':
+			run_string += ' --minmemory=%s' % minmemory
 
 		if command == 'train':
 			# copy the recipe dir to the expdir
@@ -63,13 +65,19 @@ def main(
 			run_string += ' --resume=%s --sweep_flag=%s --test_when_finished=%s' % (
 					resume, True, test_when_finished)
 
+			if computing != 'standard':
+				run_string += ' --mincudamemory=%s' % mincudamemory
+
 		elif command == 'test':
+			# Expecting that recipe dir is already in place because run sweep --command=train should have already been called.
 			run_string += ' --allow_early_testing=%s' % allow_early_testing
+			if test_task:
+				run_string += ' --task=%s' % test_task
 
 		else:
 			raise BaseException('Unknown command to sweep: %s' % command)
 
-		if int(duplicates) > 1:
+		if int(duplicates) > 1 or int(duplicates_ind_offset) > 0:
 			run_string += ' --duplicates=%s --duplicates_ind_offset=%s' % (duplicates, duplicates_ind_offset)
 
 		os.system(run_string)
@@ -81,17 +89,23 @@ if __name__ == '__main__':
 	tf.app.flags.DEFINE_string('computing', 'standard', 'the distributed computing system one of standard or condor')
 	tf.app.flags.DEFINE_string('sweep', None, 'the file containing the sweep parameters')
 	tf.app.flags.DEFINE_string('command', None, 'the command to run')
+	tf.app.flags.DEFINE_string('minmemory', None, 'The minimum required computing RAM in MB. (only for non-standard computing)')
+	tf.app.flags.DEFINE_string('mincudamemory', None, 'The minimum required computing CUDA GPU memory in MB. (only for training and non-standard computing)')
 	tf.app.flags.DEFINE_string('resume', 'False', 'whether the experiment in expdir, if available, has to be resumed')
 	tf.app.flags.DEFINE_string('duplicates', '1', 'How many duplicates of the same experiment should be run')
 	tf.app.flags.DEFINE_string('duplicates_ind_offset', '0', 'Index offset for duplicates')
 	tf.app.flags.DEFINE_string(
-		'test_when_finished', 'False', 'whether the test script should be started upon finishing training')
+		'test_when_finished', 'True', 'whether the test script should be started upon finishing training')
 	tf.app.flags.DEFINE_string(
 		'allow_early_testing', 'False',
 		'whether testing is allowed before training has ended (only relevant for the test command)')
+	tf.app.flags.DEFINE_string(
+		'task', None,
+		'If specified (for testing only), the evaluation tasks field in the recipe will be ignored and only the given task will be evaluated.')
 
 	FLAGS = tf.app.flags.FLAGS
 
 	main(
-		FLAGS.sweep, FLAGS.command, FLAGS.expdir, FLAGS.recipe, FLAGS.computing, FLAGS.resume, FLAGS.duplicates,
-		FLAGS.duplicates_ind_offset, FLAGS.test_when_finished, FLAGS.allow_early_testing)
+		FLAGS.sweep, FLAGS.command, FLAGS.expdir, FLAGS.recipe, FLAGS.computing, FLAGS.minmemory, FLAGS.mincudamemory,
+		FLAGS.resume, FLAGS.duplicates, FLAGS.duplicates_ind_offset, FLAGS.test_when_finished, FLAGS.allow_early_testing,
+		FLAGS.task)

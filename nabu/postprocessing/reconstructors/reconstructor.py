@@ -5,7 +5,6 @@ from abc import ABCMeta, abstractmethod
 import os
 import scipy.io.wavfile as wav
 import numpy as np
-import pdb
 
 
 class Reconstructor(object):
@@ -36,6 +35,11 @@ class Reconstructor(object):
 
 		self.nrS = int(conf['nrs'])
 
+		if 'transpose_order' in conf:
+			self.transpose_order = map(int, conf['transpose_order'].split(' '))
+		else:
+			self.transpose_order = False
+
 		# create the directory to write down the reconstructions
 		self.rec_dir = rec_dir
 		if not os.path.isdir(self.rec_dir):
@@ -48,7 +52,13 @@ class Reconstructor(object):
 		# shuffle option in the data_queue is set to False!!
 		self.pos = 0
 
-		self.scp_file = open(os.path.join(self.rec_dir, 'pointers.scp'), 'w')
+		self.scp_file = os.path.join(self.rec_dir, 'pointers.scp')
+
+		# whether to save output as numpy instead of wav file
+		if 'save_as_numpy' in conf:
+			self.save_as_numpy = conf['save_as_numpy'] in ['True', 'true']
+		else:
+			self.save_as_numpy = False
 
 		# Whether the raw output should also be stored (besides the reconstructed audiosignal)
 		self.store_output = conf['store_output'] == 'True'
@@ -64,6 +74,9 @@ class Reconstructor(object):
 		- batch_outputs: A dictionary containing the batch outputs of the network
 		- batch_sequence_lengths: A dictionary containing the sequence length for each utterance
 		"""
+		if self.transpose_order:
+			for output_name in self.requested_output_names:
+				batch_outputs[output_name] = np.transpose(batch_outputs[output_name], self.transpose_order)
 
 		for utt_ind in range(self.batch_size):
 
@@ -71,6 +84,8 @@ class Reconstructor(object):
 			for output_name in self.requested_output_names:
 				# anchor output for anchor_deepattractornet_softmax_reconstructor is special case
 				if output_name is 'anchors' and self.__class__.__name__ in ['AnchorDeepattractorSoftmaxReconstructor', 'WeightedAnchorDeepattractorSoftmaxReconstructor']:
+					utt_output[output_name] = batch_outputs[output_name]
+				elif output_name is 'anchors_scale' and self.__class__.__name__ in ['TimeAnchorScalarDeepattractorSoftmaxReconstructor']:
 					utt_output[output_name] = batch_outputs[output_name]
 				else:
 					utt_output[output_name] = \
@@ -80,7 +95,11 @@ class Reconstructor(object):
 			reconstructed_signals, utt_info = self.reconstruct_signals(utt_output)
 
 			# make the audio files for the reconstructed signals
-			self.write_audiofile(reconstructed_signals, utt_info)
+			if self.save_as_numpy:
+				filename = os.path.join(self.rec_dir, utt_info['utt_name'] + '.npy')
+				np.save(filename, reconstructed_signals)
+			else:
+				self.write_audiofile(reconstructed_signals, utt_info)
 
 			# if requested store the raw output
 			if self.store_output:
@@ -149,8 +168,18 @@ class Reconstructor(object):
 			rec_dir = os.path.join(self.rec_dir, 's' + str(spk+1))
 			filename = os.path.join(rec_dir, utt_info['utt_name']+'.wav')
 			signal = reconstructed_signals[spk]
+			if signal.dtype == np.float64:
+				signal = np.float32(signal)
 			wav.write(filename, utt_info['rate'], signal)
 			write_str += ' ' + filename
 
 		write_str += ' \n'
-		self.scp_file.write(write_str)
+		self.scp_fid.write(write_str)
+
+	def open_scp_files(self, from_start=True):
+		if from_start:
+			file_mode = 'w'
+		else:
+			file_mode = 'a+'
+		self.scp_fid = open(self.scp_file, file_mode)
+

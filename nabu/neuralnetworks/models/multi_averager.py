@@ -30,7 +30,7 @@ class MultiAverager(model.Model):
                 tensor
         '''
         
-	
+	raise BaseException('Dont know where this is for, but should be renamed or put under a different model')
 	if len(inputs) != 3:
 	    raise 'The implementation of MultiAverager expects 3 inputs and not %d' %len(inputs)
 	else:

@@ -1,6 +1,8 @@
 """@file test.py
 this file will run the test script"""
 
+
+import matlab.engine
 import sys
 import os
 import shutil
@@ -14,13 +16,18 @@ sys.path.append(os.getcwd())
 
 tf.app.flags.DEFINE_string('expdir', None, 'the exeriments directory that was used for training')
 tf.app.flags.DEFINE_string('recipe', None, 'The directory containing the recipe')
+tf.app.flags.DEFINE_string(
+	'task', None,
+	'If specified, the evaluation tasks field in the recipe will be ignored and only the given task will be evaluated.')
 tf.app.flags.DEFINE_string('computing', 'standard', 'the distributed computing system one of standart or condor')
+tf.app.flags.DEFINE_string('minmemory', None, 'The minimum required computing RAM in MB. (only for non-standard computing)')
 tf.app.flags.DEFINE_string('sweep_flag', 'False', 'whether the script was called from a sweep')
 tf.app.flags.DEFINE_string('allow_early_testing', 'False', 'whether testing is allowed before training has ended')
 tf.app.flags.DEFINE_string('duplicates', '1', 'How many duplicates of the same experiment were run')
 tf.app.flags.DEFINE_string('duplicates_ind_offset', '0', 'Index offset for duplicates')
 
 FLAGS = tf.app.flags.FLAGS
+
 
 
 def main(_):
@@ -35,10 +42,15 @@ def main(_):
 	if not os.path.isdir(FLAGS.recipe):
 		raise Exception('cannot find recipe %s' % FLAGS.recipe)
 
+	if FLAGS.minmemory == 'None':
+		FLAGS.minmemory = None
+
 	evaluator_cfg_file = os.path.join(FLAGS.recipe, 'test_evaluator.cfg')
 	database_cfg_file = os.path.join(FLAGS.recipe, 'database.conf')
 	reconstructor_cfg_file = os.path.join(FLAGS.recipe, 'reconstructor.cfg')
+	speaker_verification_handler_cfg_file = os.path.join(FLAGS.recipe, 'speaker_verification_handler.cfg')
 	scorer_cfg_file = os.path.join(FLAGS.recipe, 'scorer.cfg')
+	speaker_verification_scorer_cfg_file = os.path.join(FLAGS.recipe, 'speaker_verification_scorer.cfg')
 	postprocessor_cfg_file = os.path.join(FLAGS.recipe, 'postprocessor.cfg')
 	model_cfg_file = os.path.join(FLAGS.recipe, 'model.cfg')
 	losses_cfg_file = os.path.join(FLAGS.recipe, 'loss.cfg')
@@ -46,6 +58,12 @@ def main(_):
 	if not os.path.isfile(losses_cfg_file):
 		warnings.warn('In following versions it will be required to provide a loss config file', Warning)
 		losses_cfg_available = False
+	exp_specific_computing_cfg_file = os.path.join(FLAGS.recipe, 'computing.cfg')
+	if os.path.isfile(exp_specific_computing_cfg_file) and FLAGS.computing != 'standard' and not FLAGS.minmemory:
+		parsed_exp_specific_computing_cfg = configparser.ConfigParser()
+		parsed_exp_specific_computing_cfg.read(exp_specific_computing_cfg_file)
+		exp_specific_computing_cfg = dict(parsed_exp_specific_computing_cfg.items('computing'))
+		FLAGS.minmemory = exp_specific_computing_cfg['mintestmemory']
 
 	# Assuming only one (typically the last one) training stage needs testing
 	parsed_evaluator_cfg = configparser.ConfigParser()
@@ -55,7 +73,7 @@ def main(_):
 	duplicates = int(FLAGS.duplicates)
 	duplicates_ind_offset = int(FLAGS.duplicates_ind_offset)
 	for dupl_ind in range(duplicates_ind_offset, duplicates+duplicates_ind_offset):
-		if duplicates > 1 or duplicates_ind_offset > 1:
+		if duplicates > 1 or duplicates_ind_offset > 0:
 			expdir_run = FLAGS.expdir+'_dupl%i' % dupl_ind
 		else:
 			expdir_run = FLAGS.expdir
@@ -89,7 +107,7 @@ def main(_):
 			test_model_checkpoint = os.path.join(test_model_dir, 'validated.ckpt')
 		else:
 			exception_string = \
-				'Testing not (yet) allowed for %s as training has not yet been finished and early testing is set to %s.' % \
+				'Testing not (yet) allowed for %s as training has not (yet) been finished and early testing is set to %s.' % \
 				(os.path.join(expdir_run, training_stage), FLAGS.allow_early_testing)
 			if os.path.isfile(os.path.join(expdir_run, training_stage, 'logdir', 'validated.ckpt.meta')):
 				exception_string += \
@@ -120,10 +138,20 @@ def main(_):
 						# os.path.join(test_expdir_run, 'database.cfg'))
 		shutil.copyfile(evaluator_cfg_file,
 						os.path.join(test_expdir_run, 'evaluator.cfg'))
-		shutil.copyfile(reconstructor_cfg_file,
+
+		if os.path.isfile(reconstructor_cfg_file):
+			shutil.copyfile(reconstructor_cfg_file,
 						os.path.join(test_expdir_run, 'reconstructor.cfg'))
-		shutil.copyfile(scorer_cfg_file,
-						os.path.join(test_expdir_run, 'scorer.cfg'))
+
+			shutil.copyfile(scorer_cfg_file,
+							os.path.join(test_expdir_run, 'scorer.cfg'))
+
+		if os.path.isfile(speaker_verification_handler_cfg_file):
+			shutil.copyfile(speaker_verification_handler_cfg_file,
+						os.path.join(test_expdir_run, 'speaker_verification_handler.cfg'))
+
+			shutil.copyfile(speaker_verification_scorer_cfg_file,
+							os.path.join(test_expdir_run, 'speaker_verification_scorer.cfg'))
 	
 		try:
 			shutil.copyfile(postprocessor_cfg_file,
@@ -137,41 +165,46 @@ def main(_):
 							os.path.join(test_expdir_run, 'loss.cfg'))
 	
 		# Get all tasks
-		evaluator_cfg = configparser.ConfigParser()
-		evaluator_cfg.read(os.path.join(test_expdir_run, 'evaluator.cfg'))
-		if evaluator_cfg.get('evaluator', 'evaluator') == 'multi_task':
-			tasks = evaluator_cfg.get('evaluator', 'tasks').split(' ')
+		if FLAGS.task:
+			tasks = [FLAGS.task]
 		else:
-			raise Exception('unkown type of evaluation %s' % evaluator_cfg.get('evaluator', 'evaluator'))
+			evaluator_cfg = configparser.ConfigParser()
+			evaluator_cfg.read(os.path.join(test_expdir_run, 'evaluator.cfg'))
+			if evaluator_cfg.get('evaluator', 'evaluator') == 'multi_task':
+				tasks = evaluator_cfg.get('evaluator', 'tasks').split(' ')
+			else:
+				raise Exception('unkown type of evaluation %s' % evaluator_cfg.get('evaluator', 'evaluator'))
+		#
+		computing_cfg_file = 'config/computing/%s/%s.cfg' % (FLAGS.computing, 'non_distributed')
 	
 		if FLAGS.computing == 'condor':
-	
-			computing_cfg_file = 'config/computing/condor/non_distributed.cfg'
-			parsed_computing_cfg = configparser.ConfigParser()
-			parsed_computing_cfg.read(computing_cfg_file)
-			computing_cfg = dict(parsed_computing_cfg.items('computing'))
-	
+			if not FLAGS.minmemory:
+				# read the computing config file
+				parsed_computing_cfg = configparser.ConfigParser()
+				parsed_computing_cfg.read(computing_cfg_file)
+				computing_cfg = dict(parsed_computing_cfg.items('computing'))
+				FLAGS.minmemory = computing_cfg['mintestmemory']
+
+
 			if not os.path.isdir(os.path.join(test_expdir_run, 'outputs')):
 				os.makedirs(os.path.join(test_expdir_run, 'outputs'))
 	
 			# for each task, launch a test job
 			for task in tasks:
-				# minmemory = computing_cfg['minmemory']
-				# subprocess.call([
-				#     'condor_submit', 'expdir=%s/test' % expdir_run, 'script=nabu/scripts/test.py', 'memory=%s' % minmemory,
-				#                      'condor_prio=%s' % -10, 'nabu/computing/condor/non_distributed.job'])
-	
+				# print(' '.join(['condor_submit', 'expdir=%s' % test_expdir_run, 'test_model_checkpoint=%s' % test_model_checkpoint,
+				# 					 'task=%s' % task,
+				# 	'script=nabu/scripts/test.py', 'nabu/computing/condor/non_distributed_cpu.job']))
 				subprocess.call([
 					'condor_submit', 'expdir=%s' % test_expdir_run, 'test_model_checkpoint=%s' % test_model_checkpoint,
-					'task=%s' % task,
+					'task=%s' % task, 'memory=%s' % FLAGS.minmemory,
 					'script=nabu/scripts/test.py', 'nabu/computing/condor/non_distributed_cpu.job'])
 	
 		elif FLAGS.computing == 'torque':
 	
-			computing_cfg_file = 'config/computing/torque/non_distributed.cfg'
-			parsed_computing_cfg = configparser.ConfigParser()
-			parsed_computing_cfg.read(computing_cfg_file)
-			computing_cfg = dict(parsed_computing_cfg.items('computing'))
+			# computing_cfg_file = 'config/computing/torque/non_distributed.cfg'
+			# parsed_computing_cfg = configparser.ConfigParser()
+			# parsed_computing_cfg.read(computing_cfg_file)
+			# computing_cfg = dict(parsed_computing_cfg.items('computing'))
 	
 			if not os.path.isdir(os.path.join(test_expdir_run, 'outputs')):
 				os.makedirs(os.path.join(test_expdir_run, 'outputs'))
@@ -200,7 +233,7 @@ def main(_):
 
 
 def get_early_stop_val_step(test_model_checkpoint):
-	class tmphook(tf.train.SessionRunHook):
+	class TmpHook(tf.train.SessionRunHook):
 		def begin(self):
 			collection = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='validate')
 			self._saver = tf.train.Saver(collection, sharded=True, name='LoaderAtBegin2')
@@ -214,8 +247,8 @@ def get_early_stop_val_step(test_model_checkpoint):
 			val_step = tf.get_variable(name='validated_step', shape=[], dtype=tf.int32)
 
 
-		jer = tmphook()
-		with tf.train.SingularMonitoredSession(hooks=[jer]) as sess:
+		tmphook = TmpHook()
+		with tf.train.SingularMonitoredSession(hooks=[tmphook]) as sess:
 			val_step_value = sess.run(val_step)
 
 	return val_step_value

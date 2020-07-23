@@ -64,7 +64,7 @@ class ScorelabelperfeatureProcessor(processor.Processor):
         usedbins = np.greater(features, floor)
 
         if np.mean(usedbins) < 0.01:
-            print 'WARNING: less than 1% of the time-frequency bins were considered active'
+            print('WARNING: less than 1% of the time-frequency bins were considered active')
 
         # split the data for all desired segment lengths
         segmented_data = self.segment_data(usedbins)

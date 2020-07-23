@@ -18,7 +18,7 @@ class PESQScorer(scorer.Scorer):
     score_scenarios = ('SS','base')
     score_expects = 'files'
 
-    def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches, task):
+    def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches, task, scorer_name, checkpoint_file):
         '''PESQScorer constructor
 
         Args:
@@ -29,10 +29,10 @@ class PESQScorer(scorer.Scorer):
             numbatches: the number of batches to process
         '''
         
-        super(PESQScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches, task)
+        super(PESQScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches, task, scorer_name, checkpoint_file)
 
 
-    def _get_score(self,org_src_filenames, base_filenames, rec_src_filenames):
+    def _get_score(self,org_src_filenames, base_filenames, rec_src_filenames, utt_rate=None):
         '''score the reconstructed utterances with respect to the original source signals
 
         Args:

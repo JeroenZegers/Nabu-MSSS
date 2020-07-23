@@ -3,6 +3,7 @@ contains de PlainVariables class"""
 
 import tensorflow as tf
 import model
+import numpy as np
 
 
 class PlainVariables(model.Model):
@@ -24,10 +25,30 @@ class PlainVariables(model.Model):
 
 		with tf.variable_scope(self.scope):
 			# the complete vector set
-			vector_set = tf.get_variable(
-				'vector_set', initializer=tf.truncated_normal(
-					[int(self.conf['tot_vecs']), int(self.conf['vec_dim'])],
-					stddev=tf.sqrt(2/float(self.conf['vec_dim']))))
+			array_shape = [int(self.conf['tot_vecs']), int(self.conf['vec_dim'])]
+			if 'init_value' in self.conf:
+				init_value = float(self.conf['init_value'])
+				initializer = tf.constant_initializer(np.ones(array_shape) * init_value)
+			else:
+				initializer = tf.truncated_normal(array_shape, stddev=tf.sqrt(2/float(self.conf['vec_dim'])))
+				array_shape = None
+
+			floor_val = None
+			ceil_val = None
+			if 'floor_val' in self.conf and self.conf['floor_val'] != 'None':
+				floor_val = float(self.conf['floor_val'])
+			if 'ceil_val' in self.conf and self.conf['ceil_val'] != 'None':
+				ceil_val = float(self.conf['ceil_val'])
+			constraint = None
+			if floor_val or ceil_val:
+				if not ceil_val:
+					ceil_val = np.infty
+				if not floor_val:
+					floor_val = -np.infty
+				constraint = lambda x: tf.clip_by_value(x, floor_val, ceil_val)
+
+			# vector_set = tf.get_variable('vector_set', initializer=initializer, constraint=constraint)
+			vector_set = tf.get_variable('vector_set', shape=array_shape, initializer=initializer, constraint=constraint)
 
 		if 'normalize' in self.conf and self.conf['normalize'] == 'True':
 			vector_set = vector_set/(tf.norm(vector_set, axis=-1, keepdims=True) + 1e-12)
@@ -65,10 +86,15 @@ class PlainVariablesWithIndexing(model.Model):
 
 		with tf.variable_scope(self.scope):
 			# the complete vector set
-			vector_set = tf.get_variable(
-				'vector_set', initializer=tf.truncated_normal(
-					[int(self.conf['tot_vecs']), int(self.conf['vec_dim'])],
-					stddev=tf.sqrt(2/float(self.conf['vec_dim']))))
+			# the complete vector set
+			array_shape = [int(self.conf['tot_vecs']), int(self.conf['vec_dim'])]
+			if 'init_value' in self.conf:
+				init_value = float(self.conf['init_value'])
+				initializer = tf.constant_initializer(np.ones(array_shape) * init_value)
+			else:
+				initializer = tf.truncated_normal(array_shape, stddev=tf.sqrt(2/float(self.conf['vec_dim'])))
+
+			vector_set = tf.get_variable('vector_set', shape=array_shape, initializer=initializer)
 
 			inputs = tf.expand_dims(inputs, -1)
 

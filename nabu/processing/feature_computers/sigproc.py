@@ -32,7 +32,7 @@ Author: James Lyons 2012
 
 import math
 import numpy
-import pdb
+import scipy
 
 def framesig(sig, frame_len, frame_step, winfunc=lambda x: numpy.ones((x, ))):
     '''

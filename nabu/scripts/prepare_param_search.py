@@ -24,6 +24,8 @@ def main(hyper_param_conf, command, expdir, recipe, computing, resume):
 
 		with open(optimizer_pickle_file, 'r') as fid:
 			optimizer = pickle.load(fid)
+		optimizer.max_parallel_jobs = 3
+		optimizer.num_iters = 30
 		optimizer.start_new_run_flag = False
 		# optimizer.resume = True
 

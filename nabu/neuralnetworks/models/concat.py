@@ -40,14 +40,16 @@ class Concat(model.Model):
 			expand_dim_to_first_input = [exp == 'True' for exp in expand_dim_to_first_input]
 		else:
 			expand_dim_to_first_input = [False] + [True] * (len(inputs)-1)
+		# The dimension that will be expanded
+		if 'expand_dimension' in self.conf:
+			expand_dimension = int(self.conf['expand_dimension'])
+		else:
+			expand_dimension = -2
 
 		if is_training and 'input_noise' in self.conf:
 			inputs_noise = map(float, self.conf['input_noise'].split(' '))
 			inputs = [
 				inp + tf.random_normal(tf.shape(inp), stddev=inp_noise) for inp, inp_noise in zip(inputs, inputs_noise)]
-
-		# The dimension that will be expanded, if requested, is the one to last dimension
-		expand_dimension = -2
 
 		with tf.variable_scope(self.scope):
 			inputs = [inputs[ind] for ind, sel in enumerate(select_inputs) if sel]
@@ -69,12 +71,12 @@ class Concat(model.Model):
 
 			if expand_dim_to_first_input[0]:
 				raise ValueError(
-					'The expanded dimension is tiled to match the first input. This is not possible for the first input')
+					'The expanded dimension is tiled to match the first input. Therefor it is not possible for the first input')
 			else:
 				size_of_expanded_dim = tf.shape(inputs[0])[expand_dimension]
 				out_dim = len(inputs[0].get_shape())
 				multiplicates = np.ones(out_dim, np.int).tolist()
-				multiplicates[-2] = size_of_expanded_dim
+				multiplicates[expand_dimension] = size_of_expanded_dim
 				multiplicates = tf.stack(multiplicates)
 
 			for ind, inp in enumerate(inputs):

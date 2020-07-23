@@ -3,18 +3,22 @@ Universe         = vanilla
 # number of CPUs is equal to the number of parameter servers and workers
 requestCpus      = 1
 # need enough RAM to store the parameters
-RequestMemory    = 4G
+RequestMemory    = $(memory)
+Request_GPUs      = 0
 #request a week of wall time
-+RequestWalltime = 604800
++RequestWalltime = 604700
 Requirements = (machine =!= LastRemoteHost)\
   && has_avx\
+  && (machineowner != "PSI/Spraak")\
   && (machine != "andromeda.esat.kuleuven.be")\
-  && (machine != "zulte.esat.kuleuven.be") 
+  && (machine != "zulte.esat.kuleuven.be")\
+  && (machine != "kwibus.esat.kuleuven.be")\
+  && (machine != "blanche.esat.kuleuven.be")
 
 #Specfy nice user behavior
 NiceUser = true
 #Send an email in case of an error
-Notification = Error
+# Notification = Error
 
 initialdir = .
 

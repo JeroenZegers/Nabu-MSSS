@@ -5,7 +5,8 @@ import tensorflow as tf
 import model
 from nabu.neuralnetworks.components import layer
 import math
-
+import numpy as np
+import warnings
 
 class DBLSTM(model.Model):
 	"""A deep bidirectional LSTM classifier"""
@@ -50,9 +51,17 @@ class DBLSTM(model.Model):
 		else:
 			activation_fn = tf.nn.tanh
 
+		# Taking only the last frame output makes less sense in a bi-directional network
+		only_last_frame = 'only_last_frame' in self.conf and self.conf['only_last_frame'] == 'True'
+
 		separate_directions = False
 		if 'separate_directions' in self.conf and self.conf['separate_directions'] == 'True':
 			separate_directions = True
+
+		allow_more_than_3dim = False
+		if 'allow_more_than_3dim' in self.conf and self.conf['allow_more_than_3dim'] == 'True':
+			# Assuming time dimension is one to last
+			allow_more_than_3dim = True
 
 		blstm_layers = []
 		for l in range(num_layers):
@@ -79,6 +88,21 @@ class DBLSTM(model.Model):
 					tf.shape(inputs),
 					stddev=float(self.conf['input_noise']))
 
+			input_shape = inputs.get_shape()
+			input_reshaped = False
+			if len(input_shape) > 3:
+				if allow_more_than_3dim:
+					batch_size = input_shape[0]
+					other_dims = input_shape[1:-2]
+					num_inp_units = input_shape[-1]
+					inputs = tf.reshape(inputs, [batch_size * np.prod(other_dims), -1, num_inp_units])
+					input_seq_length = tf.expand_dims(input_seq_length, -1)
+					input_seq_length = tf.tile(input_seq_length, [1, np.prod(other_dims)])
+					input_seq_length = tf.reshape(input_seq_length, [-1])
+					input_reshaped = True
+				else:
+					raise BaseException('Input has to many dimensions')
+
 			logits = inputs
 
 			if separate_directions:
@@ -91,7 +115,22 @@ class DBLSTM(model.Model):
 					logits = tf.nn.dropout(logits, float(self.conf['dropout']))
 
 			output = logits
+
 			if separate_directions:
 				output = tf.concat(output, 2)
+
+			if input_reshaped:
+				output_shape = output.get_shape()
+				num_output_units = output_shape[-1]
+				output = tf.reshape(output, tf.stack([batch_size] + other_dims.as_list() + [-1] + [num_output_units], 0))
+
+			if only_last_frame:
+				output_rank = len(output.get_shape())
+				if output_rank == 3:
+					output = output[:, -1, :]
+				elif output_rank == 4 and allow_more_than_3dim:
+					output = output[:, :, -1, :]
+				else:
+					raise BaseException('Not yet implemented for rank different from 3 (or 4)')
 
 		return output

@@ -122,13 +122,13 @@ def bidirectional_dynamic_rnn_time_input(cell_fw, cell_bw, inputs, sequence_leng
       time_dim = 0
       batch_dim = 1
 
-    def _reverse(input_, seq_lengths, seq_dim, batch_dim):
+    def _reverse(input_, seq_lengths, seq_axis, batch_axis):
       if seq_lengths is not None:
         return array_ops.reverse_sequence(
             input=input_, seq_lengths=seq_lengths,
-            seq_axis=seq_dim, batch_axis=batch_dim)
+            seq_axis=seq_axis, batch_axis=batch_axis)
       else:
-        return array_ops.reverse(input_, axis=[seq_dim])
+        return array_ops.reverse(input_, axis=[seq_axis])
 
     with vs.variable_scope("bw") as bw_scope:
       inputs_reverse = _reverse(
@@ -258,13 +258,13 @@ def bidirectional_dynamic_rnn_2inputs_time_input(cell_fw, cell_bw, inputs_fw, in
       time_dim = 0
       batch_dim = 1
 
-    def _reverse(input_, seq_lengths, seq_dim, batch_dim):
+    def _reverse(input_, seq_lengths, seq_axis, batch_axis):
       if seq_lengths is not None:
         return array_ops.reverse_sequence(
             input=input_, seq_lengths=seq_lengths,
-            seq_axis=seq_dim, batch_axis=batch_dim)
+            seq_axis=seq_axis, batch_axis=batch_axis)
       else:
-        return array_ops.reverse(input_, axis=[seq_dim])
+        return array_ops.reverse(input_, axis=[seq_axis])
 
     with vs.variable_scope("bw") as bw_scope:
       inputs_reverse = _reverse(
@@ -393,13 +393,13 @@ def bidirectional_dynamic_rnn_2inputs(cell_fw, cell_bw, inputs_fw, inputs_bw,
       time_dim = 0
       batch_dim = 1
 
-    def _reverse(input_, seq_lengths, seq_dim, batch_dim):
+    def _reverse(input_, seq_lengths, seq_axis, batch_axis):
       if seq_lengths is not None:
         return array_ops.reverse_sequence(
             input=input_, seq_lengths=seq_lengths,
-            seq_axis=seq_dim, batch_axis=batch_dim)
+            seq_axis=seq_axis, batch_axis=batch_axis)
       else:
-        return array_ops.reverse(input_, axis=[seq_dim])
+        return array_ops.reverse(input_, axis=[seq_axis])
 
     with vs.variable_scope("bw") as bw_scope:
       inputs_reverse = _reverse(

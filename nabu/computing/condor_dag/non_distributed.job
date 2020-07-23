@@ -1,7 +1,7 @@
 # Normal execution
 Universe         = vanilla
 # need enough RAM to store the parameters
-RequestMemory    = 15G
+RequestMemory    = $(memory)
 #number of GPUs equal to the number of workers
 Request_GPUs      = 1
 RequestCpus = 3
@@ -11,7 +11,7 @@ RequestCpus = 3
 #requirement
 Requirements = (CUDACapability >= 3.0)\
   && has_avx\
-  &&(CUDAGlobalMemoryMb >= $(memory))\
+  &&(CUDAGlobalMemoryMb >= $(cudamemory))\
   &&(machine =!= LastRemoteHost)\
   && (machine != "spchcl24.esat.kuleuven.be")\
   && (machine != "spchcl23.esat.kuleuven.be")\

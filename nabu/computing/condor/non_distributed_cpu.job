@@ -2,15 +2,25 @@
 Universe         = vanilla
 # need enough RAM to store the parameters
 # RequestMemory    = 15G
-RequestMemory    = 63G
+RequestMemory    = $(memory)
 requestCpus      = 8
+Request_GPUs      = 0
 #request a week of wall time
-+RequestWalltime = 604800
++RequestWalltime = 604700
 #specify that the cuda capability should be at least 3.0 and set the memory
 #requirement
 #Requirements = (CUDACapability >= 3.0)
+# Requirements = (machine == "ulexite.esat.kuleuven.be") \
+#   || (machine == "iolite.esat.kuleuven.be")\
+#   || (machine == "estragon.esat.kuleuven.be")\
+#   || (machine == "avocado.esat.kuleuven.be")
 Requirements =  has_avx\
   && (machine =!= LastRemoteHost)\
+  && (machineowner != "PSI/Spraak")\
+  && (machine != "kwibus.esat.kuleuven.be") \
+  && (machine != "crabbelaer.esat.kuleuven.be") \
+  && (machine != "koekelaring.esat.kuleuven.be") \
+  && (machine != "sista-nc-2.esat.kuleuven.be") \
   && (machine != "zulte.esat.kuleuven.be") \
   && (machine != "bandai.esat.kuleuven.be") \
   && (machine != "blanche.esat.kuleuven.be") \
@@ -18,6 +28,10 @@ Requirements =  has_avx\
   && (machine != "spchcl23.esat.kuleuven.be") \
   && (machine != "yperman.esat.kuleuven.be") \
   && (machine != "andromeda.esat.kuleuven.be") \
+  && (machine != "estragon.esat.kuleuven.be") \
+  && (machine != "paljas.esat.kuleuven.be") \
+  && (machine != "mystic.esat.kuleuven.be") \
+  && (machine != "bavaro.esat.kuleuven.be") \
   # I removed the following machines because I think cosic members kill them manually (not confirmed) \
   && (machine != "bryggja.esat.kuleuven.be")\
   && (machine != "koninck.esat.kuleuven.be")\

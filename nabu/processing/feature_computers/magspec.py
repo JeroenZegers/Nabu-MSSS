@@ -25,10 +25,16 @@ class Magspec(feature_computer.FeatureComputer):
         # snip the edges
         sig = snip(sig, rate, float(self.conf['winlen']), float(self.conf['winstep']))
 
-        feat = base.magspec(sig, rate, self.conf)
+        if 'scipy' in self.conf and self.conf['scipy'] == 'True':
+            feat = base.magspec_scipy(sig, rate, self.conf)
+        else:
+            feat = base.magspec(sig, rate, self.conf)
 
         if self.conf['include_energy'] == 'True':
-            _, energy = base.fbank(sig, rate, self.conf)
+            if 'scipy' in self.conf and self.conf['scipy'] == 'True':
+                _, energy = base.fbank_scipy(sig, rate, self.conf)
+            else:
+                _, energy = base.fbank(sig, rate, self.conf)
             feat = np.append(feat, energy[:, np.newaxis], 1)
 
         return feat
@@ -62,10 +68,16 @@ class Powspec(feature_computer.FeatureComputer):
         # snip the edges
         sig = snip(sig, rate, float(self.conf['winlen']), float(self.conf['winstep']))
 
-        feat = base.powspec(sig, rate, self.conf)
+        if 'scipy' in self.conf and self.conf['scipy'] == 'True':
+            feat = base.powspec_scipy(sig, rate, self.conf)
+        else:
+            feat = base.powspec(sig, rate, self.conf)
 
         if self.conf['include_energy'] == 'True':
-            _, energy = base.fbank(sig, rate, self.conf)
+            if 'scipy' in self.conf and self.conf['scipy'] == 'True':
+                _, energy = base.fbank_scipy(sig, rate, self.conf)
+            else:
+                _, energy = base.fbank(sig, rate, self.conf)
             feat = np.append(feat, energy[:, np.newaxis], 1)
 
         return feat

@@ -55,7 +55,7 @@ class Processor(object):
 				if winlen_sample is None and winstep_sample is None:
 					Nseg = int(np.floor(float(N)/float(seg_len)))
 					if Nseg < 1:
-						seg_data = [np.concatenate((data, np.zeros((seg_len-N, self.dim))), axis=0)]
+						seg_data = [np.concatenate((data, np.zeros([seg_len-N] + list(np.shape(data)[1:]))), axis=0)]
 					else:
 						seg_data = []
 						for seg_ind in range(Nseg):

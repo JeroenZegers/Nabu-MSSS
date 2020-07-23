@@ -39,7 +39,13 @@ class Linear(model.Model):
 			output_shape = map(int, self.conf['output_dims'].split(' '))
 			output_size = np.prod(output_shape)
 
-			output = tf.contrib.layers.linear(inputs=logits, num_outputs=output_size)
+			no_bias = 'no_bias' in self.conf and self.conf['no_bias'] == 'True'
+			if no_bias:
+				biases_initializer = None
+			else:
+				biases_initializer = tf.zeros_initializer()
+
+			output = tf.contrib.layers.linear(inputs=logits, num_outputs=output_size, biases_initializer=biases_initializer)
 
 			if len(output_shape) > 1:
 				fixed_shape = tf.shape(output)[:-1]

@@ -10,10 +10,13 @@ from six.moves import configparser
 from train import train
 import warnings
 from datetime import date
+import time
 sys.path.append(os.getcwd())
 
 
-def main(expdir, recipe, computing, resume, duplicates, duplicates_ind_offset, sweep_flag, test_when_finished):
+def main(
+		expdir, recipe, computing, minmemory, mincudamemory, resume, duplicates, duplicates_ind_offset, sweep_flag,
+		test_when_finished):
 	"""main function"""
 
 	if expdir is None:
@@ -41,6 +44,15 @@ def main(expdir, recipe, computing, resume, duplicates, duplicates_ind_offset, s
 	if not os.path.isfile(losses_cfg_file):
 		warnings.warn('In following versions it will be required to provide a loss config file', Warning)
 		losses_cfg_available = False
+	exp_specific_computing_cfg_file = os.path.join(recipe, 'computing.cfg')
+	if os.path.isfile(exp_specific_computing_cfg_file) and computing != 'standard' and (not minmemory or not mincudamemory):
+		parsed_exp_specific_computing_cfg = configparser.ConfigParser()
+		parsed_exp_specific_computing_cfg.read(exp_specific_computing_cfg_file)
+		exp_specific_computing_cfg = dict(parsed_exp_specific_computing_cfg.items('computing'))
+		if not minmemory:
+			minmemory = exp_specific_computing_cfg['minmemory']
+		if not mincudamemory:
+			mincudamemory = exp_specific_computing_cfg['mincudamemory']
 
 	# read the trainer config file
 	parsed_trainer_cfg = configparser.ConfigParser()
@@ -48,7 +60,7 @@ def main(expdir, recipe, computing, resume, duplicates, duplicates_ind_offset, s
 	trainer_cfg = dict(parsed_trainer_cfg.items('trainer'))
 
 	for dupl_ind in range(duplicates_ind_offset, duplicates+duplicates_ind_offset):
-		if duplicates > 1 or duplicates_ind_offset > 1:
+		if duplicates > 1 or duplicates_ind_offset > 0:
 			expdir_run = expdir+'_dupl%i' % dupl_ind
 		else:
 			expdir_run = expdir
@@ -140,11 +152,19 @@ def main(expdir, recipe, computing, resume, duplicates, duplicates_ind_offset, s
 			today = today.strftime("%Y%m%d")
 			if os.path.isdir('train_files_to_resume'):
 				to_run = "run train --expdir=%s --recipe=%s --computing=%s --resume=True" % (expdir_run, recipe, computing)
+				if minmemory:
+					to_run += " --minmemory=%s" % minmemory
+				if mincudamemory:
+					to_run += " --mincudamemory=%s" % mincudamemory
 				with open(os.path.join('train_files_to_resume', 'train' + today + expdir_run.replace('/', '')), 'w') as fid:
 					fid.write('%s: %s \n %s:%s' % ('file_to_check', 'None', 'to_run', to_run))
 
 			if os.path.isdir('train_files_to_restart'):
 				to_run = "run train --expdir=%s --recipe=%s --computing=%s --resume=False" % (expdir_run, recipe, computing)
+				if minmemory:
+					to_run += " --minmemory=%s" % minmemory
+				if mincudamemory:
+					to_run += " --mincudamemory=%s" % mincudamemory
 				with open(os.path.join('train_files_to_restart', 'train' + today + expdir_run.replace('/', '')), 'w') as fid:
 					fid.write('%s: %s \n %s:%s' % ('file_to_check', 'None', 'to_run', to_run))
 
@@ -158,11 +178,22 @@ def main(expdir, recipe, computing, resume, duplicates, duplicates_ind_offset, s
 			train(clusterfile=None, job_name='local', task_index=0, ssh_command='None', expdir=expdir_run)
 
 		elif computing == 'condor':
+			if not minmemory or not mincudamemory:
+				# read the computing config file
+				parsed_computing_cfg = configparser.ConfigParser()
+				parsed_computing_cfg.read(computing_cfg_file)
+				computing_cfg = dict(parsed_computing_cfg.items('computing'))
 
-			# read the computing config file
-			parsed_computing_cfg = configparser.ConfigParser()
-			parsed_computing_cfg.read(computing_cfg_file)
-			computing_cfg = dict(parsed_computing_cfg.items('computing'))
+				if not minmemory:
+					if sweep_flag == 'True':
+						minmemory = computing_cfg['minmemory_sweep']
+					else:
+						minmemory = computing_cfg['minmemory']
+				if not mincudamemory:
+					if sweep_flag == 'True':
+						mincudamemory = computing_cfg['mincudamemory_sweep']
+					else:
+						mincudamemory = computing_cfg['mincudamemory']
 
 			if dupl_ind > 0:
 				condor_prio_additional = -1-dupl_ind
@@ -171,10 +202,8 @@ def main(expdir, recipe, computing, resume, duplicates, duplicates_ind_offset, s
 
 			if sweep_flag == 'True':
 				condor_prio = str(-11 + condor_prio_additional)
-				minmemory = computing_cfg['minmemory_sweep']
 			else:
 				condor_prio = str(-10 + condor_prio_additional)
-				minmemory = computing_cfg['minmemory']
 
 			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
 				os.makedirs(os.path.join(expdir_run, 'outputs'))
@@ -185,28 +214,35 @@ def main(expdir, recipe, computing, resume, duplicates, duplicates_ind_offset, s
 				to_run = "run test --expdir=%s --recipe=%s --computing=%s" % (expdir_run, recipe, computing)
 				with open(os.path.join('files_to_run', expdir_run.replace('/', '')), 'w') as fid:
 					fid.write('%s: %s \n %s:%s' % ('file_to_check', file_to_check, 'to_run', to_run))
-
+			# print(' '.join([
+			# 	'condor_submit', 'expdir=%s' % expdir_run, 'script=nabu/scripts/train.py', 'memory=%s' % minmemory,
+			# 	'condor_prio=%s' % condor_prio, 'nabu/computing/condor/non_distributed.job']))
 			subprocess.call([
 				'condor_submit', 'expdir=%s' % expdir_run, 'script=nabu/scripts/train.py', 'memory=%s' % minmemory,
-				'condor_prio=%s' % condor_prio, 'nabu/computing/condor/non_distributed.job'])
+				'cudamemory=%s' % mincudamemory, 'condor_prio=%s' % condor_prio, 'nabu/computing/condor/non_distributed.job'])
 
 		elif computing == 'condor_dag':
-			# read the computing config file
-			parsed_computing_cfg = configparser.ConfigParser()
-			parsed_computing_cfg.read(computing_cfg_file)
-			computing_cfg = dict(parsed_computing_cfg.items('computing'))
+			if not minmemory or not mincudamemory:
+				# read the computing config file
+				parsed_computing_cfg = configparser.ConfigParser()
+				parsed_computing_cfg.read(computing_cfg_file)
+				computing_cfg = dict(parsed_computing_cfg.items('computing'))
 
-			if dupl_ind > 0:
-				condor_prio_additional = -1-dupl_ind
-			else:
-				condor_prio_additional = 0
+				if not minmemory:
+					if sweep_flag == 'True':
+						minmemory = computing_cfg['minmemory_sweep']
+					else:
+						minmemory = computing_cfg['minmemory']
+				if not mincudamemory:
+					if sweep_flag == 'True':
+						mincudamemory = computing_cfg['mincudamemory_sweep']
+					else:
+						mincudamemory = computing_cfg['mincudamemory']
 
 			if sweep_flag == 'True':
 				condor_prio = str(-11 + condor_prio_additional)
-				minmemory = computing_cfg['minmemory_sweep']
 			else:
 				condor_prio = str(-10 + condor_prio_additional)
-				minmemory = computing_cfg['minmemory']
 
 			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
 				os.makedirs(os.path.join(expdir_run, 'outputs'))
@@ -229,9 +265,9 @@ def main(expdir, recipe, computing, resume, duplicates, duplicates_ind_offset, s
 
 		elif computing == 'torque':
 			# read the computing config file
-			parsed_computing_cfg = configparser.ConfigParser()
-			parsed_computing_cfg.read(computing_cfg_file)
-			computing_cfg = dict(parsed_computing_cfg.items('computing'))
+			# parsed_computing_cfg = configparser.ConfigParser()
+			# parsed_computing_cfg.read(computing_cfg_file)
+			# computing_cfg = dict(parsed_computing_cfg.items('computing'))
 
 			if not os.path.isdir(os.path.join(expdir_run, 'outputs')):
 				os.makedirs(os.path.join(expdir_run, 'outputs'))
@@ -254,15 +290,20 @@ if __name__ == '__main__':
 	tf.app.flags.DEFINE_string('expdir', None, 'the exeriments directory')
 	tf.app.flags.DEFINE_string('recipe', None, 'The directory containing the recipe')
 	tf.app.flags.DEFINE_string('computing', 'standard', 'the distributed computing system one of condor')
+	tf.app.flags.DEFINE_string('minmemory', None, 'The minimum required computing RAM in MB. (only for non-standard computing)')
+	tf.app.flags.DEFINE_string('mincudamemory', None, 'The minimum required computing CUDA GPU memory in MB. (only for non-standard computing)')
 	tf.app.flags.DEFINE_string('resume', 'False', 'whether the experiment in expdir, if available, has to be resumed')
 	tf.app.flags.DEFINE_string('duplicates', '1', 'How many duplicates of the same experiment should be run')
 	tf.app.flags.DEFINE_string('duplicates_ind_offset', '0', 'Index offset for duplicates')
 	tf.app.flags.DEFINE_string('sweep_flag', 'False', 'whether the script was called from a sweep')
 	tf.app.flags.DEFINE_string(
-		'test_when_finished', 'False', 'whether the test script should be started upon finishing training')
+		'test_when_finished', 'True', 'whether the test script should be started upon finishing training')
 
 	FLAGS = tf.app.flags.FLAGS
-
+	if FLAGS.minmemory == 'None':
+		FLAGS.minmemory = None
+	if FLAGS.mincudamemory == 'None':
+		FLAGS.mincudamemory = None
 	main(
-		FLAGS.expdir, FLAGS.recipe, FLAGS.computing, FLAGS.resume, FLAGS.duplicates, FLAGS.duplicates_ind_offset,
-		FLAGS.sweep_flag, FLAGS.test_when_finished)
+		FLAGS.expdir, FLAGS.recipe, FLAGS.computing, FLAGS.minmemory, FLAGS.mincudamemory, FLAGS.resume,
+		FLAGS.duplicates, FLAGS.duplicates_ind_offset, FLAGS.sweep_flag, FLAGS.test_when_finished)

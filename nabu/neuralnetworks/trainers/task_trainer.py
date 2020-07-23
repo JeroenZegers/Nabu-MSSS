@@ -190,7 +190,7 @@ class TaskTrainer(object):
 					targets[target_name] = data[len(self.input_names) + ind]
 
 				# get the logits
-				logits = run_multi_model.run_multi_model(
+				logits, used_models = run_multi_model.run_multi_model(
 					models=self.models,
 					model_nodes=self.model_nodes,
 					model_links=self.model_links,
@@ -206,14 +206,17 @@ class TaskTrainer(object):
 				task_minibatch_loss *= self.linkedset_weighting[linkedset]
 				task_minibatch_loss_norm *= self.linkedset_weighting[linkedset]
 
-				task_minibatch_grads_and_vars = optimizer.compute_gradients(task_minibatch_loss)
+				used_variables = run_multi_model.get_variables(used_models)
+				task_minibatch_grads_and_vars = optimizer.compute_gradients(task_minibatch_loss, var_list=used_variables)
 
 				(task_minibatch_grads, task_vars) = zip(*task_minibatch_grads_and_vars)
 
 				if set_ind == 0:
-					# This should have already been done before the loop, but then the trainable parameters where unknown
-					# gather all trainable parameters
-					self.params = tf.trainable_variables()
+					# # This should have already been done before the loop, but then the trainable parameters where unknown
+					# # gather all trainable parameters
+					# self.params = tf.trainable_variables()
+
+					self.params = task_vars
 
 					# a variable to hold all the gradients
 					self.grads = [tf.get_variable(
@@ -265,17 +268,34 @@ class TaskTrainer(object):
 
 		return batch_grads_and_vars
 
-	def train(self, learning_rate):
+	def train(self, learning_rate, var_weights=None, batch_grads_and_vars=None):
 		"""set the training ops for this task"""
 
 		# create the optimizer
 		optimizer = tf.train.AdamOptimizer(learning_rate)
 
 		# gather the gradients
-		batch_grads_and_vars = self.gather_grads(optimizer)
+		if not batch_grads_and_vars:
+			batch_grads_and_vars = self.gather_grads(optimizer)
 
-		# an op to apply the accumulated gradients to the variables
-		self.apply_gradients = optimizer.apply_gradients(grads_and_vars=batch_grads_and_vars, name='apply_gradients')
+		if var_weights:
+			unique_weights, reverse_inds = np.unique(var_weights.values(), return_inverse=True)
+			tmp = []
+			for unique_weight_ind, unique_weight in enumerate(unique_weights):
+				vars_for_unique_weight = [
+					var_name for var_ind, var_name in enumerate(var_weights.keys()) if reverse_inds[var_ind] == unique_weight_ind]
+
+				batch_grads_and_vars_for_unique_weight = [
+					[grad, var] for grad, var in batch_grads_and_vars if var.name in vars_for_unique_weight]
+
+				optimizer = tf.train.AdamOptimizer(learning_rate * unique_weight)
+				tmp.append(optimizer.apply_gradients(grads_and_vars=batch_grads_and_vars_for_unique_weight))
+
+			self.apply_gradients = tf.group(tmp, name='apply_gradients')
+
+		else:
+			# an op to apply the accumulated gradients to the variables
+			self.apply_gradients = optimizer.apply_gradients(grads_and_vars=batch_grads_and_vars, name='apply_gradients')
 
 	def evaluate_evaluator(self):
 		"""set the evaluation ops for this task"""

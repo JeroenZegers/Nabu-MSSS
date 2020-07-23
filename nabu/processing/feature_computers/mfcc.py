@@ -1,17 +1,17 @@
-'''@file mfcc.py
-contains the fbank feature computer'''
+"""@file mfcc.py
+contains the fbank feature computer"""
 
 import numpy as np
 import base
 import feature_computer
 from sigproc import snip
-import pdb
+
 
 class Mfcc(feature_computer.FeatureComputer):
-    '''the feature computer class to compute MFCC features'''
+    """the feature computer class to compute MFCC features"""
 
     def comp_feat(self, sig, rate):
-        '''
+        """
         compute the features
 
         Args:
@@ -20,14 +20,17 @@ class Mfcc(feature_computer.FeatureComputer):
 
         Returns:
             the features as a [seq_length x feature_dim] numpy array
-        '''
+        """
 
-        #snip the edges
+        # snip the edges
         sig = snip(sig, rate, float(self.conf['winlen']),
                    float(self.conf['winstep']))
-
-        feat, energy = base.mfcc(sig, rate, self.conf)
-
+        
+        if 'scipy' in self.conf and self.conf['scipy'] == 'True':
+            feat, energy = base.mfcc_scipy(sig, rate, self.conf)
+        else:
+            feat, energy = base.mfcc(sig, rate, self.conf)
+            
         if self.conf['include_energy'] == 'True':
             feat = np.append(feat, energy[:, np.newaxis], 1)
 
@@ -41,7 +44,7 @@ class Mfcc(feature_computer.FeatureComputer):
         return feat
 
     def get_dim(self):
-        '''the feature dimemsion'''
+        """the feature dimemsion"""
 
         dim = int(self.conf['numcep'])
 

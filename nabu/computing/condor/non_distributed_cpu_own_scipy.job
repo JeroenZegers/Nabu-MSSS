@@ -1,0 +1,50 @@
+# Normal execution
+Universe         = vanilla
+# need enough RAM to store the parameters
+# RequestMemory    = 15G
+RequestMemory    = 63G
+requestCpus      = 8
+Request_GPUs      = 0
+#request a week of wall time
++RequestWalltime = 604700
+#specify that the cuda capability should be at least 3.0 and set the memory
+#requirement
+#Requirements = (CUDACapability >= 3.0)
+Requirements =  has_avx\
+  && (machine =!= LastRemoteHost)\
+  && (machine != "zulte.esat.kuleuven.be") \
+  && (machine != "bandai.esat.kuleuven.be") \
+  && (machine != "blanche.esat.kuleuven.be") \
+  && (machine != "spchcl21.esat.kuleuven.be") \
+  && (machine != "spchcl23.esat.kuleuven.be") \
+  && (machine != "yperman.esat.kuleuven.be") \
+  && (machine != "andromeda.esat.kuleuven.be") \
+  # I removed the following machines because I think cosic members kill them manually (not confirmed) \
+  && (machine != "bryggja.esat.kuleuven.be")\
+  && (machine != "koninck.esat.kuleuven.be")\
+  # machines removed because owner complained\
+  && (machine != "herkenrode.esat.kuleuven.be")
+
+#Specfy nice user behavior
+NiceUser = true
+#Send an email in case of an error
+Notification = Error
+
+initialdir = .
+
+#Run he build cluster script for the parameter server
+Arguments = "python -u $(script) --expdir=$(expdir) --test_model_checkpoint=$(test_model_checkpoint) --task=$(task)"
+# This is the executable or script I want to run
+executable = nabu/computing/condor/create_environment_own_scipy.sh
+
+#Output of condors handling of the jobs, will be in 'initialdir'
+Log          = $(expdir)/outputs/main_$(task).log
+#Standard output of the 'executable', in 'initialdir'
+Output       = $(expdir)/outputs/main_$(task).out
+#Standard error of the 'executable', in 'initialdir'
+Error        = $(expdir)/outputs/main_$(task).err
+
+priority = -15
+
+# Queue the job
+Queue

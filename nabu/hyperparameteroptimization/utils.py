@@ -6,7 +6,8 @@ import math
 from skopt.space.space import Categorical, Integer
 
 
-def check_parameter_count(vals_dict, param_thr, par_cnt_scheme='enc_dec_cnn_lstm_ff'):
+def check_parameter_count(
+		vals_dict, param_thr, par_cnt_scheme='enc_dec_cnn_lstm_ff', parts_to_consider_for_cnt=['total'], model_cfg=None):
 	if par_cnt_scheme == 'enc_dec_cnn_lstm_ff':
 		if vals_dict['cnn_num_enc_lay'] == 0:
 			if vals_dict['lstm_num_lay'] == 0 or vals_dict['concat_flatten_last_2dims_cnn'] == 'False':
@@ -115,10 +116,113 @@ def check_parameter_count(vals_dict, param_thr, par_cnt_scheme='enc_dec_cnn_lstm
 
 		par_cnt = par_cnt_lstm + par_cnt_cnn + par_cnt_ff
 
-		if par_cnt > param_thr or par_cnt < param_thr * (1 - 0.05):
-			values_suitable = False
+		par_cnt_dict = {'total': par_cnt, 'cnn': par_cnt_cnn, 'lstm': par_cnt_lstm, 'ff': par_cnt_ff}
+
+	elif par_cnt_scheme == 'enc_lstm_dec_ff':
+		if vals_dict['cnn_num_enc_lay'] == 0 and vals_dict['lstm_num_lay'] == 0:
+				values_suitable = False
+				par_cnt_dict = {'total': 0, 'cnn': 0, 'lstm': 0, 'ff': 0}
+				return values_suitable, par_cnt_dict
+
+		par_cnt_cnn = 0
+		par_cnt_lstm = 0
+		par_cnt_ff = 0
+
+		#
+		n_lstm = \
+			vals_dict['lstm_num_un_lay1'] * \
+			(vals_dict['lstm_fac_per_lay'] ** np.arange(vals_dict['lstm_num_lay']))
+		n_lstm = [int(np.ceil(n)) for n in n_lstm]
+		lstm_bidir = int(vals_dict['lstm_bidir'] == 'dblstm') + 1  # 1 if single direction, 2 if bidirectional
+
+		n_ff = \
+			vals_dict['ff_num_un_lay1'] * \
+			(vals_dict['ff_fac_per_lay'] ** np.arange(vals_dict['ff_num_lay']))
+		n_ff = [int(np.ceil(n)) for n in n_ff]
+		concat_flatten = int(vals_dict['concat_flatten_last_2dims_encoder'] == 'True')  # 1 if flatten, else 0
+
+		F = 129  # number of frequency bins
+		D = 20  # embedding dimension
+		n_out = D
+
+		kernel_shape = [vals_dict['cnn_kernel_size_t'], vals_dict['cnn_kernel_size_f']]
+		kernel_fac_after_pool = [
+			vals_dict['cnn_kernel_size_t_fac_after_pool'], vals_dict['cnn_kernel_size_f_fac_after_pool']]
+		max_pool_rate = [vals_dict['cnn_max_pool_rate_t'], vals_dict['cnn_max_pool_rate_f']]
+		kernel_shapes_enc = [kernel_shape]
+		for l_ind in range(vals_dict['cnn_num_enc_lay']):
+			kernel_l_plus1 = copy.deepcopy(kernel_shapes_enc[l_ind])
+			if np.mod(l_ind + 1, max_pool_rate[0]) == 0:
+				kernel_l_plus1[0] *= kernel_fac_after_pool[0]
+			if np.mod(l_ind + 1, max_pool_rate[1]) == 0:
+				kernel_l_plus1[1] *= kernel_fac_after_pool[1]
+			kernel_shapes_enc.append(kernel_l_plus1)
+		kernel_shapes_enc = [[int(math.ceil(k)) for k in kern] for kern in kernel_shapes_enc]
+		kernel_sizes_enc = [kern[0] * kern[1] for kern in kernel_shapes_enc]
+		kernel_sizes_dec = kernel_sizes_enc[::-1]
+		kernel_sizes_dec = kernel_sizes_dec[1:]
+
+		cnn_bypass = int(vals_dict['cnn_bypass'] == 'True')  # 1 if bypass, else 0
+
+		#
+		n_enc = \
+			vals_dict['cnn_num_un_lay1'] * (vals_dict['cnn_fac_per_lay'] ** np.arange(vals_dict['cnn_num_enc_lay']))
+		n_enc = [int(np.ceil(n)) for n in n_enc]
+		n_dec = n_enc[::-1]
+		n_dec = n_dec[1:] + [vals_dict['cnn_num_un_out']]
+
+		# cnn_param_cnt style: kernel_size * n_un * n_inputs + n_un (last term for bias)
+		# encoder cnn parameter count
+		for l_ind in range(vals_dict['cnn_num_enc_lay']):
+			if l_ind == 0:
+				par_cnt_cnn += kernel_sizes_enc[l_ind] * (n_enc[l_ind] * 1) + n_enc[l_ind]
+			else:
+				par_cnt_cnn += kernel_sizes_enc[l_ind] * (n_enc[l_ind] * n_enc[l_ind - 1]) + n_enc[l_ind]
+
+		if concat_flatten:
+			if vals_dict['lstm_bidir'] == 'dblstm':
+				raise BaseException(
+					'Input is n_enc[-1] * freq after all max pooling. Output should be the same. But because it is '
+					'bi-directional, each direction should do halve the number of outputs. What if uneven? I think its'
+					' a bit strange anyhow')
+			raise BaseException('Not implemented yet')
+
+		# lstm parameter count
+		for l_ind in range(vals_dict['lstm_num_lay']):
+			if l_ind == 0:
+				par_cnt_lstm += lstm_bidir * (4 * n_lstm[l_ind] * (n_lstm[l_ind] + n_enc[-1] + 1))
+			else:
+				par_cnt_lstm += lstm_bidir * (4 * n_lstm[l_ind] * (n_lstm[l_ind] + lstm_bidir * n_lstm[l_ind - 1] + 1))
+
+		# decoder cnn parameter count
+		for l_ind in range(vals_dict['cnn_num_enc_lay']):
+			corr_enc_l_ind = vals_dict['cnn_num_enc_lay'] - 1 - l_ind
+			if l_ind == 0:
+				if vals_dict['lstm_num_lay'] == 0:
+					num_dec_inputs = n_enc[-1]
+				else:
+					num_dec_inputs = lstm_bidir * n_lstm[-1] + cnn_bypass * n_enc[-1]
+				par_cnt_cnn += \
+					kernel_sizes_enc[corr_enc_l_ind] * (n_dec[l_ind] * num_dec_inputs) + n_dec[l_ind]
+			else:
+				par_cnt_cnn += \
+					kernel_sizes_enc[corr_enc_l_ind] * \
+					(n_dec[l_ind] * (n_dec[l_ind - 1] + cnn_bypass * n_enc[corr_enc_l_ind])) + n_dec[l_ind]
+
+		# feedforward and output layer parameter count
+		for l_ind in range(vals_dict['ff_num_lay']):
+			if l_ind == 0:
+				par_cnt_ff += n_ff[l_ind] * n_dec[-1] + n_ff[l_ind]
+
+			else:
+				par_cnt_ff += n_ff[l_ind] * n_ff[l_ind - 1] + n_ff[l_ind]
+
+		if vals_dict['ff_num_lay'] > 0:
+			par_cnt_ff += n_out * n_ff[-1] + n_out
 		else:
-			values_suitable = True
+			par_cnt_ff += n_out * n_dec[-1] + n_out
+
+		par_cnt = par_cnt_lstm + par_cnt_cnn + par_cnt_ff
 
 		par_cnt_dict = {'total': par_cnt, 'cnn': par_cnt_cnn, 'lstm': par_cnt_lstm, 'ff': par_cnt_ff}
 
@@ -208,11 +312,6 @@ def check_parameter_count(vals_dict, param_thr, par_cnt_scheme='enc_dec_cnn_lstm
 
 		par_cnt = par_cnt_lstm + par_cnt_red + par_cnt_cnn + par_cnt_ff
 
-		if par_cnt > param_thr or par_cnt < param_thr * (1 - 0.05):
-			values_suitable = False
-		else:
-			values_suitable = True
-
 		par_cnt_dict = {'total': par_cnt, 'cnn': par_cnt_cnn, 'red': par_cnt_red, 'lstm': par_cnt_lstm, 'ff': par_cnt_ff}
 
 	elif par_cnt_scheme == 'ff_lstm':
@@ -264,11 +363,6 @@ def check_parameter_count(vals_dict, param_thr, par_cnt_scheme='enc_dec_cnn_lstm
 		par_cnt_out += n_out * input_outlayer + n_out
 
 		par_cnt = par_cnt_ff + par_cnt_lstm + par_cnt_out
-
-		if par_cnt > param_thr or par_cnt < param_thr * (1 - 0.05):
-			values_suitable = False
-		else:
-			values_suitable = True
 
 		par_cnt_dict = {'total': par_cnt, 'ff': par_cnt_ff, 'lstm': par_cnt_lstm, 'out': par_cnt_out}
 
@@ -323,20 +417,96 @@ def check_parameter_count(vals_dict, param_thr, par_cnt_scheme='enc_dec_cnn_lstm
 
 		par_cnt = par_cnt_lstm + par_cnt_ff + par_cnt_out
 
-		if par_cnt > param_thr or par_cnt < param_thr * (1 - 0.05):
-			values_suitable = False
-		else:
-			values_suitable = True
-
 		par_cnt_dict = {'total': par_cnt, 'ff': par_cnt_ff, 'lstm': par_cnt_lstm, 'out': par_cnt_out}
+
+	elif par_cnt_scheme == 'cnn_ff':
+		par_cnt_cnn = 0
+		par_cnt_ff = 0
+		par_cnt_out = 0
+
+		# If variables are not found in the vals dict, this means they are fixed and should be stated in the model conf.
+		# Should handle this more general.
+		if 'ff_num_lay' not in vals_dict: vals_dict['ff_num_lay'] = int(model_cfg.get('feedforward', 'num_layers'))
+		if 'ff_fac_per_lay' not in vals_dict: vals_dict['ff_fac_per_lay'] = float(model_cfg.get('feedforward', 'fac_per_layer'))
+		if 'cnn_num_lay' not in vals_dict: vals_dict['cnn_num_lay'] = int(model_cfg.get('main', 'num_layers'))
+		if 'cnn_t_stride' not in vals_dict: vals_dict['cnn_t_stride'] = int(model_cfg.get('main', 't_stride'))
+		if 'cnn_f_stride' not in vals_dict: vals_dict['cnn_f_stride'] = int(model_cfg.get('main', 'f_stride'))
+		if 'cnn_fac_per_lay' not in vals_dict: vals_dict['cnn_fac_per_lay'] = float(model_cfg.get('main', 'fac_per_layer'))
+		if 'cnn_kernel_size_t' not in vals_dict: vals_dict['cnn_kernel_size_t'] = int(model_cfg.get('main', 'filter_size_t'))
+		if 'cnn_kernel_size_f' not in vals_dict: vals_dict['cnn_kernel_size_f'] = int(model_cfg.get('main', 'filter_size_f'))
+
+		n_ff = \
+			vals_dict['ff_num_un_lay1'] * \
+			(vals_dict['ff_fac_per_lay'] ** np.arange(vals_dict['ff_num_lay']))
+		n_ff = [int(np.ceil(n)) for n in n_ff]
+
+		F = 129  # number of frequency bins
+		D = 20  # embedding dimension
+		n_out = F*D
+
+		kernel_shape = [vals_dict['cnn_kernel_size_t'], vals_dict['cnn_kernel_size_f']]
+		kernel_shapes = [kernel_shape] * vals_dict['cnn_num_lay']
+		kernel_sizes = [kern[0] * kern[1] for kern in kernel_shapes]
+		f_stride = vals_dict['cnn_f_stride']
+		t_stride = vals_dict['cnn_t_stride']
+
+		#
+		n_channels = vals_dict['cnn_num_un_lay1'] * (
+					vals_dict['cnn_fac_per_lay'] ** np.arange(vals_dict['cnn_num_lay']))
+		n_channels = [int(np.ceil(n)) for n in n_channels]
+
+		# cnn_param_cnt style: kernel_size * n_un * n_inputs + n_un (last term for bias)
+		# cnn parameter count
+		new_F = F
+		for l_ind in range(vals_dict['cnn_num_lay']):
+			if l_ind == 0:
+				par_cnt_cnn += kernel_sizes[l_ind] * (n_channels[l_ind] * 1) + n_channels[l_ind]
+			else:
+				par_cnt_cnn += kernel_sizes[l_ind] * (n_channels[l_ind] * n_channels[l_ind - 1]) + n_channels[l_ind]
+			new_F = int(np.ceil(new_F / f_stride))
+
+		# feedforward parameter count
+		if vals_dict['cnn_num_lay'] == 0:
+			input_ff = F
+		else:
+			input_ff = new_F * n_channels[-1]
+
+		for l_ind in range(vals_dict['ff_num_lay']):
+			if l_ind == 0:
+				par_cnt_ff += n_ff[l_ind] * input_ff + n_ff[l_ind]
+
+			else:
+				par_cnt_ff += n_ff[l_ind] * n_ff[l_ind - 1] + n_ff[l_ind]
+
+		# output layer
+		if vals_dict['ff_num_lay'] == 0:
+			input_outlayer = input_ff
+		else:
+			input_outlayer = n_ff[-1]
+
+		par_cnt_out += n_out * input_outlayer + n_out
+
+		par_cnt = par_cnt_cnn + par_cnt_ff + par_cnt_out
+
+		par_cnt_dict = {'total': par_cnt, 'ff': par_cnt_ff, 'cnn': par_cnt_cnn, 'out': par_cnt_out}
 
 	else:
 		raise ValueError('Parameter count scheme %s is unknown', par_cnt_scheme)
+	
+	par_cnt_to_consider = np.sum([par_cnt_dict[part_to_consider] for part_to_consider in parts_to_consider_for_cnt])
+	par_cnt_dict['to_consider'] = par_cnt_to_consider
+
+	if par_cnt_to_consider > param_thr or par_cnt_to_consider < param_thr * (1 - 0.05):
+		values_suitable = False
+	else:
+		values_suitable = True
 
 	return values_suitable, par_cnt_dict
 
 
-def check_parameter_count_for_sample(dim_values, hyper_param_names, param_thr, par_cnt_scheme='enc_dec_cnn_lstm_ff'):
+def check_parameter_count_for_sample(
+		dim_values, hyper_param_names, param_thr, par_cnt_scheme='enc_dec_cnn_lstm_ff',
+		parts_to_consider_for_cnt=['total'], model_cfg=None):
 	if isinstance(dim_values, np.ndarray):
 		# dim values is given as a numpy array
 		if len(dim_values.shape) > 1:
@@ -356,26 +526,31 @@ def check_parameter_count_for_sample(dim_values, hyper_param_names, param_thr, p
 	if not multi_samples:
 		vals_dict = {name: val for (name, val) in zip(hyper_param_names, dim_values)}
 
-		return check_parameter_count(vals_dict, param_thr, par_cnt_scheme)
+		return check_parameter_count(vals_dict, param_thr, par_cnt_scheme, parts_to_consider_for_cnt, model_cfg=model_cfg)
 	else:
 		all_values_suitable = []
 		all_par_cnt_dict = []
 		for dim_value_sample in dim_values:
 			vals_dict = {name: val for (name, val) in zip(hyper_param_names, dim_value_sample)}
 
-			values_suitable, par_cnt_dict = check_parameter_count(vals_dict, param_thr, par_cnt_scheme)
+			values_suitable, par_cnt_dict = check_parameter_count(
+				vals_dict, param_thr, par_cnt_scheme, parts_to_consider_for_cnt, model_cfg=model_cfg)
 			all_values_suitable.append(values_suitable)
 			all_par_cnt_dict.append(par_cnt_dict)
 
 		return all_values_suitable, all_par_cnt_dict
 
 
-def adapt_hyper_param(vals_dict, adapt_param, verbose=True):
+def adapt_hyper_param(vals_dict, adapt_param, model_cfg=None, verbose=True):
 	adapt_hyper_param_name = adapt_param['param_name']
 	min_adapt_param = int(adapt_param['min'])
 	max_adapt_param = int(adapt_param['max'])
 	par_cnt_scheme = adapt_param['par_cnt_scheme']
 	param_thr = adapt_param['param_thr']
+	if 'parts_to_consider_for_cnt' in adapt_param:
+		parts_to_consider_for_cnt = adapt_param['parts_to_consider_for_cnt']
+	else:
+		parts_to_consider_for_cnt = ['total']
 
 	adapt_param_value = min_adapt_param
 	prev_par_cnt_dict = dict()
@@ -383,13 +558,14 @@ def adapt_hyper_param(vals_dict, adapt_param, verbose=True):
 	while True:
 		vals_dict[adapt_hyper_param_name] = adapt_param_value
 
-		values_suitable, par_cnt_dict = check_parameter_count(vals_dict, param_thr, par_cnt_scheme)
+		values_suitable, par_cnt_dict = check_parameter_count(
+			vals_dict, param_thr, par_cnt_scheme, parts_to_consider_for_cnt, model_cfg=model_cfg)
 
 		if not values_suitable:
 			if par_cnt_dict is None:
 				best_adapt_param_value = adapt_param_value - 1
 				break
-			elif par_cnt_dict['total'] > param_thr:
+			elif par_cnt_dict['to_consider'] > param_thr:
 				# went over allowed parameter count, best value for adaptation parameter is previous value
 				best_adapt_param_value = adapt_param_value - 1
 				break
@@ -404,15 +580,17 @@ def adapt_hyper_param(vals_dict, adapt_param, verbose=True):
 	actual_par_cnt_dict = prev_par_cnt_dict
 
 	if best_adapt_param_value < min_adapt_param or best_adapt_param_value > max_adapt_param or \
-			actual_par_cnt_dict['total'] < param_thr*0.95:
+			actual_par_cnt_dict['to_consider'] < param_thr*0.95:
 		fixed_values_suitable = False
 	else:
 		fixed_values_suitable = True
 		if verbose:
-			print_str = 'Found suitable hyper parameter values, leading to %d number of trainable parameters (' % \
-						actual_par_cnt_dict['total']
+			print_str = \
+				'Found suitable hyper parameter values, leading to %d number of trainable parameters, of which %d where ' \
+				'counted towards the requested number of trainable parameters (' % \
+				(actual_par_cnt_dict['total'], actual_par_cnt_dict['to_consider'])
 			for par_type, par_type_cnt in actual_par_cnt_dict.iteritems():
-				if par_type != 'total':
+				if par_type not in ['total', 'to_consider']:
 					print_str += '%s: %d; ' % (par_type, par_type_cnt)
 			print_str += ')'
 			print print_str
@@ -422,8 +600,8 @@ def adapt_hyper_param(vals_dict, adapt_param, verbose=True):
 	return vals_dict, fixed_values_suitable
 
 def partial_dependence_valid_samples(
-		space, model, param_thr, hyper_param_names, i, j=None, par_cnt_scheme='enc_dec_cnn_lstm_ff', sample_points=None,
-		n_samples=250, n_points=40):
+		space, model, param_thr, hyper_param_names, i, j=None, par_cnt_scheme='enc_dec_cnn_lstm_ff',
+		parts_to_consider_for_cnt=['total'], sample_points=None, n_samples=250, n_points=40):
 	"""Copied from skopts. Calculate the partial dependence for dimensions `i` and `j` with
 	respect to the objective value, as approximated by `model`. Only consider samples that are valid according to
 	param_thr and par_cnt_scheme
@@ -490,7 +668,7 @@ def partial_dependence_valid_samples(
 	if sample_points is None:
 		sample_points = space.rvs(n_samples=n_samples)
 		suitable_sample_points, _ = check_parameter_count_for_sample(
-			sample_points, hyper_param_names, param_thr, par_cnt_scheme)
+			sample_points, hyper_param_names, param_thr, par_cnt_scheme, parts_to_consider_for_cnt)
 
 		sample_points = [sample_points[ind] for ind, suit in enumerate(suitable_sample_points) if suit]
 
@@ -510,7 +688,8 @@ def partial_dependence_valid_samples(
 			rvs_ = np.array(sample_points)
 			rvs_[:, i] = x_
 			tmp = space.inverse_transform(rvs_)
-			suitable_points, _ = check_parameter_count_for_sample(tmp, hyper_param_names, param_thr, par_cnt_scheme)
+			suitable_points, _ = check_parameter_count_for_sample(
+				tmp, hyper_param_names, param_thr, par_cnt_scheme, parts_to_consider_for_cnt)
 			rvs_ = [rvs_[ind] for ind, suit in enumerate(suitable_points) if suit]
 			if len(rvs_) < 5:
 				print \
@@ -551,7 +730,8 @@ def partial_dependence_valid_samples(
 				rvs_ = np.array(sample_points)
 				rvs_[:, (j, i)] = (x_, y_)
 				tmp = space.inverse_transform(rvs_)
-				suitable_points, _ = check_parameter_count_for_sample(tmp, hyper_param_names, param_thr, par_cnt_scheme)
+				suitable_points, _ = check_parameter_count_for_sample(
+					tmp, hyper_param_names, param_thr, par_cnt_scheme, parts_to_consider_for_cnt)
 				rvs_ = [rvs_[ind] for ind, suit in enumerate(suitable_points) if suit]
 				if len(rvs_) < 5:
 					print \
@@ -570,8 +750,8 @@ def partial_dependence_valid_samples(
 
 
 def partial_dependence_valid_samples_allow_paramcounts(
-		space, model, param_thr, hyper_param_names, i, j=None, par_cnt_scheme='enc_dec_cnn_lstm_ff', sample_points=None,
-		n_samples=250, n_points=40):
+		space, model, param_thr, hyper_param_names, i, j=None, par_cnt_scheme='enc_dec_cnn_lstm_ff',
+		parts_to_consider_for_cnt=['total'], sample_points=None, n_samples=250, n_points=40):
 	"""Copied from skopts. Calculate the partial dependence for dimensions `i` and `j` with
 	respect to the objective value, as approximated by `model`. Only consider samples that are valid according to
 	param_thr and par_cnt_scheme. i and j may also be strings that direct to parameter counts
@@ -639,7 +819,7 @@ def partial_dependence_valid_samples_allow_paramcounts(
 	if sample_points is None:
 		sample_points = space.rvs(n_samples=n_samples)
 		suitable_sample_points, all_param_dicts = check_parameter_count_for_sample(
-			sample_points, hyper_param_names, param_thr, par_cnt_scheme)
+			sample_points, hyper_param_names, param_thr, par_cnt_scheme, parts_to_consider_for_cnt)
 
 		sample_points = [sample_points[ind] for ind, suit in enumerate(suitable_sample_points) if suit]
 		suitable_param_dicts = [all_param_dicts[ind] for ind, suit in enumerate(suitable_sample_points) if suit]
@@ -681,7 +861,8 @@ def partial_dependence_valid_samples_allow_paramcounts(
 
 			if len(rvs_) > 0:
 				tmp = space.inverse_transform(rvs_)
-				suitable_points, _ = check_parameter_count_for_sample(tmp, hyper_param_names, param_thr, par_cnt_scheme)
+				suitable_points, _ = check_parameter_count_for_sample(
+					tmp, hyper_param_names, param_thr, par_cnt_scheme, parts_to_consider_for_cnt)
 			else:
 				suitable_points = []
 			rvs_ = [rvs_[ind] for ind, suit in enumerate(suitable_points) if suit]
@@ -758,7 +939,7 @@ def partial_dependence_valid_samples_allow_paramcounts(
 				if len(rvs_) > 0:
 					tmp = space.inverse_transform(rvs_)
 					suitable_points, param_dicts = check_parameter_count_for_sample(
-						tmp, hyper_param_names, param_thr, par_cnt_scheme)
+						tmp, hyper_param_names, param_thr, par_cnt_scheme, parts_to_consider_for_cnt)
 				else:
 					suitable_points = []
 					param_dicts = []

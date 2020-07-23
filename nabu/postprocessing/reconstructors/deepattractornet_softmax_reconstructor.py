@@ -6,6 +6,7 @@ import mask_reconstructor
 from nabu.postprocessing import data_reader
 import numpy as np
 import os
+import warnings
 
 
 class DeepattractorSoftmaxReconstructor(mask_reconstructor.MaskReconstructor):
@@ -24,6 +25,10 @@ class DeepattractorSoftmaxReconstructor(mask_reconstructor.MaskReconstructor):
         rec_dir: the directory where the reconstructions will be stored
         task: task name
         """
+
+        warnings.warn(
+            'In following versions this function will become deprecated. Use deepattractornet_reconstructor.py instead',
+            Warning)
 
         super(DeepattractorSoftmaxReconstructor, self).__init__(
             conf, evalconf, dataconf, rec_dir, task, optimal_frame_permutation)

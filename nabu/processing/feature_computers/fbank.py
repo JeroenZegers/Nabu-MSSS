@@ -1,16 +1,17 @@
-'''@file fbank.py
-contains the fbank feature computer'''
+"""@file fbank.py
+contains the fbank feature computer"""
 
 import numpy as np
 import base
 import feature_computer
 from sigproc import snip
 
+
 class Fbank(feature_computer.FeatureComputer):
-    '''the feature computer class to compute fbank features'''
+    """the feature computer class to compute fbank features"""
 
     def comp_feat(self, sig, rate):
-        '''
+        """
         compute the features
 
         Args:
@@ -19,13 +20,16 @@ class Fbank(feature_computer.FeatureComputer):
 
         Returns:
             the features as a [seq_length x feature_dim] numpy array
-        '''
+        """
 
-        #snip the edges
+        # snip the edges
         sig = snip(sig, rate, float(self.conf['winlen']),
                    float(self.conf['winstep']))
 
-        feat, energy = base.logfbank(sig, rate, self.conf)
+        if 'scipy' in self.conf and self.conf['scipy'] == 'True':
+            feat, energy = base.logfbank_scipy(sig, rate, self.conf)
+        else:
+            feat, energy = base.logfbank(sig, rate, self.conf)
 
         if self.conf['include_energy'] == 'True':
             feat = np.append(feat, energy[:, np.newaxis], 1)
@@ -40,7 +44,7 @@ class Fbank(feature_computer.FeatureComputer):
         return feat
 
     def get_dim(self):
-        '''the feature dimemsion'''
+        """the feature dimemsion"""
 
         dim = int(self.conf['nfilt'])
 

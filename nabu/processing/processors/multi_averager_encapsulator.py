@@ -59,6 +59,9 @@ class MultiAveragerEncapsulator(processor.Processor):
 				tmp.append(' '.join([splitdatalines[ind] for ind in to_combine]))
 			splitdatalines = tmp
 
+		elif len(splitdatalines) < self.n_channels:
+			raise BaseException('Received less data lines then requested number of input channels')
+
 		multi_processed = list()
 		utt_infos = list()
 		for splitdataline in splitdatalines:
@@ -76,7 +79,7 @@ class MultiAveragerEncapsulator(processor.Processor):
 				multi_signal_seg_channels = [multi_signal_seg_ch[seg_ind] for multi_signal_seg_ch in multi_signal_seg]
 				multi_signal_seg_average = np.mean(np.array(multi_signal_seg_channels), 0)
 				if 'mvn_type' in self.conf and self.conf['mvn_type'] == 'from_files':
-					multi_signal_seg_average = (multi_signal_seg_average - mean_to_use) / std_to_use
+					multi_signal_seg_average = (multi_signal_seg_average - mean_to_use) / (std_to_use+1e-12)
 				multi_signal_segs_average.append(multi_signal_seg_average)
 			multi_signal_averaged[seg_len] = multi_signal_segs_average
 

@@ -190,7 +190,7 @@ def dense_sequence_to_sparse(sequences, sequence_lengths):
 
 
 def deepattractornet_loss(partitioning, spectogram_targets, mix_to_mask, energybins, embeddings,\
-				seq_length, batch_size, activation='softmax'):
+				seq_length, batch_size, activation='softmax', frame_based=False):
 	"""
 	Compute the deep attractor net loss (as described in Deep attractor network for single-microphone speaker separation,
 		Zhuo Chen, et al. [1]).
@@ -204,6 +204,7 @@ def deepattractornet_loss(partitioning, spectogram_targets, mix_to_mask, energyb
 		seq_length:         sequence lengths                                [batch_size]
 		batch_size:         number of utterances in this batch
 		activation: 		activation to apply to the logits
+		frame_based:		whether signals should be summed over frequencies to get framebased loss (eg for diarization type of loss)
 	Returns:
 		loss: a scalar value containing the loss
 		norm: a scalar value containing the normalisation constant
@@ -251,9 +252,18 @@ def deepattractornet_loss(partitioning, spectogram_targets, mix_to_mask, energyb
 
 		S = tf.reshape(spectogram_targets, [batch_size, -1, nrS])  # dim: (B x K x nrS)
 		S = tf.transpose(S, [0, 2, 1])  # B x nrS x K
+
 		# Calculate loss of this utterance
+		if frame_based:
+			S = tf.reshape(S, [batch_size, nrS, -1, feat_dim])
+			reconstructions = tf.reshape(reconstructions, [batch_size, nrS, -1, feat_dim])
+
+			S = tf.sqrt(tf.reduce_sum(tf.square(S), -2))
+			reconstructions = tf.sqrt(tf.reduce_sum(tf.square(reconstructions), -2))
+
 		loss = tf.reduce_sum(tf.square(S - reconstructions), name='loss')
-		norm = tf.reduce_sum(energybins)
+		# norm = tf.reduce_sum(energybins)
+		norm = tf.to_float(tf.reduce_sum(seq_length)*nrS * feat_dim)
 
 		return loss, norm
 
@@ -434,36 +444,64 @@ def time_anchor_read_heads_deepattractornet_loss(
 		return loss, norm
 
 
-def base_pit_loss(reconstructions, org_signals, overspeakererized=False, frame_based=False):
+def base_pit_loss(
+		reconstructions, org_signals, bin_weights=None, overspeakererized=False, no_perm=False, frame_based=False,
+		do_square=True):
 	"""
 	Just the basic pit loss. Can be used in many loss functions.
 	Args:
 		reconstructions:        reconstruction spectrograms of the sources       [nrSmax x batch_size x ... ]
 		org_signals: 			clean spectrograms of the sources                [nrS x batch_size x ...]
+		bin_weights:			how to weight every bin in the loss              [batch_size x ...]
 		overspeakererized:		Whether possibly more reconstructions than source signals are available. If so the
 			last unnecessary reconstructions should be penalized if they are not just silence.
+		no perm: if no permuation should be applied
 		frame_based:			whether energy over frequency dimension should be summed and then compared to reconstructions.
 			Can be usefull for e.g. diarization type of loss
+		do_square:				whether to square the difference, or just take the absolute value
 	"""
 	nr_spk = org_signals.get_shape()[0]
-	permutations = list(itertools.permutations(range(nr_spk), nr_spk))
+	if no_perm:
+		permutations = [range(nr_spk)]
+	else:
+		permutations = list(itertools.permutations(range(nr_spk), nr_spk))
+
+	if bin_weights is None:
+		bin_weights = tf.ones(tf.shape(org_signals))
+	else:
+		bin_weights = tf.expand_dims(bin_weights, 0)
 
 	if frame_based:
 		reconstructions = tf.sqrt(tf.reduce_sum(tf.square(reconstructions), -2))
 		org_signals = tf.sqrt(tf.reduce_sum(tf.square(org_signals), -2))
+		bin_weights = tf.sqrt(tf.reduce_sum(tf.square(bin_weights), -2))
 
 	num_axis = np.size(org_signals.get_shape())
 	sum_axises = [0] + range(2, num_axis)
 	perm_cost = []
-	for perm in permutations:
-		perm_cost.append(tf.reduce_sum(tf.square(tf.gather(reconstructions, perm) - org_signals), axis=sum_axises))
 
-	loss_utts = tf.reduce_min(perm_cost, 0)
-	loss = tf.reduce_sum(loss_utts)
+	if do_square:
+		for perm in permutations:
+			perm_cost.append(
+				tf.reduce_sum(bin_weights*(tf.square(tf.gather(reconstructions, perm) - org_signals)), axis=sum_axises))
 
-	if overspeakererized:
-		silence_loss = tf.reduce_sum(tf.square(reconstructions[nr_spk:]))
-		loss += silence_loss
+		loss_utts = tf.reduce_min(perm_cost, 0)
+		loss = tf.reduce_sum(loss_utts)
+
+		if overspeakererized:
+			silence_loss = tf.reduce_sum(tf.square(reconstructions[nr_spk:]))
+			loss += silence_loss
+	else:
+		for perm in permutations:
+			perm_cost.append(
+				tf.reduce_sum(bin_weights*(tf.abs(tf.gather(reconstructions, perm) - org_signals)), axis=sum_axises))
+
+		loss_utts = tf.reduce_min(perm_cost, 0)
+		loss = tf.reduce_sum(loss_utts)
+
+		if overspeakererized:
+			silence_loss = tf.reduce_sum(tf.abs(reconstructions[nr_spk:]))
+			loss += silence_loss
 
 	return loss
 
@@ -1471,24 +1509,43 @@ def deepclustering_L1_loss(targets, logits, usedbins, seq_length, batch_size):
 
 	return loss , norm
 
-def crossentropy_multi_loss(labels, logits, batch_size):
 
-	with tf.name_scope('crossentropy_multi_loss'):
-		nrS=logits.get_shape()[1]
-		permutations=list(itertools.permutations(range(nrS),nrS))
+def crossentropy_loss(labels, logits, batch_size):
 
-		perm_cost=[]
-		for perm in permutations:
-			logits_resh=tf.gather(logits,perm,axis=1)
-			tmp=tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,logits=logits_resh)
-			perm_cost.append(tf.reduce_mean(tmp,-1))
+	with tf.name_scope('crossentropy_loss'):
 
-		loss= tf.reduce_sum(tf.reduce_min(perm_cost,0))
-		norm=tf.to_float(batch_size)
+		loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+		norm = tf.to_float(batch_size)
 
 	return loss, norm
 
 
+def crossentropy_multi_loss(labels, logits, batch_size, allow_permutation=True):
+
+	with tf.name_scope('crossentropy_multi_loss'):
+		if len(logits.get_shape()) == 4:
+			labels = tf.expand_dims(labels, 1)
+			time_dim = tf.shape(logits)[1]
+			labels = tf.tile(labels, [1, time_dim, 1])
+			dim_to_mean = [1, 2]
+		else:
+			dim_to_mean = [1]
+		nrS = logits.get_shape()[-2]
+		if allow_permutation:
+			permutations = list(itertools.permutations(range(nrS), nrS))
+		else:
+			permutations = [range(nrS)]
+
+		perm_cost = []
+		for perm in permutations:
+			logits_resh = tf.gather(logits, perm, axis=-2)
+			tmp = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits_resh)
+			perm_cost.append(tf.reduce_mean(tmp, dim_to_mean))
+
+		loss = tf.reduce_sum(tf.reduce_min(perm_cost, 0))
+		norm = tf.to_float(batch_size)
+
+	return loss, norm
 
 
 def deepclustering_diar_loss(targets, read_heads, seq_length, batch_size):
@@ -1764,14 +1821,11 @@ def deepclustering_noise_DC_only_loss(
 		return loss, norm
 
 
-def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size, activation='softmax', rescale_recs=False, overspeakerized=False):
+def pit_loss(
+		targets, logits, mix_to_mask, seq_length, batch_size, activation='softmax', rescale_recs=False,
+		overspeakerized=False, no_perm=False):
 	"""
 	Compute the permutation invariant loss.
-	Remark: This is implementation is different from pit_loss as the last dimension of logits is
-	still feat_dim*nrS, but the first feat_dim entries correspond to the first speaker and the
-	second feat_dim entries correspond to the second speaker and so on. In pit_loss, the first nrS
-	entries corresponded to the first feature dimension, the second nrS entries to the seocnd
-	feature dimension and so on.
 	Remark2: There is actually a more efficient approach to calculate this loss. First calculate
 	the loss for every reconstruction to every target ==> nrS^2 combinations and then add
 	together the losses to form every possible permutation.
@@ -1784,8 +1838,10 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size, activation='s
 			sequence lengths
 		batch_size: the batch size
 		activation: activation to apply to the logits
-		overspeakererized:		Whether possibly more reconstructions than source signals are available. If so the
+		rescale_recs: whether to rescale the recs such that max of rec equals max of target
+		overspeakerized:		Whether possibly more reconstructions than source signals are available. If so the
 			last unnecessary reconstructions should be penalized if they are not just silence.
+		no_perm: if no permuation should be applied
 
 	Returns:
 		a scalar value containing the loss
@@ -1806,7 +1862,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size, activation='s
 		elif activation == 'sigmoid':
 			masks = tf.nn.sigmoid(logits_resh)
 		else:
-			masks = tf.nn.sigmoid(logits_resh)
+			masks = tf.nn.softmax(logits_resh, axis=3)
 
 		mix_to_mask = tf.expand_dims(mix_to_mask, -1)
 		recs = tf.multiply(masks, mix_to_mask)
@@ -1821,7 +1877,7 @@ def pit_loss(targets, logits, mix_to_mask, seq_length, batch_size, activation='s
 
 		norm = tf.to_float(tf.reduce_sum(seq_length)*nrS * feat_dim)
 
-		loss = base_pit_loss(recs, targets_resh, overspeakererized=overspeakerized)
+		loss = base_pit_loss(recs, targets_resh, overspeakererized=overspeakerized, no_perm=no_perm)
 
 	return loss, norm
 

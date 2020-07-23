@@ -207,17 +207,28 @@ class AnchorDeepattractornetLoss(loss_computer.LossComputer):
 		else:
 			speaker_logits = None
 
+		if 'anchors_scale' in logits:
+			# Assuming dimensions are B x T x S
+			anchors_scale = logits['anchors_scale']
+			anchors_scale = anchors_scale[0, 0]
+		else:
+			anchors_scale = None
+
 		time_anchors_flag = self.lossconf['time_anchors_flag'] == 'True'
 		av_anchors_time_flag = (self.lossconf['av_anchors_time_flag'] == 'True') and time_anchors_flag
 		activation = self.lossconf['activation']
 		normalize_embs = self.lossconf['normalize_embs'] == 'True'
 		normalize_anchors = self.lossconf['normalize_anchors'] == 'True'
-		tune_anchors_scale = self.lossconf['tune_anchors_scale'] == 'True'
+		if 'do_square' in self.lossconf:
+			do_square = self.lossconf['do_square'] == 'True'
+		else:
+			do_square = True
 
 		with tf.name_scope('anchor_deepattractornet_loss'):
 
 			feat_dim = spectrogram_targets.get_shape()[2]
 			emb_dim = anchors.get_shape()[-1]
+			time_dim = tf.shape(anchors)[1]
 			nrS = spectrogram_targets.get_shape()[3]
 
 			V = tf.reshape(emb_vec, [self.batch_size, -1, feat_dim, emb_dim], name='V')  # dim: (B x T x F x D)
@@ -231,17 +242,14 @@ class AnchorDeepattractornetLoss(loss_computer.LossComputer):
 			if normalize_anchors:
 				anchors = anchors / (tf.norm(anchors, axis=-1, keepdims=True) + 1e-12)
 
-			if speaker_logits:
+			if speaker_logits is not None:
 				speaker_logits = tf.expand_dims(speaker_logits, -1)
 				if av_speaker_logits_time_flag:
 					speaker_logits = tf.reduce_mean(speaker_logits, 1, keepdims=True)
 				anchors *= speaker_logits
 
-			if tune_anchors_scale:
-				scale = tf.get_variable(
-					name='anchors_scale', shape=[], dtype=tf.float32, initializer=tf.constant_initializer,
-					trainable=True)
-				anchors *= scale
+			if anchors_scale is not None:
+				anchors *= anchors_scale
 
 			if av_anchors_time_flag:
 				anchors = tf.reduce_mean(anchors, axis=1, keepdims=True)
@@ -264,9 +272,20 @@ class AnchorDeepattractornetLoss(loss_computer.LossComputer):
 
 			S = tf.transpose(spectrogram_targets, [3, 0, 1, 2])  # nrS x B x T x F
 
-			loss = ops.base_pit_loss(reconstructions, S, overspeakererized=False)
+			if 'vad_targets' in targets:
+				overlap_weight = float(self.lossconf['overlap_weight'])
+				vad_sum = tf.reduce_sum(targets['vad_targets'], -1)
+				bin_weights = tf.where(
+					vad_sum > 1,
+					tf.ones([self.batch_size, time_dim]) * overlap_weight,
+					tf.ones([self.batch_size, time_dim]))
+				bin_weights = tf.expand_dims(bin_weights, -1)  # broadcast the frame weights to all bins
+				norm = tf.reduce_sum(bin_weights) * tf.to_float(feat_dim)
+			else:
+				bin_weights = None
+				norm = tf.to_float(tf.reduce_sum(seq_length) * feat_dim)
 
-			norm = tf.to_float(tf.reduce_sum(seq_length) * feat_dim)
+			loss = ops.base_pit_loss(reconstructions, S, bin_weights=bin_weights, overspeakererized=False, do_square=do_square)
 
 		return loss, norm
 

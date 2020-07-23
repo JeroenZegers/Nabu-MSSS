@@ -23,12 +23,16 @@ def run_multi_model(
 
 	Returns:
 	outputs: the requested outputs of the hybrid model
+	used_models: the models used to form the hybrid model
 	"""
 
 	node_tensors = inputs
+	used_models = dict()
 	for node in model_nodes:
 		node_inputs = [node_tensors[x] for x in inputs_links[node]]
-		node_model = models[model_links[node]]
+		node_model_name = model_links[node]
+		node_model = models[node_model_name]
+		used_models[node_model_name] = node_model
 		node_output_names = nodes_output_names[node]
 
 		# else condition is also for legacy models.
@@ -65,7 +69,7 @@ def run_multi_model(
 
 	outputs = {name: node_tensors[name] for name in output_names}
 
-	return outputs
+	return outputs, used_models
 
 
 def get_variables(models):

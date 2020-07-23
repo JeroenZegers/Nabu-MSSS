@@ -72,9 +72,9 @@ class AudioFeatConcProcessor(processor.Processor):
 
 	    #mean and variance normalize the features
 	    if self.mvn_type == 'global':
-		utt_features = (utt_features-self.glob_mean)/self.glob_std
+		utt_features = (utt_features-self.glob_mean)/(self.glob_std+1e-12)
 	    elif self.mvn_type == 'local':
-		utt_features = (utt_features-np.mean(utt_features, 0))/np.std(utt_features, 0)
+		utt_features = (utt_features-np.mean(utt_features, 0))/(np.std(utt_features, 0)+1e-12)
 	    		
 	    utt_features = np.expand_dims(utt_features, 2)
 	    if clean_features is None:

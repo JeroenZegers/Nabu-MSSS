@@ -47,7 +47,7 @@ class ParallelReconstructor(object):
 		# shuffle option in the data_queue is set to False!!
 		self.pos = 0
 
-		self.scp_file = open(os.path.join(self.rec_dir, 'pointers.scp'), 'w')
+		self.scp_file = os.path.join(self.rec_dir, 'pointers.scp')
 		
 		# Wheter the raw output should also be stored (besides the reconstructed audiosignal)
 		self.store_output = conf['store_output'] == 'True'
@@ -114,4 +114,11 @@ class ParallelReconstructor(object):
 			write_str += ' ' + filename
 
 		write_str += ' \n'
-		self.scp_file.write(write_str)
+		self.scp_fid.write(write_str)
+
+	def open_scp_files(self, from_start=True):
+		if from_start:
+			file_mode = 'w'
+		else:
+			file_mode = 'a+'
+		self.scp_fid = open(self.scp_file, file_mode)

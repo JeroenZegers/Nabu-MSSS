@@ -50,6 +50,11 @@ class DLSTM(model.Model):
 		else:
 			activation_fn = tf.nn.tanh
 
+		if 'only_last_frame' in self.conf:
+			only_last_frame = self.conf['only_last_frame'] == 'True'
+		else:
+			only_last_frame = False
+
 		lstm_layers = []
 		for l in range(num_layers):
 			lstm_layers.append(layer.LSTMLayer(
@@ -82,5 +87,10 @@ class DLSTM(model.Model):
 					logits = tf.nn.dropout(logits, float(self.conf['dropout']))
 
 			output = logits
+
+			if only_last_frame:
+				if len(output.get_shape()) != 3:
+					raise BaseException('Not yet implemented for rank different from 3')
+				output = output[:, -1, :]
 
 		return output

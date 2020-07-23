@@ -13,6 +13,7 @@ config/recipes_Jeroen*/*
 config/recipes_Pieter
 config/templates_Pieter
 nabu/postprocessing/scorers/pesq
+nabu/postprocessing/scorers/nussl
 nabu/neuralnetworks/trainers/task_trainer.py
 nabu/neuralnetworks/evaluators/evaluator.py
 nabu/neuralnetworks/evaluators/loss_evaluator.py
@@ -22,6 +23,8 @@ usefull_tf_stuff.txt
 analyse_scripts
 nabu/scripts/prepare_train2.py
 test_files_to_run
+train_files_to_resume
+train_files_to_restart
 nabu/computing/condor/non_distributed_cpu_train.job
 *jeroen*
 .idea
@@ -30,6 +33,7 @@ run_delayed
 run2
 tf
 test_files_to_run
+files_to_run
 doc
 
 aanpassingen_code_Pieter.txt
@@ -38,3 +42,7 @@ nabu/scripts/oracle_noise.py
 nabu/scripts/visualise_embedding_vectors.py
 
 all_spk_counts*
+*.npy
+*.json
+*delete_straks*
+usefull_tf_stuff.txt

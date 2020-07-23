@@ -21,6 +21,9 @@ class Model(object):
 		# The number of outputs of the model is one by default.
 		self.num_outputs = 1
 
+		# Whether the model is trainable. Default = True
+		self.trainable = 'trainable' not in conf or conf['trainable'] == 'True'
+
 		self.scope = tf.VariableScope(False, name or type(self).__name__)
 
 	def __call__(self, inputs, input_seq_length, is_training):
@@ -52,6 +55,15 @@ class Model(object):
 			is_training=is_training)
 
 		self.scope.reuse_variables()
+
+		if hasattr(self, 'trainable') and not self.trainable:
+			# Find all variables of the model
+			model_variables = self.variables
+			# remove variable from trainable variables list
+			trainable_collection = tf.get_collection_ref(tf.GraphKeys.TRAINABLE_VARIABLES)
+			for var in model_variables:
+				if var in trainable_collection:
+					trainable_collection.remove(var)
 
 		return logits
 

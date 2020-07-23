@@ -6,8 +6,10 @@ echo $HOSTNAME
 #create the necesary environment variables
 source ~/.bashrc
 
+echo $PYTHONPATH
+
 #copy the ssh binary to enable ssh tunnels
-cp /usr/bin/ssh /tmp
+#cp /usr/bin/ssh /tmp
 
 
 nvidia-smi  || true

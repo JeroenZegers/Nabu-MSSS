@@ -24,12 +24,14 @@ class StackedmasksReconstructor(mask_reconstructor.MaskReconstructor):
 			rec_dir: the directory where the reconstructions will be stored
 		"""
 		if 'softmax_flag' in conf:
-			raise Exception('Softmax argument is deprecated. Use output_activation')
+			raise Exception('Softmax argument is deprecated. Use activation')
 
-		if 'output_activation' in conf:
-			self.output_activation = conf['output_activation']
+		if 'activation' in conf:
+			self.activation = conf['activation']
+		elif 'output_activation' in conf:
+			self.activation = conf['output_activation']
 		else:
-			self.output_activation = 'softmax'
+			self.activation = 'softmax'
 
 		super(StackedmasksReconstructor, self).__init__(
 			conf, evalconf, dataconf, rec_dir, task, optimal_frame_permutation)
@@ -53,6 +55,7 @@ class StackedmasksReconstructor(mask_reconstructor.MaskReconstructor):
 		Returns:
 			the estimated masks"""
 		bin_ests = output['bin_est']
+
 		bin_ests_shape = np.shape(bin_ests)
 		if len(bin_ests_shape) == 2:
 			[T, target_dim] = bin_ests_shape
@@ -66,11 +69,11 @@ class StackedmasksReconstructor(mask_reconstructor.MaskReconstructor):
 		masks = np.transpose(masks, [2, 0, 1])
 
 		# apply softmax
-		if self.output_activation == 'softmax':
+		if self.activation == 'softmax':
 			masks = softmax(masks, axis=0)
-		elif self.output_activation == 'sigmoid':
+		elif self.activation == 'sigmoid':
 			masks = sigmoid(masks)
-		elif self.output_activation in ['None', 'none', None]:
+		elif self.activation in ['None', 'none', None]:
 			pass
 		else:
 			raise Exception('Unknown requested output activation')

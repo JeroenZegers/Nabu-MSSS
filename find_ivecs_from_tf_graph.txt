@@ -1,0 +1,21 @@
+
+import numpy as np
+
+inp_all_ivec_tf = sess.graph.get_tensor_by_name('train/task_2spk_act_logit/reshaper/Reshape:0')
+inp_all_ivec_after_innoise_tf = sess.graph.get_tensor_by_name('train/task_2spk_act_logit/aux_net/add:0')
+
+inp_all_ivec,inp_all_ivec_after_innoise = sess.run([inp_all_ivec_tf , inp_all_ivec_after_innoise_tf ])
+
+np.save('inp_ivecs_setmvn.npy', inp_all_ivec)
+np.save('inp_ivecs_after_innoise_setmvn.npy', inp_all_ivec_after_innoise)
+
+
+import numpy as np
+
+inp_all_ivec_tf = sess.graph.get_tensor_by_name('train/task_2spk_act_logit/reshaper/Reshape:0')
+inp_all_ivec_after_innoise_tf = sess.graph.get_tensor_by_name('train/task_2spk_act_logit/aux_net/add:0')
+
+inp_all_ivec,inp_all_ivec_after_innoise = sess.run([inp_all_ivec_tf , inp_all_ivec_after_innoise_tf ])
+
+np.save('inp_ivecs.npy', inp_all_ivec)
+np.save('inp_ivecs_after_innoise.npy', inp_all_ivec_after_innoise)

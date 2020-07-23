@@ -5,6 +5,8 @@ import reconstructor
 from nabu.postprocessing import data_reader
 from nabu.processing.feature_computers import base
 from abc import ABCMeta, abstractmethod
+import os
+import numpy as np
 
 
 class MaskReconstructor(reconstructor.Reconstructor):
@@ -48,6 +50,13 @@ class MaskReconstructor(reconstructor.Reconstructor):
 					org_mix_dataconfs.append(dict(dataconf.items(org_mix_name)))
 				self.org_mix_readers.append(data_reader.DataReader(org_mix_dataconfs, self.segment_lengths))
 
+		self.store_masks = 'store_masks' in conf and conf['store_masks'] == 'True'
+		if self.store_masks:
+			self.masks_pointer_file = os.path.join(self.rec_dir, 'masks_pointers.scp')
+			self.mask_dir = os.path.join(rec_dir, 'masks')
+			if not os.path.isdir(self.mask_dir):
+				os.makedirs(self.mask_dir)
+
 	def reconstruct_signals(self, output):
 		"""reconstruct the signals
 
@@ -86,7 +95,11 @@ class MaskReconstructor(reconstructor.Reconstructor):
 			reconstructed_signals = list()
 			for spk in range(self.nrS):
 				spec_est = mixture * masks[spk, :, :]
-				reconstructed_signals.append(base.spec2time(spec_est, utt_info['rate'], utt_info['siglen'], comp_conf))
+				if 'scipy' in comp_conf and comp_conf['scipy'] == 'True':
+					rec_signal = base.spec2time_scipy(spec_est, utt_info['rate'], utt_info['siglen'], comp_conf)
+				else:
+					rec_signal = base.spec2time(spec_est, utt_info['rate'], utt_info['siglen'], comp_conf)
+				reconstructed_signals.append(rec_signal)
 		else:
 			for ind, start_index in enumerate(self.org_mix_readers[0].start_index_set):
 				if start_index > self.pos:
@@ -96,7 +109,14 @@ class MaskReconstructor(reconstructor.Reconstructor):
 
 			# For each speaker, apply its mask to each microphone signal. The magnitude of the speaker's reconstructed
 			# spectrogram is obtained by averaging the masked signals.
-			pass
+			# pass
+			raise NotImplementedError()
+
+		if self.store_masks:
+			save_file = os.path.join(self.mask_dir, '%s.npy' % utt_info['utt_name'])
+			np.save(save_file, masks)
+			write_str = '%s %s\n' % (utt_info['utt_name'], save_file)
+			self.masks_pointer_fid.write(write_str)
 
 		return reconstructed_signals, utt_info
 
@@ -128,7 +148,11 @@ class MaskReconstructor(reconstructor.Reconstructor):
 		reconstructed_signals = list()
 		for spk in range(self.nrS):
 			spec_est = mixture * masks[spk, :, :]
-			reconstructed_signals.append(base.spec2time(spec_est, utt_info['rate'], utt_info['siglen'], comp_conf))
+			if 'scipy' in comp_conf and comp_conf['scipy'] == 'True':
+				rec_signal = base.spec2time_scipy(spec_est, utt_info['rate'], utt_info['siglen'], comp_conf)
+			else:
+				rec_signal = base.spec2time(spec_est, utt_info['rate'], utt_info['siglen'], comp_conf)
+			reconstructed_signals.append(rec_signal)
 
 		return reconstructed_signals, utt_info
 
@@ -142,5 +166,17 @@ class MaskReconstructor(reconstructor.Reconstructor):
 
 		Returns:
 			the estimated masks"""
+
+	def open_scp_files(self, from_start=True):
+		super(MaskReconstructor, self).open_scp_files(from_start)
+
+		if self.store_masks:
+			if from_start:
+				file_mode = 'w'
+			else:
+				file_mode = 'a+'
+			self.masks_pointer_fid = open(self.masks_pointer_file, file_mode)
+
+
 
 

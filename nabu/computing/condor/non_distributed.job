@@ -1,18 +1,18 @@
 # Normal execution
 Universe         = vanilla
 # need enough RAM to store the parameters
-RequestMemory    = 15G
+RequestMemory    = $(memory)
 #number of GPUs equal to the number of workers
 Request_GPUs      = 1
 RequestCpus = 4
 #request 3 days of wall time
-+RequestWalltime = 249000
++RequestWalltime = 259100
 # +RequestWalltime = 604780
 #specify that the cuda capability should be at least 3.0 and set the memory
 #requirement
 Requirements = (CUDACapability >= 3.0)\
   && has_avx\
-  &&(CUDAGlobalMemoryMb >= $(memory))\
+  &&(CUDAGlobalMemoryMb >= $(cudamemory))\
   &&(machine =!= LastRemoteHost)\
   && (machine != "spchcl24.esat.kuleuven.be")\
   && (machine != "spchcl23.esat.kuleuven.be")\
@@ -23,6 +23,9 @@ Requirements = (CUDACapability >= 3.0)\
   && (machine != "leo.esat.kuleuven.be")\
   && (machine != "ulexite.esat.kuleuven.be")\
   && (machine != "topaz.esat.kuleuven.be")\
+  && (machine != "garnet.esat.kuleuven.be")\
+  && (machine != "iwaki.esat.kuleuven.be")\
+  && (machine != "goryu.esat.kuleuven.be")\
 # machines below have connecting problems, add again when problems are solved\
   && (machine != "fluorite.esat.kuleuven.be")\
   && (machine != "kunzite.esat.kuleuven.be")\
@@ -34,6 +37,7 @@ Requirements = (CUDACapability >= 3.0)\
 #  && (machine != "andromeda.esat.kuleuven.be") \
 # machines below are removed since using 8 cpus is faster\
   && (machine != "tiger.esat.kuleuven.be")\
+  && (machine != "jade.esat.kuleuven.be")\
 #\
 && (machine != "molder.esat.kuleuven.be")
 # && (machine != "spchcl21.esat.kuleuven.be")

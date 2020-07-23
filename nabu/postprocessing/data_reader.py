@@ -26,9 +26,9 @@ class DataReader(object):
 		"""
 
 		if len(segment_lengths) > 1:
-			print \
+			print(
 				'Warning: Not yet implemented __call__ correctly for multiple segments. The returned utt_info, does not ' \
-				'contain the _part sufix and processed returns only 1 processed'
+				'contain the _part sufix and processed returns only 1 processed')
 		self.segment_lengths = segment_lengths
 
 		self.processors = []
@@ -85,3 +85,20 @@ class DataReader(object):
 		processed = processed[self.segment_lengths[0]][0]
 
 		return processed, utt_info
+
+	def get_name_for_pos(self, list_pos):
+		""" get the name of the utterance for the given position from the datafile list
+
+		Args:
+			list_pos: position on the datafile list to read
+
+		Returns:
+			The name of the utterance"""
+
+		line = self.datafile_lines[list_pos]
+
+		# split the name and the data line
+		splitline = line.strip().split(' ')
+		utt_name = splitline[0]
+
+		return utt_name

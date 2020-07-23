@@ -68,9 +68,9 @@ class AudioFeatProcessor(processor.Processor):
 
 		# mean and variance normalize the features
 		if self.mvn_type == 'global':
-			features = (features-self.glob_mean)/self.glob_std
+			features = (features-self.glob_mean)/(self.glob_std+1e-12)
 		elif self.mvn_type == 'local':
-			features = (features-np.mean(features, 0))/np.std(features, 0)
+			features = (features-np.mean(features, 0))/(np.std(features, 0)+1e-12)
 			
 		# split the data for all desired segment lengths
 		segmented_data = self.segment_data(features)
@@ -125,8 +125,12 @@ class AudioFeatProcessor(processor.Processor):
 			
 					if loop_type == 'mean':
 						self.glob_mean = self.glob_mean/float(self.obs_cnt)
+						with open(os.path.join(dataconf['meanandvar_dir'], 'glob_mean.npy'), 'w') as fid:
+							np.save(fid, self.glob_mean)
 					elif loop_type == 'std':
 						self.glob_std = np.sqrt(self.glob_std/float(self.obs_cnt))
+						with open(os.path.join(dataconf['meanandvar_dir'], 'glob_std.npy'), 'w') as fid:
+							np.save(fid, self.glob_std)
 				else:
 					# get mean and variance calculated on training set
 					if loop_type == 'mean':

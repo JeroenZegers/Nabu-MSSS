@@ -19,7 +19,7 @@ class SdrScorer(scorer.Scorer):
 	score_scenarios = ('SS', 'base')
 	score_expects = 'data'
 
-	def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches, task):
+	def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches, task, scorer_name, checkpoint_file):
 		"""SdrScorer constructor
 
 		Args:
@@ -30,9 +30,9 @@ class SdrScorer(scorer.Scorer):
 			numbatches: the number of batches to process
 		"""
 
-		super(SdrScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches, task)
+		super(SdrScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches, task, scorer_name, checkpoint_file)
 
-	def _get_score(self, org_src_signals, base_signals, rec_src_signals):
+	def _get_score(self, org_src_signals, base_signals, rec_src_signals, utt_rate=None):
 		"""score the reconstructed utterances with respect to the original source signals
 
 		Args:

@@ -38,6 +38,8 @@ class HyperParamOptimizer(skopt.Optimizer):
 		self.exp_recipe_dir = exp_recipe_dir
 		self.recipe = recipe
 		self.computing = computing
+		self.model_cfg = configparser.ConfigParser()
+		self.model_cfg.read(os.path.join(self.recipe, 'model.cfg'))
 
 		# read the hyper parameter file
 		hyper_param_cfg = configparser.ConfigParser()
@@ -56,6 +58,8 @@ class HyperParamOptimizer(skopt.Optimizer):
 			self.adapt_param = {
 				'param_name': hyper_info['adapt_hyper_param'], 'param_thr': int(hyper_info['param_thr']),
 				'par_cnt_scheme': hyper_info['par_cnt_scheme']}
+			if 'parts_to_consider_for_cnt' in hyper_info:
+				self.adapt_param['parts_to_consider_for_cnt'] = hyper_info['parts_to_consider_for_cnt'].split(' ')
 		else:
 			self.adapt_param = None
 
@@ -103,11 +107,16 @@ class HyperParamOptimizer(skopt.Optimizer):
 		self.use_proposal_run = False
 		self.proposed_loss_runs = []
 
+		if 'artificial_high_loss' in hyper_info:
+			self.artificial_high_loss = float(hyper_info['artificial_high_loss'])
+		else:
+			self.artificial_high_loss = 0.170
+
 		# only 0.25% of the point sample in the hyper space are wanted (since they lead to rougly the wanted amount of
 		# trainable parameters)
 		self.acq_optimizer_kwargs = {'n_points': 4000000}
 		if 'debug' in expdir:
-			self.acq_optimizer_kwargs = {'n_points': 40000}
+			self.acq_optimizer_kwargs = {'n_points': 4000}
 
 		if base_estimator == 'boundedGP':
 			# Make own estimator based on Gaussian Process Regressor.
@@ -139,12 +148,16 @@ class HyperParamOptimizer(skopt.Optimizer):
 
 	def __call__(self):
 
-		while (self.iter_ind - self.n_unsuitable_points_for_estimator) < self.num_iters or len(self.watch_list) > 0:
+		print '%d Runs have finished and %d are still going. Doing %d more' \
+			  % (self.iter_ind - self.n_unsuitable_points_for_estimator - len(self.watch_list) , len(self.watch_list),
+				 self.num_iters-(self.iter_ind - self.n_unsuitable_points_for_estimator))
+
+		while (self.iter_ind - self.n_unsuitable_points_for_estimator - len(self.watch_list) ) < self.num_iters:
 			# check if the user proposed hyper parameter values (and potentially a corresponding validation loss)
 			if self.exp_proposal_watch_dir is not None:
 				self.use_proposal_run = self.watch_proposal_dir()
 
-			if (False and self.start_new_run_flag) or self.use_proposal_run:
+			if self.start_new_run_flag or self.use_proposal_run:
 				# start (a) new run(s) if allowed
 				self.start_new_runs()
 				self.checkpoint()
@@ -164,6 +177,8 @@ class HyperParamOptimizer(skopt.Optimizer):
 				self.start_new_run_flag = True
 			else:
 				self.start_new_run_flag = False
+
+		print 'Ran all requested %d experiments' % self.num_iters
 
 	def watch_proposal_dir(self):
 		files_in_dir = [
@@ -257,11 +272,17 @@ class HyperParamOptimizer(skopt.Optimizer):
 			multi_dim_values = self.ask(n_points=self.max_parallel_jobs - self.n_job_running, strategy='cl_mean')
 			param_thr = self.adapt_param['param_thr']
 			par_cnt_scheme = self.adapt_param['par_cnt_scheme']
+			if 'parts_to_consider_for_cnt' in self.adapt_param:
+				parts_to_consider_for_cnt = self.adapt_param['parts_to_consider_for_cnt']
+			else:
+				parts_to_consider_for_cnt = ['total']
+
 			multi_unsuitable_values = []
 
 			for dim_values in multi_dim_values:
 				suitable_values, par_cnt_dict = check_parameter_count_for_sample(
-					dim_values, self.hyper_param_names, param_thr, par_cnt_scheme)
+					dim_values, self.hyper_param_names, param_thr, par_cnt_scheme, parts_to_consider_for_cnt,
+					model_cfg=self.model_cfg)
 				if not suitable_values:
 					if self.n_unsuitable_points_for_estimator < self.max_n_unsuitable_points_for_estimator:
 						multi_unsuitable_values.append(dim_values)
@@ -281,7 +302,7 @@ class HyperParamOptimizer(skopt.Optimizer):
 				# time, but we don't want to consider these (useless) points as a initial points
 				self._n_initial_points += n_unsuitable_values
 				# tell the estimator an artificial, high loss for the unsuitable hyper param values.
-				artificial_losses = [0.175] * n_unsuitable_values
+				artificial_losses = [self.artificial_high_loss+0.005] * n_unsuitable_values
 				prev_time = time.time()
 				self.tell(multi_unsuitable_values, artificial_losses, fit=True)
 				print (time.time()-prev_time)
@@ -332,37 +353,39 @@ class HyperParamOptimizer(skopt.Optimizer):
 		print dim_values
 
 		# compare the new model with previous models
-		all_distances = []
-		all_runs_inds = []
-		for ref_run_ind, ref_values in enumerate(self.all_dim_values):
-			if ref_run_ind not in self.unsuitable_runs:
-				dist = distance(self.space, dim_values, ref_values)
-				all_distances.append(dist)
-				all_runs_inds.append(ref_run_ind)
-		tmp = np.argsort(all_distances)
-		sorted_distances = [all_distances[tmpi] for tmpi in tmp]
-		sorted_runs_inds = [all_runs_inds[tmpi] for tmpi in tmp]
-		closest_run = sorted_runs_inds[0]
-		smallest_distance = sorted_distances[0]
-		sorted_runs_with_loss_inds = [ind for ind in sorted_runs_inds if ind in self.all_losses.keys()]
-		sorted_distances_with_loss = \
-			[sorted_distances[tmpi] for tmpi, ind in enumerate(sorted_runs_inds) if ind in self.all_losses.keys()]
-		closest_run_with_loss = sorted_runs_with_loss_inds[0]
-		smallest_distance_with_loss = sorted_distances_with_loss[0]
+		if self.all_losses:
+			all_distances = []
+			all_runs_inds = []
+			for ref_run_ind, ref_values in enumerate(self.all_dim_values):
+				if ref_run_ind not in self.unsuitable_runs:
+					dist = distance(self.space, dim_values, ref_values)
+					all_distances.append(dist)
+					all_runs_inds.append(ref_run_ind)
+			tmp = np.argsort(all_distances)
+			sorted_distances = [all_distances[tmpi] for tmpi in tmp]
+			sorted_runs_inds = [all_runs_inds[tmpi] for tmpi in tmp]
+			closest_run = sorted_runs_inds[0]
+			smallest_distance = sorted_distances[0]
+			sorted_runs_with_loss_inds = [ind for ind in sorted_runs_inds if ind in self.all_losses.keys()]
+			sorted_distances_with_loss = \
+				[sorted_distances[tmpi] for tmpi, ind in enumerate(sorted_runs_inds) if ind in self.all_losses.keys()]
+			closest_run_with_loss = sorted_runs_with_loss_inds[0]
+			smallest_distance_with_loss = sorted_distances_with_loss[0]
 
-		print \
-			'Closest previous model is run_%d (distance: %f, loss=%f) with values:' \
-			% (closest_run_with_loss, smallest_distance_with_loss, self.all_losses[closest_run_with_loss])
-		print self.all_dim_values[closest_run_with_loss]
-		if closest_run_with_loss != closest_run:
 			print \
-				'Closest previous model without evaluated loss is run_%d (distance: %f) with values:' \
-				% (closest_run, smallest_distance)
-			print self.all_dim_values[closest_run]
+				'Closest previous model is run_%d (distance: %f, loss=%f) with values:' \
+				% (closest_run_with_loss, smallest_distance_with_loss, self.all_losses[closest_run_with_loss])
+			print self.all_dim_values[closest_run_with_loss]
+			if closest_run_with_loss != closest_run:
+				print \
+					'Closest previous model without evaluated loss is run_%d (distance: %f) with values:' \
+					% (closest_run, smallest_distance)
+				print self.all_dim_values[closest_run]
 
 		# train and validate a model with the above config files
 		job_string = 'run %s --expdir=%s --recipe=%s --computing=%s --sweep_flag=%s' % (
 			self.command, it_expdir, it_exp_recipe_dir, self.computing, True)
+		os.system(job_string)
 
 		file_to_watch = os.path.join(it_expdir, 'val_sum.json')
 		self.watch_list[self.iter_ind] = file_to_watch
@@ -382,9 +405,9 @@ class HyperParamOptimizer(skopt.Optimizer):
 							'did not find segment length %s in "val_sum.json"' % self.selected_segment_length)
 					loss = val_sum[self.selected_segment_length]
 
-					if self.selected_task not in loss:
-						raise ValueError('did not find task %s in "val_sum.json"' % self.selected_task)
-					loss = loss[self.selected_task]
+					# if self.selected_task not in loss:
+					# 	raise ValueError('did not find task %s in "val_sum.json"' % self.selected_task)
+					# loss = loss[self.selected_task]
 
 				found_losses[ind] = loss
 
@@ -406,11 +429,11 @@ class HyperParamOptimizer(skopt.Optimizer):
 
 			print 'Found loss %.3f for model %d' % (loss, run_ind)
 			if math.isnan(loss):
-				loss = 0.17
-				print 'Found loss = NaN. Changing to loss = 0.17'
-			if loss > 0.17:
-				loss = 0.17
-				print 'Found high loss. Changing to loss = 0.17'
+				loss = self.artificial_high_loss
+				print 'Found loss = NaN. Changing to loss = %.3f' % self.artificial_high_loss
+			if loss > self.artificial_high_loss:
+				loss = self.artificial_high_loss
+				print 'Found high loss. Changing to loss = %.3f' % self.artificial_high_loss
 			self.all_losses[run_ind] = loss
 			losses[run_ind] = loss
 
@@ -426,12 +449,16 @@ class HyperParamOptimizer(skopt.Optimizer):
 		min_adapt_param = int(self.hyper_param_dict[adapt_hyper_param_name]['min'])
 		max_adapt_param = int(self.hyper_param_dict[adapt_hyper_param_name]['max'])
 		par_cnt_scheme = self.adapt_param['par_cnt_scheme']
+		if 'parts_to_consider_for_cnt' in self.adapt_param:
+			parts_to_consider_for_cnt = self.adapt_param['parts_to_consider_for_cnt']
+		else:
+			parts_to_consider_for_cnt = ['total']
 		param_thr = self.adapt_param['param_thr']
 		vals_dict = {
 			name: val for (name, val) in zip(self.hyper_param_names, dim_values)}
 
 		# Exceptional case:
-		if vals_dict['cnn_num_enc_lay'] == 0:
+		if 'cnn_num_enc_lay' in vals_dict and vals_dict['cnn_num_enc_lay'] == 0:
 			# if no CNN part, output of LSTM should not be altered
 			vals_dict['concat_flatten_last_2dims_cnn'] = 'True'
 			dim_values[-1] = 'True'
@@ -442,17 +469,18 @@ class HyperParamOptimizer(skopt.Optimizer):
 		while True:
 			vals_dict[adapt_hyper_param_name] = adapt_param_value
 
-			values_suitable, par_cnt_dict = check_parameter_count(vals_dict, param_thr, par_cnt_scheme)
+			values_suitable, par_cnt_dict = check_parameter_count(
+				vals_dict, param_thr, par_cnt_scheme, parts_to_consider_for_cnt, model_cfg=self.model_cfg)
 
 			if not values_suitable:
 				if par_cnt_dict is None:
 					best_adapt_param_value = adapt_param_value - 1
 					break
-				elif par_cnt_dict['total'] > param_thr:
+				elif par_cnt_dict['to_consider'] > param_thr:
 					# went over allowed parameter count, best value for adaptation parameter is previous value
 					best_adapt_param_value = adapt_param_value - 1
 					break
-			if values_suitable and vals_dict['cnn_num_enc_lay'] == 0:
+			if values_suitable and 'cnn_num_enc_lay' in vals_dict and vals_dict['cnn_num_enc_lay'] == 0:
 				# there is no cnn, so no point in tuning the number of cnn filters. Just stop the adaptation and set
 				# adaptation parameter to min_adapt_param
 				best_adapt_param_value = min_adapt_param
@@ -468,15 +496,17 @@ class HyperParamOptimizer(skopt.Optimizer):
 		actual_par_cnt_dict = prev_par_cnt_dict
 
 		if best_adapt_param_value < min_adapt_param or best_adapt_param_value > max_adapt_param or \
-				actual_par_cnt_dict['total'] < param_thr*0.95:
+				actual_par_cnt_dict['to_consider'] < param_thr*0.95:
 			fixed_values_suitable = False
 		else:
 			fixed_values_suitable = True
 			if verbose:
-				print_str = 'Found suitable hyper parameter values, leading to %d number of trainable parameters (' % \
-							actual_par_cnt_dict['total']
+				print_str = \
+					'Found suitable hyper parameter values, leading to %d number of trainable parameters, of which %d ' \
+					'where counted towards the requested number of trainable parameters (' % \
+					(actual_par_cnt_dict['total'], actual_par_cnt_dict['to_consider'])
 				for par_type, par_type_cnt in actual_par_cnt_dict.iteritems():
-					if par_type != 'total':
+					if par_type not in ['total', 'to_consider']:
 						print_str += '%s: %d; ' % (par_type, par_type_cnt)
 				print_str += ')'
 				print print_str
@@ -634,8 +664,13 @@ class HyperParamOptimizer(skopt.Optimizer):
 			Xspace = self.space.rvs(n_samples=self.n_points, random_state=self.rng)
 			param_thr = self.adapt_param['param_thr']
 			par_cnt_scheme = self.adapt_param['par_cnt_scheme']
+			if 'parts_to_consider_for_cnt' in self.adapt_param:
+				parts_to_consider_for_cnt = self.adapt_param['parts_to_consider_for_cnt']
+			else:
+				parts_to_consider_for_cnt = ['total']
 			suitable_X, _ = check_parameter_count_for_sample(
-					Xspace, self.hyper_param_names, param_thr, par_cnt_scheme)
+				Xspace, self.hyper_param_names, param_thr, par_cnt_scheme, parts_to_consider_for_cnt,
+				model_cfg=self.model_cfg)
 			# for x in Xspace:
 			# 	vals_suitable, _ = check_parameter_count_for_sample(
 			# 		x, self.hyper_param_names, param_thr, par_cnt_scheme)

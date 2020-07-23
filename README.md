@@ -8,13 +8,12 @@ end-to-end networks built on top of TensorFlow. Nabu's design focuses on
 adaptability, making it easy for the designer to adjust everything from the
 model structure to the way it is trained. 
 
-Code is in Python 2.6 using Tensorflow 1.8.0 (will upgrade soon)
+Code is in Python 2.7 using Tensorflow 1.8.0.
 
 Because of this adaptability, many parts of the code of Nabu-MSSS were 
 originally inherited from Nabu. As a consequence, however, one may still find 
 'leftovers' of the original code that do not make much sense for the MSSS
-task, eg variable names, code structure, etc. Over time these problems will
-be fixed.
+task, eg variable names, code structure, etc. 
 
 ## Using Nabu
 
@@ -39,7 +38,7 @@ about processors [here](nabu/processing/processors/README.md).
 You can run the data preparation with:
 
 ```
-run data --recipe=/path/to/recipe --expdir=/path/to/expdir --computing=<computing>
+run data --recipe=/path/to/recipe --expdir=/path/to/expdir --computing=<computing> --minmemory=<minmemory>
 ```
 
 - recipe: points to the directory containing the recipe you
@@ -50,14 +49,21 @@ files will be stored, like the configurations and logs
 use. One of standard or condor. standard means that no distributed computing
 software is used and the job will run on the machine where nabu is called from.
 the condor option uses HTCondor. More information can be found
-[here](nabu/computing/README.md). 
-**Warning: currently only 'standard' is allowed due to data dependencies. 'condor' computes in parallel**
+[here](nabu/computing/README.md).
+- The minimum requested RAM memory in MB when using HTCondor. If not specified, it uses the value in nabu/config/your_computing_type/non_distributed.cfg
+ 
+**Warning: if a data storage directory (see database.conf in recipe) already exists, Nabu-MSSS assumes that data was 
+already successfully created and will therefore skip this data section. If it was not successful or you want to redo data
+creation, then first remove the storage directory.** 
+
+**Warning: There can be data dependencies between different data section (e.g. mean and variance computed on the 
+training set that is applied to validation and test set). Nabu-MSSS does not take this into account and will thus fail. 
+A restart is then necessary, but keep in mind the previous warning then.**
 
 ### Training
 
 In the training stage the model will be trained to minimize a loss function.
-During training the model can be evaluated to adjust the learning rate if
-necessary. Multiple configuration files in the recipe are used during training:
+Multiple configuration files in the recipe are used during training:
 
 - model.cfg: model parameters
 - trainer.cfg: training parameters
@@ -71,11 +77,23 @@ You can find more information about models
 You can run the training with:
 
 ```
-run train --recipe=/path/to/recipe --expdir=/path/to/expdir --computing=<computing> --resume=<resume>
+run train --recipe=/path/to/recipe --expdir=/path/to/expdir --computing=<computing> --minmemory=<minmemory>  
+--mincudamemory=<mincudamemory> --resume=<resume> --duplicates=<duplicates> 
+--duplicates_ind_offset=<duplicates_ind_offset> --sweep_flag=<sweep_flag> --test_when_finished=<test_when_finished>
 ```
 
-The parameters are the same as the data preperation script (see above) with extra parameter; reuse(default: 'False').
-If resume is set to 'True', the experiment in expdir, if available, is resumed.
+The parameters are the same as the data preperation script (see above) with extra parameters:
+- resume ([default: False]): If resume is set to True, the experiment in expdir, if available, is resumed.
+- mincudamemory: The minimum requested Cuda memory in MB when requesting a GPU when using HTCondor. If not specified, 
+it uses the value in nabu/config/your_computing_type/non_distributed.cfg
+- duplicates ([default: 1]): If duplicates > 1, your_chosen_num_duplicates independent experiments are started. This can be used to
+cope with variability in training (e.g. local minima etc.). '_dupl(X)' is appended to the expdir, where X is the 
+duplicate index.
+- duplicates_ind_offset ([default: 0]):  '_dupl(X+duplicates_ind_offset)' is appended to the expdir
+- sweep_flag ([default: False]): Do not set manually, flag used by run_sweep, see further.
+- test_when_finished ([default: True]): Not properly implemented yet. It creates a file which contains a "run test"
+ command, that should be executed when training has finished. However, currently this command is not executed 
+ automatically when training is finished.  
 
 ### Testing
 
@@ -88,12 +106,17 @@ information on evaluators [here](nabu/neuralnetworks/trainers/README.md).
 You can run testing with
 
 ```
-run test --recipe=/path/to/recipe --expdir=/path/to/expdir --computing=<computing>
+run test --recipe=/path/to/recipe --expdir=/path/to/expdir --computing=<computing>  --minmemory=<minmemory>  
+--task=<task> --allow_early_testing=<allow_early_testing> --duplicates=<duplicates> 
+--duplicates_ind_offset=<duplicates_ind_offset> --sweep_flag=<sweep_flag> --allow_early_testing=<allow_early_testing>
 ```
 
-The parameters for this script are similar to the training script (see above).
-You should use the same expdir that you used for training the model.
 
+You should use the same expdir that you used for training the model.
+The parameters for this script are similar to the training script (see above) with extra parameters:
+- task ([default: None]): if specified, the test tasks listed in test_evaluater.cfg under 'tasks' will be ignored, and
+- allow_early_testing ([default: False]): whether the model can be tested, even if not fully trained yet. The test 
+directory will be expdir/test_early_trainstepnumber_of_the_latest_validated_model 
 
 ### Parameter sweep
 
@@ -123,40 +146,43 @@ For example, if you want to try several number of layers and number of units:
 model.cfg encoder num_layers 4
 model.cfg encoder num_units 1024
 
-4layers_1024units
+4layers_2048units
 model.cfg encoder num_layers 4
 model.cfg encoder num_units 2048
 
 5layers_1024units
 model.cfg encoder num_layers 5
 model.cfg encoder num_units 1024
-
-5layers_1024units
-model.cfg encoder num_layers 5
-model.cfg encoder num_units 2048
 ```
 
 The parameter sweep can then be executed as follows:
 
 ```
-run sweep --command=<command> --recipe=/path/to/recipe --sweep=/path/to/sweepfile --expdir=/path/to/exdir <command option>
+run sweep --recipe=/path/to/recipe --sweep=/path/to/sweepfile --expdir=/path/to/expdir --computing=<computing> 
+--minmemory=<minmemory>  --mincudamemory=<mincudamemory> --resume=<resume> --duplicates=<duplicates> 
+--duplicates_ind_offset=<duplicates_ind_offset> --test_when_finished=<test_when_finished>
+--allow_early_testing=<allow_early_testing> --test_task=<test_task>
 ```
 
-where command can be any of the commands discussed above.
+With the same parameters as before ('task' from run test is renamed to 'test_task').
 
 ### Parameter search
 Under development.
 
 Alternative to manual parameter sweep. Use Gaussian Processes and acquisition functions to find
-the ideal parameters to evaluate.
+the ideal hyperparameters to evaluate. This code was used for the publication Zegers, J., and Van hamme, H. Cnn-lstm 
+models for multi-speaker source separation using bayesian hyper parameter optimization. In Interspeech 2019 (2019), 
+ISCA, pp. 4589–4593
 
 The parameter sweep can then be executed as follows:
 
 ```
-run param_search --command=<command> --recipe=/path/to/recipe --hyper_param_conf=/path/to/hyper_param_conf --expdir=/path/to/exdir <command option>
+run param_search --command=<command> --recipe=/path/to/recipe --hyper_param_conf=/path/to/hyper_param_conf 
+--expdir=/path/to/exdir --resume=<resume>
 ```
 
-where command can be any of the commands discussed above.
+With the same parameters as before and:
+--hyper_param_conf: the path to the hyper parameter config file.
 
 
 ## Designing in Nabu

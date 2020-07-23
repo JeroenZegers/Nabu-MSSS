@@ -24,7 +24,7 @@ class SdrSnrNoiseScorer(scorer.Scorer):
 	score_scenarios = ('SS', 'base')
 	score_expects = 'data'
 
-	def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches, task):
+	def __init__(self, conf, evalconf, dataconf, rec_dir, numbatches, task, scorer_name, checkpoint_file):
 		"""Reconstructor constructor
 		Args:
 			conf: the scorer configuration as a dictionary
@@ -34,7 +34,7 @@ class SdrSnrNoiseScorer(scorer.Scorer):
 			numbatches: the number of batches to process
 		"""
 
-		super(SdrSnrNoiseScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches, task)
+		super(SdrSnrNoiseScorer, self).__init__(conf, evalconf, dataconf, rec_dir, numbatches, task, scorer_name, checkpoint_file)
 
 		# get the original noise signal reader
 		noise_names = conf['noise'].split(' ')
