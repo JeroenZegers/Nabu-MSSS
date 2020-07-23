@@ -209,6 +209,11 @@ want to use it for.
 
 ## Step-by-step procedure to create your first model
 
+### Prior stuff
+- put the Nabu directory in your python path
+
+### Data creation
+
 
 ## Acknowledgments
 This work is part of a research project funded by the SB PhD grant of the Research Foundation Flanders 

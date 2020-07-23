@@ -12,8 +12,6 @@ sweeps
 config/recipes_Jeroen*/*
 config/recipes_Pieter
 config/templates_Pieter
-nabu/postprocessing/scorers/pesq
-nabu/postprocessing/scorers/nussl
 nabu/neuralnetworks/trainers/task_trainer.py
 nabu/neuralnetworks/evaluators/evaluator.py
 nabu/neuralnetworks/evaluators/loss_evaluator.py
