@@ -1,1 +1,0 @@
-model1_nodes = {n: {'inputs': [[int(dim) for dim in inp.get_shape() if dim.value != None] for inp in val.inputs._inputs if inp.get_shape().ndims>0], 'outputs': [[int(dim) for dim in outp.get_shape() if dim.value != None] for outp in val.outputs if outp.get_shape().ndims>0]} for n, val in self.graph._nodes_by_name.iteritems()}

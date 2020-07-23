@@ -46,3 +46,6 @@ all_spk_counts*
 *.json
 *delete_straks*
 usefull_tf_stuff.txt
+find_ivecs_from_tf_graph.txt
+doxygen.cfg
+get_model_nodes.txt
