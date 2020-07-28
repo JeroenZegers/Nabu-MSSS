@@ -41,10 +41,11 @@ You can find more information about models
     - task_1: Configuration specific to the first traintask.
         - loss_type: The loss type to use, which is defined in loss.cfg
         - inputs: A space separated list of the names that will be used for the inputs
-        - outputs: A space separated list of the names that will be used for the outputs
+        - outputs: A space separated list of the names that will be used for the outputs. Note that the outputnames
+        should match those in your loss_computer(s) (and reconstructors for evaluation).
         - nodes: A space separated list of the names that will be used for the nodes to build the models.
         - node_1_inputs: inputs to node_1, can be from *inputs* or from *nodes*
-        - node_1_model: the model to use fornode_1, refers to the model names in model.cfg
+        - node_1_model: the model to use for node_1, refers to the model names in model.cfg
         - node_2_inputs: ...
         - node_2_model: ...
         - input_1: name of the train input for input_1, referring to a section in database.conf

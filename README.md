@@ -212,9 +212,12 @@ We'll be using the *config/recipes/papers/ICASSP2018/MERL_DC_2spk* recipe to bui
 
 ### Prior stuff
 - Put the Nabu directory in your python path
+- Install TensorFlow v1.8.0
+- Use Python2.6
 
 ### Data creation
-- Create datafiles for the train set, the validation set and the test set.
+- Create datafiles for the train set, the validation set and the test set. If you have a dataset where only the mixtures
+are available, but the target signals, see section *Separating mixtures without available targets*.
     - the mix_wav.scp file which is of the form
         ```
         mix_1_name path_to_mix1.wav
@@ -238,8 +241,8 @@ We'll be using the *config/recipes/papers/ICASSP2018/MERL_DC_2spk* recipe to bui
         ```
 - Modify the *datafiles* fields in *config/recipes/papers/ICASSP2018/MERL_DC_2spk/database.conf* such that they point to
  your datafiles.
-- In *config/recipes/papers/ICASSP2018/MERL_DC_2spk/database.conf*, change 
-*/esat/spchtemp/scratch/jzegers/dataforTF/MERL_segmented/* in the *store_dir* fields to *path_to_your_datastore_dir* 
+- In the same *database.conf*, change */esat/spchtemp/scratch/jzegers/dataforTF/MERL_segmented/* in the *store_dir* 
+fields to *path_to_your_datastore_dir* 
     
 - Run the following:
 ```
@@ -251,17 +254,68 @@ If data creation was successful the following files should exist
 *path_to_your_datastore_dir/{features,targets,usedbins}/{tr,dev,test}/{100,full}/pointers.scp*
 
 ### Model training
-- Run the following:
+- Once all data has been prepared, you can run the following:
 ```
 run train --test_when_finished=False --computing=condor --expdir=your_nabu_experiment_directory/MERL_DC_2spk --recipe=config/recipes/papers/ICASSP2018/MERL_DC_2spk
 ```
 ### Model evaluation
-- Run the following:
+- Once the model has finished training, you can run the following:
 ```
-run test --test_when_finished=False --computing=condor --expdir=your_nabu_experiment_directory/MERL_DC_2spk --recipe=config/recipes/papers/ICASSP2018/MERL_DC_2spk
+run test --computing=condor --expdir=your_nabu_experiment_directory/MERL_DC_2spk --recipe=config/recipes/papers/ICASSP2018/MERL_DC_2spk
 ```
+You can add the option *--allow_early_testing=True* to the above command to start testing before the model has finished
+trainig (Note however, that typically in *test_evaluator.cfg* the requested segment_lenth is set to *full*, thus the 
+ model should have been atleast validated once during training on *full* before this option will work).
+ 
 The separation score can then be observed in *your_nabu_experiment_directory/MERL_DC_2spk/test/outputs/main_task_2spk.out*
 and in *your_nabu_experiment_directory/MERL_DC_2spk/test/results_task_2spk_sdr_summary.json*
+
+### Separating mixtures without available targets
+Should you simply want to separate some mixtures, but do not have the original clean speaker signals available, you can 
+do the following:
+- Create the mix_wav.scp file as stated in the *Data creation* section.
+- In database.conf:
+    - Duplicate the *testspec*, *testusedbins* and *testorgmix* sections and change the names to *your_dataset_namespec*
+     ,*your_dataset_nameusedbins* and *your_dataset_nameorgmix*.
+    - Modify the *datafiles* and *store_dir* fields in *your_dataset_namespec* and *your_dataset_nameusedbins* to your 
+    own paths as explained in the *Data creation* section.
+- In test_evaluator.conf:
+    - Duplicate the *task_2spk* section and change the name to *task_your_dataset*
+    - In the *evaluator* section, modify the *tasks* field to *tasks = task_your_dataset*
+    - In the new *task_your_dataset* section:
+        - Modify the *requested_utts* to your dataset size (and possibly the *batch_size* as well
+        - Modify the *loss_type* field to *loss_type = dummy*
+        - Modify the *features* field to *features = your_dataset_namespec*
+        - Modify the *targets* field to *targets = dummy_targets*
+        - Modify the *binary_targets* field to *dummy_targets = your_dataset_namespec*
+        - Remove the *usedbins* field
+- In reconstructor.conf
+    - Duplicate the *task_2spk* section and change the name to *task_your_dataset*
+    - Modify the *org_mix* field to *org_mix = your_dataset_nameorgmix*
+    - Modify the *usedbins* field to *usedbins = your_dataset_nameusedbins*
+- In loss.conf: add a new section *dummy* and in this section add the following field *loss_type = dummy*.
+- Run the command test command:
+    ```
+    run test --computing=condor --expdir=your_nabu_experiment_directory/MERL_DC_2spk --recipe=config/recipes/papers/ICASSP2018/MERL_DC_2spk
+    ```
+- At some point the command will return an error because it tries to score the reconstructions, but it does not have the
+clean target signals. However, the reconstructions (single speaker signal estimates) should be available in 
+*your_nabu_experiment_directory/MERL_DC_2spk/test/reconstructions/task_your_dataset*. The error, which can be ignored,
+would look something like this
+    ```
+    Traceback (most recent call last):
+      File "/users/spraak/jzegers/Documents/Nabu-SS_from_scratch/nabu/scripts/prepare_test.py", line 258, in <module>
+        tf.app.run()
+      File "/users/spraak/spch/prog/spch/tensorflow-1.8.0/lib/python2.7/site-packages/tensorflow/python/platform/app.py", line 126, in run
+        _sys.exit(main(argv))
+      File "/users/spraak/jzegers/Documents/Nabu-SS_from_scratch/nabu/scripts/prepare_test.py", line 229, in main
+        test(expdir=test_expdir_run, test_model_checkpoint=test_model_checkpoint, task=task)
+      File "/users/spraak/jzegers/Documents/Nabu-SS_from_scratch/nabu/scripts/test.py", line 285, in test
+        task_scorer_cfg = dict(scorer_cfg.items(scorer_name))
+      File "/users/spraak/spch/prog/packages/python/lib/python2.7/ConfigParser.py", line 642, in items
+        raise NoSectionError(section)
+    ConfigParser.NoSectionError: No section: 'task_your_dataset'
+    ```
 
 ## Acknowledgments
 This work is part of a research project funded by the SB PhD grant of the Research Foundation Flanders 
