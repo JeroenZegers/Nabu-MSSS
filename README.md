@@ -69,6 +69,7 @@ Multiple configuration files in the recipe are used during training:
 - model.cfg: model parameters
 - trainer.cfg: training parameters
 - validation_evaluator.cfg: validation parameters
+- loss.cfg: loss function parameters
 
 You can find more information about models
 [here](nabu/neuralnetworks/models/README.md), about trainers
@@ -213,11 +214,11 @@ We'll be using the *config/recipes/papers/ICASSP2018/MERL_DC_2spk* recipe to bui
 ### Prior stuff
 - Put the Nabu directory in your python path
 - Install TensorFlow v1.8.0
-- Use Python2.6
+- Use Python2.7
 
 ### Data creation
 - Create datafiles for the train set, the validation set and the test set. If you have a dataset where only the mixtures
-are available, but the target signals, see section *Separating mixtures without available targets*.
+are available and not the target signals, see section *Separating mixtures without available targets*.
     - the mix_wav.scp file which is of the form
         ```
         mix_1_name path_to_mix1.wav
@@ -265,7 +266,7 @@ run test --computing=condor --expdir=your_nabu_experiment_directory/MERL_DC_2spk
 ```
 You can add the option *--allow_early_testing=True* to the above command to start testing before the model has finished
 trainig (Note however, that typically in *test_evaluator.cfg* the requested segment_lenth is set to *full*, thus the 
- model should have been atleast validated once during training on *full* before this option will work).
+ model should have been at least validated once during training on *full* before this option will work).
  
 The separation score can then be observed in *your_nabu_experiment_directory/MERL_DC_2spk/test/outputs/main_task_2spk.out*
 and in *your_nabu_experiment_directory/MERL_DC_2spk/test/results_task_2spk_sdr_summary.json*
@@ -275,10 +276,10 @@ Should you simply want to separate some mixtures, but do not have the original c
 do the following:
 - Create the mix_wav.scp file as stated in the *Data creation* section.
 - In database.conf:
-    - Duplicate the *testspec*, *testusedbins* and *testorgmix* sections and change the names to *your_dataset_namespec*
-     ,*your_dataset_nameusedbins* and *your_dataset_nameorgmix*.
-    - Modify the *datafiles* and *store_dir* fields in *your_dataset_namespec* and *your_dataset_nameusedbins* to your 
-    own paths as explained in the *Data creation* section.
+    - Duplicate the *testspec*, *testusedbins* and *testorgmix* sections and change the names to *your_dataset_namespec*,
+     *your_dataset_nameusedbins* and *your_dataset_nameorgmix*.
+    - Modify the *datafiles* and *store_dir* fields in *your_dataset_namespec*, *your_dataset_nameusedbins*, 
+     *your_dataset_nameorgmix* to your own paths as explained in the *Data creation* section.
 - In test_evaluator.conf:
     - Duplicate the *task_2spk* section and change the name to *task_your_dataset*
     - In the *evaluator* section, modify the *tasks* field to *tasks = task_your_dataset*
